@@ -74,19 +74,17 @@
     const stats = await Promise.all(list.map(async (inv) => M.stats(await H.store.listRsvps(inv.id), await H.store.listGuests(inv.id), inv.events)));
     H.render(`
       <section class="hero-home">
-        <div>
-          <h1>Create an invitation in minutes, <em>share it in seconds.</em></h1>
-          <p>Design a beautiful digital invitation for any occasion, send personal links on WhatsApp, and track every RSVP from one dashboard.</p>
+        <div class="hh-panel">
+          <p class="hh-eyebrow"><span aria-hidden="true"></span>InviteX</p>
+          <h1>Invitations that feel <em>personal</em></h1>
+          <span class="hh-rule" aria-hidden="true"></span>
+          <p>Design a keepsake-worthy digital invitation for any occasion, send each guest their own link on WhatsApp, and follow every RSVP from one dashboard.</p>
           <div class="row" style="margin-top:1rem">
             <a class="btn gold lg" href="#/new">✨ Create invitation</a>
-            ${list.length ? '' : '<button class="btn lg" id="loadSamples" style="background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.3)">Load 4 sample invitations</button>'}
+            ${list.length ? '' : '<button class="btn lg" id="loadSamples" style="background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.3)">Load 5 sample invitations</button>'}
           </div>
         </div>
-        <div class="hero-art" aria-hidden="true">
-          <div class="mini-phone" style="background:linear-gradient(#3b0a16,#22050c);color:#d4a557"><div>TOGETHER WITH<br>THEIR FAMILIES<b style="font-family:'Cormorant Garamond'">Aarav &amp; Diya</b>25 · NOV</div></div>
-          <div class="mini-phone" style="background:linear-gradient(#f4e4dc,#e9cfc4);color:#7a1f2e"><div>हिमाचली<b style="font-family:'Noto Sans Devanagari'">धाम</b>Family Dham</div></div>
-          <div class="mini-phone" style="background:linear-gradient(#0b1530,#050a19);color:#4cc9f0"><div>INNOVATE<b>SUMMIT 2026</b>Bengaluru</div></div>
-        </div>
+        <div class="hh-wall" aria-hidden="true">${(() => { const th = IXT.THEMES['framed-keepsake']; const art = IXT.motif(th.motif, th.palettes[0]).framed; return `<div class="hh-frame"><div class="hh-box"><div class="hh-card"><div class="hh-ring">${art.ring}</div><div class="hh-bq">${art.bouquet}</div><b>Meera &amp; Arjun</b><small>Together with our families</small><i>6 February 2027</i></div></div></div>`; })()}</div>
       </section>
       <div class="row between" style="margin-bottom:.8rem"><h2 style="margin:0">My invitations <span class="muted small">(${list.length})</span></h2>
         <div class="row">${list.length ? '<button class="btn sm" id="loadSamples">+ Sample invitations</button>' : ''}<a class="btn primary sm" href="#/new">+ New invitation</a></div></div>

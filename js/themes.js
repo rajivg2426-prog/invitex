@@ -134,6 +134,15 @@
         { name: 'Earth', bg: '#f7f1e8', bg2: '#eadfcd', surface: 'rgba(90,60,30,0.06)', text: '#3c2a17', muted: '#7a6650', accent: '#8d5a2b', accent2: '#4e7d4b', onAccent: '#fff' },
       ],
     },
+    'framed-keepsake': {
+      name: 'Framed Keepsake', motif: 'keepsake', opener: 'fade',
+      fonts: { script: 'Great Vibes', head: 'Cormorant Garamond', body: 'Cormorant Garamond' },
+      palettes: [
+        { name: 'Maroon & Walnut', bg: '#7b1e2b', bg2: '#5a1420', surface: 'rgba(255,240,225,0.07)', text: '#f8ece2', muted: '#e3c4b6', accent: '#e6c48c', accent2: '#c98a8f', gold: '#f3d58e', onAccent: '#4a0f19', paper: '#fbf6ee', ink: '#7a2d36', wood: '#6b4632', wall: '#efe6db' },
+        { name: 'Emerald & Oak', bg: '#1f4a3c', bg2: '#123128', surface: 'rgba(240,250,240,0.07)', text: '#f1efe4', muted: '#c9d4c2', accent: '#e2c385', accent2: '#9cb59a', gold: '#f0d48a', onAccent: '#0e2a21', paper: '#fbf8f0', ink: '#24503f', wood: '#7a5a3a', wall: '#ece8dc' },
+        { name: 'Midnight & Teak', bg: '#1d2440', bg2: '#11162b', surface: 'rgba(230,235,255,0.07)', text: '#eef0f8', muted: '#c0c5dc', accent: '#e4c78f', accent2: '#a9a3cf', gold: '#f2d79a', onAccent: '#11162b', paper: '#fbf8f2', ink: '#2c3561', wood: '#5e3f2b', wall: '#e9e6e0' },
+      ],
+    },
     'minimal-ivory': {
       name: 'Minimal Ivory (blank)', motif: 'minimal', opener: 'fade',
       fonts: { script: 'Cormorant Garamond', head: 'Cormorant Garamond', body: 'Inter' },
@@ -303,6 +312,28 @@
       <path d="M0 140 Q 80 110 150 135 T 300 130 V160 H0Z" fill="${p.accent2}" opacity=".7"/>
       <path d="M60 50 q6 -5 12 0 q6 -5 12 0 M200 35 q5 -4 10 0 q5 -4 10 0 M230 60 q4 -3 8 0 q4 -3 8 0" stroke="${p.text}" stroke-width="1.5" fill="none" opacity=".6"/></svg>`;
     return { hero, corner: '', divider: dividerSVG(p.accent) };
+  };
+  // Framed keepsake: split hero with a cream card in a wooden shadow-box frame.
+  // Hand-drawn style line art (rings + bouquet with ribbon) in the palette's ink colour.
+  M.keepsake = (p) => {
+    const ink = p.ink || p.accent;
+    const ring = `<svg viewBox="0 0 120 70" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" fill="none" stroke="${ink}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <ellipse cx="46" cy="44" rx="22" ry="20"/><ellipse cx="46" cy="44" rx="17" ry="15" opacity=".55"/>
+      <ellipse cx="74" cy="44" rx="22" ry="20"/><ellipse cx="74" cy="44" rx="17" ry="15" opacity=".55"/>
+      <path d="M38 22 l8 -10 h12 l8 10 l-14 10 z"/><path d="M46 12 l6 10 l6 -10 M38 22 h28"/>
+      <path d="M96 14 v8 M92 18 h8 M24 10 v6 M21 13 h6" stroke-width="1.6" opacity=".7"/></svg>`;
+    const bloom = (x, y, r) => `<g transform="translate(${x} ${y})"><path d="M0 ${-r} C ${r * .9} ${-r} ${r} ${-r * .1} ${r * .55} ${r * .55} C ${r * .2} ${r} ${-r * .6} ${r * .95} ${-r * .9} ${r * .3} C ${-r * 1.1} ${-r * .4} ${-r * .6} ${-r} 0 ${-r}Z"/><path d="M${-r * .45} ${-r * .05} c ${r * .1} ${-r * .55} ${r * .8} ${-r * .55} ${r * .7} ${r * .05} c ${-r * .1} ${r * .45} ${-r * .65} ${r * .4} ${-r * .55} ${-r * .05} c ${r * .1} ${-r * .25} ${r * .35} ${-r * .2} ${r * .3} 0"/></g>`;
+    const lf = (x, y, l, a) => `<path transform="translate(${x} ${y}) rotate(${a})" d="M0 0 Q ${l * .5} ${-l * .32} ${l} 0 Q ${l * .5} ${l * .32} 0 0 M0 0 L ${l * .85} 0"/>`;
+    const bouquet = `<svg viewBox="0 0 200 230" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" fill="none" stroke="${ink}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M100 150 L84 210 M100 150 L96 214 M100 150 L108 212 M100 150 L118 206"/>
+      <path d="M100 150 C 90 120 70 100 58 78 M100 150 C 100 115 100 90 100 62 M100 150 C 112 120 130 100 142 80 M100 150 C 85 128 60 120 40 112 M100 150 C 118 128 140 122 160 114"/>
+      ${bloom(100, 52, 20)}${bloom(60, 72, 16)}${bloom(140, 74, 16)}${bloom(80, 96, 12)}${bloom(122, 98, 12)}${bloom(38, 106, 10)}${bloom(162, 108, 10)}
+      ${lf(66, 120, 30, -150)}${lf(134, 122, 30, -30)}${lf(52, 92, 22, -120)}${lf(150, 92, 22, -60)}${lf(92, 124, 18, -110)}${lf(110, 124, 18, -70)}
+      <circle cx="118" cy="40" r="2.5"/><circle cx="82" cy="36" r="2"/><circle cx="48" cy="58" r="2"/><circle cx="154" cy="60" r="2"/>
+      <path d="M100 160 C 86 150 66 150 64 160 C 62 170 84 170 100 160 Z M100 160 C 114 150 134 150 136 160 C 138 170 116 170 100 160 Z"/>
+      <circle cx="100" cy="160" r="4"/>
+      <path d="M97 163 C 88 180 76 196 60 206 M60 206 l-4 10 M60 206 l10 4 M103 163 C 114 182 128 198 146 204 M146 204 l2 10 M146 204 l-10 4"/></svg>`;
+    return { corner: '', hero: '', divider: dividerSVG(p.accent), framed: { ring, bouquet } };
   };
   M.minimal = (p) => ({ corner: '', hero: '', divider: dividerSVG(p.accent) });
 

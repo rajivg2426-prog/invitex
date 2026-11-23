@@ -1,4 +1,4 @@
-/* Sample invitations: Himachali Dham, Wedding, Birthday, Corporate conference. window.IXSamples */
+/* Sample invitations: Himachali Dham, Wedding, Framed Keepsake wedding, Birthday, Corporate conference. window.IXSamples */
 (function () {
   'use strict';
   const IX = window.IX, M = IX.model, art = (...a) => IXT.sampleArt(...a);
@@ -139,8 +139,41 @@
     return inv;
   }
 
+  function keepsake() {
+    const inv = M.newInvitation('wedding', 'framed-keepsake');
+    const d = inDays(75);
+    const v = { venue: 'Umaid Bagh Lawns', address: 'Circuit House Road', city: 'Jodhpur, Rajasthan', pin: '342006' };
+    Object.assign(inv, {
+      slug: 'meera-arjun-wedding', languages: ['en', 'hi', 'pa'], defaultLang: 'en', paletteIndex: 0, layout: 'landscape',
+      dressCode: 'Pastels & ivory', contact: { name: 'Kavya Rathore (Meera\'s sister)', phone: '+91 98290 00000' },
+      text: {
+        en: T({ title: 'Meera & Arjun', subtitle: 'A promise, a celebration, a lifetime together', familyName: 'With joy in our hearts, we are getting married', hostName: 'The Rathore & Malhotra Families',
+          welcome: 'A small card for a big day. We have kept a place for you beside us – come share the laughter, the vows and a very happy evening in Jodhpur.',
+          message: '<p>With the blessings of our families,</p><p><b>Meera Rathore</b> and <b>Arjun Malhotra</b> warmly invite you to celebrate their wedding.</p><p>It would mean the world to us to have you there as we begin this new chapter.</p>',
+          instructions: 'The ceremony begins on time – please arrive 30 minutes early.\nShuttles run from Raika Bagh station every half hour.',
+          thankyou: 'Thank you for being a part of our forever.' }),
+        hi: T({ title: 'मीरा और अर्जुन', subtitle: 'एक वादा, एक उत्सव, जीवन भर का साथ', familyName: 'खुशियों भरे दिल से, हम विवाह बंधन में बंध रहे हैं', hostName: 'राठौड़ एवं मल्होत्रा परिवार',
+          welcome: 'एक छोटा सा कार्ड, एक बड़े दिन के लिए। हमने अपने पास आपके लिए जगह रखी है – जोधपुर में हँसी, फेरों और खुशियों भरी शाम में ज़रूर शामिल हों।',
+          message: '<p>परिवारों के आशीर्वाद से,</p><p><b>मीरा राठौड़</b> और <b>अर्जुन मल्होत्रा</b> आपको अपने विवाह उत्सव में सप्रेम आमंत्रित करते हैं।</p><p>इस नए सफ़र की शुरुआत में आपकी उपस्थिति हमारे लिए अनमोल होगी।</p>',
+          thankyou: 'हमारी कहानी का हिस्सा बनने के लिए धन्यवाद।' }),
+        pa: T({ title: 'ਮੀਰਾ ਅਤੇ ਅਰਜੁਨ', subtitle: 'ਇੱਕ ਵਾਅਦਾ, ਇੱਕ ਜਸ਼ਨ, ਉਮਰ ਭਰ ਦਾ ਸਾਥ', familyName: 'ਖ਼ੁਸ਼ੀਆਂ ਭਰੇ ਦਿਲ ਨਾਲ, ਸਾਡਾ ਵਿਆਹ ਹੋ ਰਿਹਾ ਹੈ', hostName: 'ਰਾਠੌੜ ਅਤੇ ਮਲਹੋਤਰਾ ਪਰਿਵਾਰ',
+          welcome: 'ਇੱਕ ਛੋਟਾ ਜਿਹਾ ਕਾਰਡ, ਇੱਕ ਵੱਡੇ ਦਿਨ ਲਈ। ਅਸੀਂ ਆਪਣੇ ਕੋਲ ਤੁਹਾਡੇ ਲਈ ਥਾਂ ਰੱਖੀ ਹੈ – ਜੋਧਪੁਰ ਵਿੱਚ ਹਾਸੇ, ਲਾਵਾਂ ਅਤੇ ਖ਼ੁਸ਼ੀਆਂ ਭਰੀ ਸ਼ਾਮ ਵਿੱਚ ਜ਼ਰੂਰ ਆਇਓ।',
+          thankyou: 'ਸਾਡੀ ਕਹਾਣੀ ਦਾ ਹਿੱਸਾ ਬਣਨ ਲਈ ਧੰਨਵਾਦ।' }),
+      },
+      events: [
+        ev({ name: 'Sangeet', date: inDays(74), start: '19:00', end: '23:00', venue: 'Ajit Bhawan Courtyard', address: 'Near Circuit House', city: 'Jodhpur, Rajasthan', pin: '342006', dressCode: 'Festive' }),
+        ev(Object.assign({ name: 'Wedding Ceremony', date: d, start: '18:30', end: '23:30', dressCode: 'Pastels & ivory' }, v)),
+      ],
+    });
+    inv.mainEventId = inv.events[1].id;
+    inv.design.sections.hosts = false;
+    inv.media.gallery = [1, 2, 3].map((i) => ({ ref: art(i % 2 ? 'couple' : 'family', '#7b1e2b', '#e6c48c', 'Photo ' + i), caption: '' }));
+    inv.settings.rsvpDeadline = inDays(60); inv.settings.maxPerInvite = 4;
+    return inv;
+  }
+
   async function create(store) {
-    const list = [dham(), wedding(), birthday(), corporate()];
+    const list = [dham(), wedding(), keepsake(), birthday(), corporate()];
     for (const inv of list) {
       let slug = inv.slug, n = 2;
       while (!(await store.slugAvailable(slug, inv.id))) slug = inv.slug + '-' + n++;
@@ -155,5 +188,5 @@
     }
     return list;
   }
-  window.IXSamples = { create, dham, wedding, birthday, corporate };
+  window.IXSamples = { create, dham, wedding, keepsake, birthday, corporate };
 })();

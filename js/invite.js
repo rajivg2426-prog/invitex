@@ -90,6 +90,7 @@
     const set = (k, v) => root.style.setProperty(k, v);
     set('--bg', p.bg); set('--bg2', p.bg2); set('--surface', p.surface); set('--text', p.text); set('--muted', p.muted);
     set('--accent', p.accent); set('--accent2', p.accent2); set('--gold', p.gold || p.accent); set('--on-accent', p.onAccent || '#fff');
+    set('--paper', p.paper || '#fbf6ee'); set('--ink', p.ink || p.accent); set('--wood', p.wood || '#6b4632'); set('--wall', p.wall || '#efe6db');
     set('--f-script', IXT.fontStack(d.fonts.script, 'script')); set('--f-head', IXT.fontStack(d.fonts.head, 'head')); set('--f-body', IXT.fontStack(d.fonts.body, 'body'));
     set('--scale', d.fontScale || 1);
     set('--gap', { compact: '2.2rem', comfortable: '3.4rem', airy: '4.8rem' }[d.spacing] || '3.4rem');
@@ -164,6 +165,53 @@
   const sec = (id, inner, cls = '') => `<section class="ix-sec ix-sec-${id} reveal ${cls}" id="sec-${id}" aria-labelledby="h-${id}">${inner}</section>`;
   const h2 = (id, text) => `<h2 class="ix-h2" id="h-${id}">${esc(text)}</h2>`;
 
+  // "Framed Keepsake": split hero – coloured panel with serif text, and a cream card in a wooden shadow-box frame
+  function framedHero(ctx, ev, sub, host, cover) {
+    const { inv, motif } = ctx, tz = inv.timezone;
+    const welcome = M.txt(inv, S.lang, 'welcome');
+    const short = welcome.length > 200 ? welcome.slice(0, 197).replace(/\s+\S*$/, '') + '…' : welcome;
+    const cat = IXT.CATEGORIES.find((c) => c.id === inv.category) || {};
+    const eyebrow = (cat.occasion && (cat.occasion[S.lang] || cat.occasion.en)) || t('invitation');
+    // heading: subtitle with its last word in italics, as in a printed card
+    const words = (sub || ctx.title).trim().split(/\s+/);
+    const last = words.length > 1 ? words.pop() : '';
+    const heading = `${esc(words.join(' '))}${last ? ` <em>${esc(last)}</em>` : ''}`;
+    let date = '', time = '';
+    if (ev) {
+      const d = IX.zonedToUtc(ev.date, ev.start || '12:00', tz);
+      date = new Intl.DateTimeFormat(IX.locale(S.lang), { day: 'numeric', month: 'long', year: 'numeric', timeZone: tz }).format(d);
+      time = ev.start ? IX.fmtTime(ev.date, ev.start, tz, S.lang) : '';
+    }
+    const rsvpOn = inv.design.sections.rsvp && !isPrint;
+    const sparkles = Array.from({ length: 14 }, (_, i) => `<i style="--x:${(i * 37) % 100}%;--y:${(i * 53 + 11) % 100}%;--d:${(i % 5) * 0.7}s;--s:${3 + (i % 3) * 2}px"></i>`).join('');
+    return `<section class="ix-hero ix-hero-framed" id="sec-opening" aria-label="${esc(ctx.title)}">
+      <div class="kf-panel">
+        <p class="kf-eyebrow"><span aria-hidden="true"></span>${esc(eyebrow)}</p>
+        ${S.guest ? `<p class="kf-greet">${esc(t('dear'))} ${esc(S.guest.name)},</p>` : ''}
+        <p class="kf-heading">${heading}</p>
+        <span class="kf-rule" aria-hidden="true"></span>
+        ${short ? `<p class="kf-text">${esc(short)}</p>` : ''}
+        ${ev && ev.venue ? `<p class="kf-venue">${esc(ev.venue)}${ev.city ? ` · ${esc(ev.city)}` : ''}</p>` : ''}
+        ${url(inv.media.voice) && !isPrint ? `<button type="button" class="ix-btn ix-btn-ghost ix-voice-btn" data-voice>▶ ${esc(t('playVoice'))}</button>` : ''}
+      </div>
+      <div class="kf-wall">
+        <div class="kf-frame">
+          <div class="kf-box">
+            <div class="kf-sparkles" aria-hidden="true">${sparkles}</div>
+            <div class="kf-card">
+              <div class="kf-ring" aria-hidden="true">${motif.framed.ring}</div>
+              ${cover ? `<div class="kf-photo"><img src="${esc(cover)}" alt="" loading="eager" data-fb="parent"></div>` : `<div class="kf-bouquet" aria-hidden="true">${motif.framed.bouquet}</div>`}
+              <h1 class="kf-names">${esc(ctx.title)}</h1>
+              ${host ? `<p class="kf-line">${esc(host)}</p>` : ''}
+              ${date ? `<p class="kf-date">${esc(date)}${time ? ` · ${esc(time)}` : ''}</p>` : ''}
+              ${rsvpOn ? `<a class="kf-pill" href="#sec-rsvp">${esc(t('rsvp'))}</a>` : ''}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>`;
+  }
+
   const SECTIONS = {
     opening(ctx) {
       const { inv, motif } = ctx;
@@ -178,6 +226,7 @@
         const f = (o) => new Intl.DateTimeFormat(IX.locale(S.lang), { ...o, timeZone: tz }).format(d);
         return `<div class="ix-datebar"><span>${esc(f({ weekday: 'long' }))}</span><span class="ix-datebig"><small>${esc(f({ month: 'short' }))}</small><b>${esc(f({ day: 'numeric' }))}</b><small>${esc(f({ year: 'numeric' }))}</small></span><span>${esc(ev.start ? IX.fmtTime(ev.date, ev.start, tz, S.lang) : '')}</span></div>`;
       })() : '';
+      if (motif.framed) return framedHero(ctx, ev, sub, host, cover);
       return `<section class="ix-hero" id="sec-opening" aria-label="${esc(ctx.title)}">
         ${deco(ctx)}
         ${motif.hero && !cover ? `<div class="ix-hero-art" aria-hidden="true">${motif.hero}</div>` : ''}

@@ -88,15 +88,22 @@ input[type=range] { width: 100%; accent-color: var(--plum2); }
 .seg label:has(input:focus-visible) { outline: 3px solid var(--gold); outline-offset: -3px; }
 
 /* home */
-.hero-home { display: grid; grid-template-columns: 1.2fr 1fr; gap: 1.5rem; align-items: center; background: radial-gradient(120% 120% at 0 0, #4b1d3a, #2b1022); color: #fff; border-radius: 22px; padding: 2rem; margin-bottom: 1.5rem; overflow: hidden; position: relative; }
-.hero-home h1 { color: #fff; font-size: clamp(1.9rem, 5vw, 2.8rem); }
-.hero-home h1 em { color: var(--gold); font-style: normal; }
-.hero-home p { color: #e9d9e4; max-width: 34rem; }
-.hero-art { display: flex; gap: .8rem; justify-content: center; }
-.mini-phone { width: 120px; aspect-ratio: 9/17; border-radius: 18px; border: 3px solid #120710; box-shadow: 0 20px 40px rgba(0,0,0,.4); overflow: hidden; display: grid; place-items: center; text-align: center; padding: .6rem; font-size: 11px; }
-.mini-phone:nth-child(2) { transform: translateY(-14px); }
-.mini-phone b { display: block; font-size: 18px; line-height: 1.1; margin: .3rem 0; }
-@media (max-width: 720px) { .hero-home { grid-template-columns: 1fr; padding: 1.4rem; } .hero-art { display: none; } }
+.hero-home { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); background: #efe6db; border-radius: 22px; margin-bottom: 1.5rem; overflow: hidden; position: relative; box-shadow: var(--sh); }
+.hh-panel { background: linear-gradient(160deg, #7b1e2b, #5a1420); color: #fff; padding: 2.2rem 2rem; display: flex; flex-direction: column; justify-content: center; }
+.hh-eyebrow { display: flex; align-items: center; gap: .6rem; margin: 0 0 .8rem; font-size: 11px; font-weight: 600; letter-spacing: .28em; text-transform: uppercase; color: #e3c4b6; }
+.hh-eyebrow span { width: 26px; height: 1px; background: currentColor; }
+.hero-home h1 { color: #f8ece2; font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 500; font-size: clamp(2rem, 5vw, 3rem); line-height: 1.08; margin: 0; }
+.hero-home h1 em { color: #e6c48c; font-style: italic; }
+.hh-rule { display: block; width: 44px; height: 1px; background: #e3c4b6; margin: 1.1rem 0 .9rem; }
+.hero-home p { color: #f1dcd3; max-width: 34rem; margin: 0; }
+.hh-wall { display: grid; place-items: center; padding: 1.6rem; background: radial-gradient(120% 90% at 70% 20%, #fff, #efe6db 55%, #d9cdbf); }
+.hh-frame { width: 230px; padding: 11px; border-radius: 3px; background: repeating-linear-gradient(92deg, rgba(0,0,0,.06) 0 2px, transparent 2px 7px), linear-gradient(135deg, #9a7660, #6b4632 40%, #47291a); box-shadow: 0 22px 40px -10px rgba(40,20,10,.55); }
+.hh-box { padding: 14px 14px 22px; background: linear-gradient(#1d1612, #2a211b); box-shadow: inset 0 8px 18px rgba(0,0,0,.6); }
+.hh-card { background: #fbf6ee; color: #7a2d36; text-align: center; padding: .8rem .7rem 1rem; box-shadow: 0 12px 20px rgba(0,0,0,.45); display: grid; justify-items: center; }
+.hh-ring { width: 46px; } .hh-bq { width: 110px; } .hh-ring svg, .hh-bq svg { width: 100%; height: auto; display: block; }
+.hh-card b { font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 500; font-size: 20px; margin-top: .2rem; }
+.hh-card small { font-size: 11px; opacity: .85; } .hh-card i { font-style: normal; font-size: 9px; letter-spacing: .18em; text-transform: uppercase; margin-top: .4rem; font-weight: 700; }
+@media (max-width: 720px) { .hero-home { grid-template-columns: 1fr; } .hh-panel { padding: 1.5rem 1.3rem; } .hh-wall { display: none; } }
 .inv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
 .inv-card { background: #fff; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: var(--sh); display: flex; flex-direction: column; }
 .inv-thumb { height: 120px; position: relative; display: flex; align-items: flex-end; padding: .8rem 1rem; color: #fff; }
@@ -277,3 +284,9 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 /* guest import preview */
 #impTbl tr.is-skip td { color: var(--muted); } #impTbl tr.is-skip .nm { text-decoration: line-through; } #impTbl tr.is-skip { background: #fdf1f1; }
 #impTbl .bad { color: #b3261e; font-weight: 600; } #impTbl .good { color: #1b7f4b; font-weight: 700; }
+
+/* Framed Keepsake thumbnail: maroon half + framed card on a wall */
+.sw-framed { position: absolute; inset: 0 0 0 42%; background: var(--w); display: grid; place-items: center; }
+.sw-framed i { display: grid; place-items: center; width: 52%; aspect-ratio: 3/4; padding: 4px; background: var(--wd); box-shadow: 0 6px 10px rgba(0,0,0,.35); }
+.sw-framed b { display: grid; place-items: center; width: 100%; height: 100%; background: var(--pp); }
+.sw-framed b { overflow: hidden; } .sw-framed svg { width: 78%; height: 78%; }

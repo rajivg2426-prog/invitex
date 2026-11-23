@@ -3,7 +3,7 @@
 This guide is for hosts. You do not need any technical knowledge.
 
 ## 1. Getting started
-Open InviteX and tap **✨ Create invitation**. To look around first, tap **Load 4 sample invitations**. You get a Himachali Dham, a wedding, a birthday and a business conference invitation that you can open, edit or duplicate.
+Open InviteX and tap **✨ Create invitation**. To look around first, tap **Load 5 sample invitations**. You get a Himachali Dham, two weddings (one in the new Framed Keepsake design), a birthday and a business conference invitation that you can open, edit or duplicate.
 
 A yellow strip at the top that says **Demo/Local mode** means everything is saved only in this browser. You can design, preview and test everything, but guests on their own phones can only open your link once your organisation has set up Production mode.
 

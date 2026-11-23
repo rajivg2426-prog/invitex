@@ -17,7 +17,7 @@ python3 -m http.server 8080        # or: npx serve .
 # open http://localhost:8080
 ```
 
-Click **Load 4 sample invitations** (Himachali Dham, Wedding, Birthday, Corporate conference) or **Create invitation**.
+Click **Load 5 sample invitations** (Himachali Dham, Wedding, Framed Keepsake wedding, Birthday, Corporate conference) or **Create invitation**.
 
 > Demo/Local mode stores everything in the browser's IndexedDB. The app says so on every screen. Guest links only work in the same browser, and RSVPs from other people's phones are **not** collected. To receive real RSVPs, set up Production mode (Supabase). It takes about 10 minutes: see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
@@ -52,7 +52,7 @@ js/app.js             Router, modals, home, settings, login, help
 js/wizard.js          6-step creation wizard with live preview
 js/dashboard.js       RSVP dashboard, guests & reminders, sharing, image card, check-in
 js/invite.js          Guest microsite renderer and RSVP form
-js/samples.js         The 4 sample invitations
+js/samples.js         The 5 sample invitations
 js/vendor/qrcode.js   QR generator (qrcode-generator 1.4.4, MIT, Kazuhiko Arase)
 supabase/schema.sql   Tables, RLS policies, guest RPC API, storage bucket & policies
 tests/e2e.js          Playwright end-to-end test of all 13 required journeys
