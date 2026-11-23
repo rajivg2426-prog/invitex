@@ -96,6 +96,12 @@ const ok = (t, cond, note = '') => { results.push([t, !!cond, note]); console.lo
   const waUrl = decodeURIComponent(wa.url()); await wa.close();
   const guestLink = (waUrl.match(/http:\/\/localhost\S+/) || [''])[0];
   ok('TEST 3: WhatsApp click-to-chat opens with personalised message', waUrl.startsWith('https://wa.me/919876543210?text=') && waUrl.includes('Dear Rakesh Verma') && waUrl.includes('Kabir & Ananya') && guestLink.includes('&g='), waUrl.slice(0, 120).replace(/\n/g, ' | '));
+  // personal link pre-fills the guest's name and number from the host's guest list
+  const pg = await ctx.newPage(); await pg.goto(guestLink); await pg.waitForSelector('#openBtn'); await pg.click('#openBtn');
+  await pg.waitForSelector('#r-phone', { state: 'attached' });
+  const pre = await pg.evaluate(() => [document.getElementById('r-name').value, document.getElementById('r-phone').value, document.getElementById('r-phone').autocomplete]);
+  ok('TEST 3c: personal link pre-fills guest name & mobile (autocomplete=tel)', pre[0] === 'Rakesh Verma' && pre[1].replace(/\D/g, '').endsWith('9876543210') && pre[2] === 'tel', JSON.stringify(pre));
+  await pg.close();
   await host.waitForSelector('text=WhatsApp/email opened');
   ok('TEST 3b: status shows "WhatsApp opened", not "delivered"', !(await host.content()).match(/delivered on/i));
 

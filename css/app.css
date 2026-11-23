@@ -274,3 +274,6 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .sugg .chip:hover{border-style:solid;border-color:var(--plum2)}
 .sugg .chip:focus-visible{outline:2px solid var(--plum2);outline-offset:2px}
 .sugg-q{margin:6px 0 10px;padding:8px 12px;border-left:3px solid var(--line);white-space:pre-wrap;word-break:break-word}
+/* guest import preview */
+#impTbl tr.is-skip td { color: var(--muted); } #impTbl tr.is-skip .nm { text-decoration: line-through; } #impTbl tr.is-skip { background: #fdf1f1; }
+#impTbl .bad { color: #b3261e; font-weight: 600; } #impTbl .good { color: #1b7f4b; font-weight: 700; }

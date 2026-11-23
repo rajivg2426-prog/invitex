@@ -227,9 +227,14 @@
           <div class="field"><label for="g-a">Max people for this guest</label><input class="input" id="g-a" name="allowed" type="number" min="0" max="50" placeholder="${D.inv.settings.maxPerInvite || 'no limit'}"></div></div>
           <p class="err" id="g-err" hidden></p>
           <button class="btn primary" type="submit">+ Add guest</button></form>
-        <div class="card stack"><h2>Bulk add</h2><p class="tiny muted">One guest per line: <code>Name, phone, max people</code> (phone and max optional).</p>
-          <textarea class="input" id="bulk" rows="5" placeholder="Rakesh Kumar, 9876543210, 4&#10;Meena Aunty, +91 91234 56789"></textarea>
-          <button class="btn" id="bulkAdd">Add all</button></div>
+        <div class="card stack"><h2>Import guest list</h2>
+          <p class="tiny muted">Upload an Excel (.xlsx) or CSV file with columns <b>Name, WhatsApp number, Email, Max people</b>. Only Name is required. You'll see a preview before anything is added.</p>
+          <div class="row"><label class="btn primary" for="impFile">📄 Upload Excel / CSV</label><input type="file" id="impFile" accept=".xlsx,.csv,.txt,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+            <button class="btn sm ghost" id="impTpl">⬇ Sample template</button></div>
+          <details><summary class="small">Or paste names</summary>
+            <p class="tiny muted">One guest per line: <code>Name, phone, max people</code> (phone and max optional). You can paste straight from Excel.</p>
+            <textarea class="input" id="bulk" rows="5" placeholder="Rakesh Kumar, 9876543210, 4&#10;Meena Aunty, +91 91234 56789"></textarea>
+            <button class="btn" id="bulkAdd">Preview &amp; add</button></details></div>
       </div>
       <div class="card stack">
         <div class="row between"><h2 style="margin:0">Invite list (${D.guests.length})</h2>
@@ -260,16 +265,45 @@
       if (!IX.validEmail(g.email)) { err.textContent = 'That email does not look valid.'; err.hidden = false; return; }
       await H.store.saveGuest(g); await reload(); guests(body); document.getElementById('g-n').focus();
     };
-    body.querySelector('#bulkAdd').onclick = async () => {
-      const lines = body.querySelector('#bulk').value.split('\n').map((l) => l.trim()).filter(Boolean);
-      let n = 0;
-      for (const l of lines) {
-        const [name, phone = '', allowed = ''] = l.split(',').map((s) => s.trim());
-        if (!name || name.length < 2) continue;
-        await H.store.saveGuest({ invitationId: D.inv.id, name, phone: phone && IX.validPhone(phone) ? phone : '', email: '', allowed: IX.int(allowed, 0) });
-        n++;
-      }
-      await reload(); guests(body); IX.toast(`${n} guests added`, 'ok');
+    // ---- import (Excel / CSV / paste) with a preview before anything is saved ----
+    const previewImport = async (list) => {
+      const key = (g) => (g.phone ? 'p' + IX.normPhone(g.phone) : 'n' + g.name.toLowerCase());
+      const seen = new Set(D.guests.map(key));
+      const rows = list.map((g) => {
+        let why = '';
+        if (!g.name || g.name.length < 2) why = 'No name';
+        else if (g.phone && !IX.validPhone(g.phone)) why = 'Number not valid';
+        else if (g.email && !IX.validEmail(g.email)) { g.email = ''; }
+        if (!why && seen.has(key(g))) why = 'Already in list';
+        if (!why) seen.add(key(g));
+        return { g, why };
+      });
+      const good = rows.filter((r) => !r.why);
+      if (!rows.length) return IX.toast('No guests found in that file', 'warn');
+      const ok = await H.modal({
+        title: `Import ${good.length} of ${rows.length} guests`, wide: true,
+        body: `<p class="small">Check the list below. Rows marked in red will be skipped. Nothing is added until you press Import.</p>
+          <div class="tbl-wrap" style="max-height:50vh;overflow:auto"><table class="tbl" id="impTbl"><thead><tr><th>Name</th><th>WhatsApp number</th><th>Email</th><th>Max</th></tr></thead><tbody>
+          ${rows.map((r) => `<tr class="${r.why ? 'is-skip' : ''}"><td><span class="nm">${r.why ? '' : '<span class="good">✓</span> '}${esc(r.g.name || '—')}</span>${r.why ? `<div class="tiny bad">✕ Skipped: ${esc(r.why)}</div>` : ''}</td><td>${esc(r.g.phone || '—')}</td><td>${esc(r.g.email || '')}</td><td class="num">${r.g.allowed || '—'}</td></tr>`).join('')}
+          </tbody></table></div>`,
+        actions: [{ label: 'Cancel', value: false }, { label: `Import ${good.length} guests`, value: true, cls: 'primary' }],
+      });
+      if (!ok || !good.length) return;
+      try { await H.store.saveGuests(good.map((r) => ({ invitationId: D.inv.id, name: r.g.name, phone: r.g.phone, email: r.g.email, allowed: Math.min(50, Math.max(0, r.g.allowed || 0)) }))); }
+      catch (ex) { return IX.toast('Import failed: ' + ex.message, 'bad'); }
+      await reload(); guests(body); IX.toast(`${good.length} guests added. Each has a personal link.`, 'ok');
+    };
+    body.querySelector('#impTpl').onclick = () => IX.download('invitex-guest-list-template.csv', IXImport.templateCSV(), 'text/csv;charset=utf-8');
+    body.querySelector('#impFile').onchange = async (e) => {
+      const f = e.target.files[0]; e.target.value = '';
+      if (!f) return;
+      if (f.size > 5 * 1024 * 1024) return IX.toast('File is too large (max 5 MB)', 'bad');
+      try { await previewImport(IXImport.toGuests(await IXImport.readFile(f))); } catch (ex) { IX.toast(ex.message, 'bad'); }
+    };
+    body.querySelector('#bulkAdd').onclick = () => {
+      const txt = body.querySelector('#bulk').value;
+      const rows = txt.includes('\t') ? txt.split(/\r?\n/).map((l) => l.split('\t')) : txt.split(/\r?\n/).map((l) => l.split(','));
+      previewImport(IXImport.toGuests(rows));
     };
     body.querySelector('#tpl').onchange = async (e) => { D.inv.shareTemplate = e.target.value; await saveInv(); IX.toast('Template saved', 'ok'); };
     body.querySelector('#rtpl').onchange = async (e) => { D.inv.reminderTemplate = e.target.value; await saveInv(); IX.toast('Template saved', 'ok'); };

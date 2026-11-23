@@ -50,11 +50,13 @@ Fonts, text size, colours (with *Reset to theme colours*), border style, photo s
 
 ## 3. Sharing
 Open **📊 RSVPs** for the invitation:
-- **Guests & reminders**: add guests one by one or paste a list (`Name, phone, max people`). Each guest gets a personal link that greets them by name and limits their party size. Tap **💬 WhatsApp**: WhatsApp opens with a personalised message ready, and **you press Send**. The status changes to "WhatsApp opened", because InviteX cannot know whether you actually sent the message. Edit the message wording under *Edit WhatsApp message templates*.
+- **Guests & reminders**: add guests one by one, paste a list (`Name, phone, max people`), or tap **📄 Upload Excel / CSV** to import a guest list (columns *Name, WhatsApp number, Email, Max people*; download the **Sample template** to start). A preview shows which rows will be added and which are skipped (no name, invalid number, or already in the list) before anything is saved. Each guest gets a personal link that greets them by name, fills in their name and mobile number on the RSVP form, and limits their party size. Tap **💬 WhatsApp**: WhatsApp opens with a personalised message ready, and **you press Send**. The status changes to "WhatsApp opened", because InviteX cannot know whether you actually sent the message. Edit the message wording under *Edit WhatsApp message templates*.
 - **Share**: one general link (anyone can RSVP), WhatsApp, email, the phone share sheet, **QR code** download, **image card** download (great for WhatsApp status) and **Print / Save as PDF**.
 
 ## 4. What guests see
 Guests tap **Open Invitation** and scroll through your invitation. They can switch language, play or pause music, add events to Google Calendar or Apple/Outlook (.ics), open directions in Google Maps, view the photos and RSVP.
+
+Guests who open a personal link find their name and number already filled in. On a general link, the phone's own autofill offers the guest's saved name and number in one tap, and a guest can tick *Remember my details on this phone* so the next invitation is pre-filled. Those details stay on the guest's phone only. (A website cannot read a phone's own number, so the guest always confirms it.)
 
 After replying, guests see a thank-you message, a **confirmation reference** (for example IVX-7K2M9Q), a **QR code** for check-in and a **private link** to change their answer later. If someone tries to reply twice with the same mobile number, they are asked to use their private link instead.
 
