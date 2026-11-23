@@ -313,6 +313,9 @@
     if (S.lastRsvp) return thanksHTML(S.lastRsvp);
     const ex = S.existing || {};
     const g = S.guest || {};
+    // Prefill order: the guest's own earlier RSVP > host's guest list (personal link) > details saved on this phone
+    const me = lsGet('ivx-me') || {};
+    const pre = { name: g.name || me.name || '', phone: g.phone || me.phone || '', email: g.email || me.email || '' };
     const limit = (S.guest && S.guest.allowed) || s.maxPerInvite || 0;
     const evs = (inv.events || []).filter((e) => e.name);
     const v = (k, d = '') => esc(ex[k] != null ? ex[k] : d);
@@ -320,10 +323,11 @@
     return `
       ${s.rsvpDeadline ? `<p class="ix-muted center">${esc(t('rsvpBy'))}: <b>${esc(IX.fmtDate(s.rsvpDeadline, inv.timezone, S.lang))}</b></p>` : ''}
       ${S.existing ? `<p class="ix-notice">✔ ${esc(t('ref'))}: <b>${esc(ex.ref)}</b> — ${esc(t(status))}</p>` : ''}
-      <form class="ix-form" id="rsvpForm" novalidate>
-        <div class="ix-field"><label for="r-name">${esc(t('name'))} *</label><input class="ix-input" id="r-name" name="name" autocomplete="name" required maxlength="120" value="${v('name', g.name || '')}"></div>
-        <div class="ix-field"><label for="r-phone">${esc(t('mobile'))} *</label><input class="ix-input" id="r-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required maxlength="20" placeholder="+91 98765 43210" value="${v('phone')}"></div>
-        <div class="ix-field"><label for="r-email">${esc(t('email'))}</label><input class="ix-input" id="r-email" name="email" type="email" autocomplete="email" maxlength="160" value="${v('email')}"></div>
+      <form class="ix-form" id="rsvpForm" novalidate autocomplete="on">
+        <div class="ix-field"><label for="r-name">${esc(t('name'))} *</label><input class="ix-input" id="r-name" name="name" autocomplete="name" required maxlength="120" enterkeyhint="next" value="${v('name', pre.name)}"></div>
+        <div class="ix-field"><label for="r-phone">${esc(t('mobile'))} *</label><input class="ix-input" id="r-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required maxlength="20" placeholder="+91 98765 43210" enterkeyhint="next" value="${v('phone', pre.phone)}"></div>
+        <div class="ix-field"><label for="r-email">${esc(t('email'))}</label><input class="ix-input" id="r-email" name="email" type="email" autocomplete="email" inputmode="email" maxlength="160" value="${v('email', pre.email)}"></div>
+        <label class="ix-check ix-remember"><input type="checkbox" name="rememberMe" ${me.name || !lsGet('ivx-me-off') ? 'checked' : ''}> <span>${esc(t('rememberMe'))}</span></label>
         <fieldset class="ix-field ix-choice"><legend>${esc(t('attend'))} *</legend>
           ${['yes', 'no', 'maybe'].map((k) => `<label class="ix-radio"><input type="radio" name="status" value="${k}" ${status === k ? 'checked' : ''} required><span>${esc(t(k))}</span></label>`).join('')}
         </fieldset>
@@ -432,6 +436,9 @@
       }
       S.editToken = res.editToken;
       lsSet('ivx-rsvp-' + slug, { editToken: res.editToken, ref: res.ref });
+      // Remember name/phone/email on THIS phone only (never sent anywhere else), if the guest left the box ticked
+      if (f.rememberMe && f.rememberMe.checked) { lsSet('ivx-me', { name: p.name.trim(), phone: (p.phone || '').trim(), email: (p.email || '').trim() }); lsSet('ivx-me-off', false); }
+      else { try { localStorage.removeItem('ivx-me'); } catch (e2) { /* ignore */ } lsSet('ivx-me-off', true); }
       const clean = M.cleanRsvp(p);
       S.lastRsvp = { ...clean, ref: res.ref, editToken: res.editToken };
       S.existing = { ...clean, ref: res.ref };

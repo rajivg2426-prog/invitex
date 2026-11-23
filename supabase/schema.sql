@@ -175,7 +175,7 @@ begin
   return jsonb_build_object(
     'status','ok',
     'invitation', inv.published || jsonb_build_object('id', inv.id, 'slug', inv.slug),
-    'guest', case when g.id is null then null else jsonb_build_object('name', g.name, 'allowed', g.allowed) end
+    'guest', case when g.id is null then null else jsonb_build_object('name', g.name, 'phone', g.phone, 'email', g.email, 'allowed', g.allowed) end
   );
 end $$;
 

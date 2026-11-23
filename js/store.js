@@ -246,6 +246,7 @@
       if (!g.id) { g.id = IX.uid('g_'); g.token = IX.randomToken(16); g.createdAt = new Date().toISOString(); }
       return this.put('guests', g);
     }
+    async saveGuests(list) { for (const g of list) await this.saveGuest(g); }
     deleteGuest(id) { return this.del('guests', id); }
 
     /* RSVPs – host side */
@@ -282,7 +283,7 @@
       if (guestToken) {
         const g = (await this.all('guests', 'invitationId', inv.id)).find((x) => x.token === guestToken);
         if (g) {
-          guest = { name: g.name, allowed: g.allowed || 0 };
+          guest = { name: g.name, phone: g.phone || '', email: g.email || '', allowed: g.allowed || 0 };
           if (!g.openedAt) { g.openedAt = new Date().toISOString(); await this.put('guests', g); }
         }
       }
@@ -434,6 +435,10 @@
       const row = { invitation_id: g.invitationId, name: g.name, phone: g.phone || null, email: g.email || null, allowed: g.allowed || 0, sent_at: g.sentAt || null, reminded_at: g.remindedAt || null, notes: g.notes || '', group_name: g.group || '' };
       if (g.id) row.id = g.id;
       return this._g(this._check(await this.sb.from('guests').upsert(row).select('*').single()));
+    }
+    async saveGuests(list) {
+      const rows = list.map((g) => ({ invitation_id: g.invitationId, name: g.name, phone: g.phone || null, email: g.email || null, allowed: g.allowed || 0 }));
+      for (let i = 0; i < rows.length; i += 200) this._check(await this.sb.from('guests').insert(rows.slice(i, i + 200)));
     }
     async deleteGuest(id) { this._check(await this.sb.from('guests').delete().eq('id', id)); }
     _r(r) { return { id: r.id, invitationId: r.invitation_id, guestId: r.guest_id, ref: r.ref, name: r.name, phone: r.phone, email: r.email || '', status: r.status, adults: r.adults, children: r.children, total: r.adults + r.children, extraNames: r.extra_names || '', food: r.food || '', requirements: r.requirements || '', message: r.message || '', eventIds: r.event_ids || [], consent: r.consent, lang: r.lang, checkedInAt: r.checked_in_at, createdAt: r.created_at, updatedAt: r.updated_at, source: r.source }; }
