@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>You're Invited</title>
+  <meta name="description" content="A personal digital invitation. View the event details and confirm your attendance.">
+  <meta property="og:title" content="You're Invited">
+  <meta property="og:description" content="Open your digital invitation and RSVP.">
+  <meta name="theme-color" content="#3b0a16">
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%8C%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="css/invite.css">
+</head>
+<body class="ix-guest">
+  <a class="skip" href="#main">Skip to invitation</a>
+  <div id="app" aria-live="polite">
+    <div class="ix-loading"><div class="ix-spinner" aria-hidden="true"></div><p>Opening your invitation…</p></div>
+  </div>
+  <noscript><p style="padding:2rem;text-align:center">Please enable JavaScript to view this invitation.</p></noscript>
+  <script src="js/config.js"></script>
+  <script src="js/util.js"></script>
+  <script src="js/vendor/qrcode.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/themes.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/invite.js"></script>
+</body>
+</html>

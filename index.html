@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>InviteX – Create Digital Invitations</title>
+  <meta name="description" content="Create beautiful digital invitations, share on WhatsApp and manage RSVPs in one place.">
+  <meta name="theme-color" content="#2b1022">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%8C%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Cormorant+Garamond:wght@600;700&family=Noto+Sans+Devanagari:wght@400;600&family=Noto+Sans+Gurmukhi:wght@400;600&display=swap">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <a class="skip" href="#view">Skip to content</a>
+  <header class="topbar">
+    <a href="#/" class="brand" aria-label="InviteX home"><span class="brand-mark" aria-hidden="true">✉</span><span>Invite<b>X</b></span></a>
+    <span id="modeBadge" class="mode-badge"></span>
+    <nav class="topnav" aria-label="Main">
+      <a href="#/">My invitations</a>
+      <a href="#/settings">Settings</a>
+      <a href="#/help">Help</a>
+    </nav>
+  </header>
+  <div id="modeBanner" class="mode-banner" hidden></div>
+  <main id="view" tabindex="-1"><div class="page-loading"><div class="spinner"></div></div></main>
+  <div id="modalRoot"></div>
+  <noscript><p style="padding:2rem">InviteX needs JavaScript enabled.</p></noscript>
+  <script src="js/config.js"></script>
+  <script src="js/util.js"></script>
+  <script src="js/vendor/qrcode.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/themes.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/media.js"></script>
+  <script src="js/samples.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/wizard.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>
