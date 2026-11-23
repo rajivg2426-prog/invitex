@@ -320,7 +320,12 @@
   function step3(body) {
     const inv = W.inv, L = W.lang;
     const cat = IXT.CATEGORIES.find((c) => c.id === inv.category);
-    const tf = (k, label, ph = '', ta = false, req = false) => `<div class="field"><label for="tf-${k}">${esc(label)}${req ? ' *' : ''}</label>${ta ? `<textarea class="input" id="tf-${k}" lang="${L}" data-k="text.${L}.${k}" placeholder="${esc(ph)}" rows="3"></textarea>` : `<input class="input" id="tf-${k}" lang="${L}" data-k="text.${L}.${k}" placeholder="${esc(ph)}" ${req ? 'required' : ''}>`}</div>`;
+    const tf = (k, label, ph = '', ta = false, req = false) => `<div class="field"><label for="tf-${k}">${esc(label)}${req ? ' *' : ''}</label>${ta ? `<textarea class="input" id="tf-${k}" lang="${L}" data-k="text.${L}.${k}" placeholder="${esc(ph)}" rows="3"></textarea>` : `<input class="input" id="tf-${k}" lang="${L}" data-k="text.${L}.${k}" placeholder="${esc(ph)}" ${req ? 'required' : ''}>`}${suggRow(k)}</div>`;
+    const suggRow = (k) => {
+      const list = window.IXSuggest ? IXSuggest.list(inv.category, L, k) : [];
+      if (!list.length) return '';
+      return `<div class="sugg" data-sugg="${k}"><span class="sugg-l">${IXSuggest.APPEND.includes(k) ? 'Tap to add:' : 'Suggestions:'}</span>${list.map((t, i) => `<button type="button" class="chip" data-sg="${k}.${i}" lang="${L}" title="Use this text">${esc(t)}</button>`).join('')}</div>`;
+    };
     const tzs = IX.timezones();
     body.innerHTML = `
       <div class="card stack"><h2>Languages</h2>
@@ -360,6 +365,23 @@
         <button class="btn sm" id="addHl">+ Add highlight</button>
       </div>`;
     bind(body);
+    // ready-made wording: fills an empty field; never overwrites typed text without asking
+    body.querySelectorAll('[data-sg]').forEach((b) => (b.onclick = async () => {
+      const [k, i] = b.dataset.sg.split('.');
+      const text = IXSuggest.list(inv.category, L, k)[+i];
+      const el = body.querySelector(`#tf-${k}`);
+      const cur = (inv.text[L][k] || '').trim();
+      let next;
+      if (!cur) next = text;
+      else if (cur === text || cur.split('\n').map((x) => x.trim()).includes(text)) return IX.toast('Already added', 'ok');
+      else if (IXSuggest.APPEND.includes(k)) next = cur + '\n' + text;
+      else {
+        const v = await H.modal({ title: 'Replace your text?', body: `<p>This field already has your own text:</p><blockquote class="sugg-q">${esc(cur)}</blockquote><p>Suggestion:</p><blockquote class="sugg-q">${esc(text)}</blockquote>`,
+          actions: [{ label: 'Keep mine', value: 'keep' }, ...(el.tagName === 'TEXTAREA' ? [{ label: 'Add below', value: 'add' }] : []), { label: 'Replace', value: 'replace', cls: 'primary' }] });
+        if (v === 'replace') next = text; else if (v === 'add') next = cur + '\n' + text; else return;
+      }
+      inv.text[L][k] = next; el.value = next; changed(); el.focus();
+    }));
     body.querySelectorAll('[data-lt]').forEach((b) => (b.onclick = () => { W.lang = b.dataset.lt; W.pvLang = W.lang; step3(body); pushPreview(); }));
     body.querySelectorAll('[data-langtoggle]').forEach((c) => (c.onchange = () => {
       const l = c.dataset.langtoggle;
