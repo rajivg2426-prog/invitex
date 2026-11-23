@@ -79,7 +79,7 @@
           <p>Design a beautiful digital invitation for any occasion, send personal links on WhatsApp, and track every RSVP from one dashboard.</p>
           <div class="row" style="margin-top:1rem">
             <a class="btn gold lg" href="#/new">✨ Create invitation</a>
-            ${list.length ? '' : '<button class="btn lg" id="loadSamples" style="background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.3)">Load 4 sample invitations</button>'}
+            ${list.length ? '' : '<button class="btn lg" id="loadSamples" style="background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.3)">Load 8 sample invitations</button>'}
           </div>
         </div>
         <div class="hero-art" aria-hidden="true">

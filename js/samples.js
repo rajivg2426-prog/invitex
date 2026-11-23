@@ -1,4 +1,4 @@
-/* Sample invitations: Himachali Dham, Wedding, Birthday, Corporate conference. window.IXSamples */
+/* Sample invitations: Himachali Dham, Wedding, Rajwada Jharokha wedding, Pastel engagement, Ivory foil anniversary, Temple housewarming, Birthday, Corporate conference. window.IXSamples */
 (function () {
   'use strict';
   const IX = window.IX, M = IX.model, art = (...a) => IXT.sampleArt(...a);
@@ -139,8 +139,108 @@
     return inv;
   }
 
+  function rajwada() {
+    const inv = M.newInvitation('wedding', 'rajwada-jharokha');
+    const d = inDays(80);
+    const v = { venue: 'Samode Palace', address: 'Samode village, Chomu', city: 'Jaipur, Rajasthan', pin: '303806' };
+    Object.assign(inv, {
+      slug: 'ishita-vihaan-wedding', languages: ['en', 'hi', 'pa'], defaultLang: 'en', paletteIndex: 0, layout: 'portrait',
+      dressCode: 'Royal Rajasthani – safa & leheriya welcome', contact: { name: 'Devendra Shekhawat (Ishita\'s uncle)', phone: '+91 94140 00000' },
+      text: {
+        en: T({ title: 'Ishita & Vihaan', subtitle: 'invite you to the royal celebration of their wedding', familyName: 'With the blessings of our elders', hostName: 'The Shekhawat & Bhandari Families',
+          welcome: 'Padharo mhare des! Two families, one celebration under the Rajasthan sky. Your presence will make it complete.',
+          message: '<p>With the blessings of our elders,</p><p><b>Smt. &amp; Shri Rajendra Singh Shekhawat</b> and <b>Smt. &amp; Shri Anil Bhandari</b> joyfully invite you to the wedding of</p><p style="text-align:center"><b>Ishita</b> &amp; <b>Vihaan</b></p><p>Come, be a part of the pheras, the music and the feast.</p>',
+          instructions: 'Shuttles leave Hotel Clarks Amer every hour from 4 PM.\nPlease carry a light shawl – evenings in the desert are cool.',
+          thankyou: 'Your blessings are the brightest light of our celebration.' }),
+        hi: T({ title: 'इशिता और विहान', subtitle: 'अपने विवाह के शाही उत्सव में आपको आमंत्रित करते हैं', familyName: 'बड़ों के आशीर्वाद से', hostName: 'शेखावत एवं भंडारी परिवार',
+          welcome: 'पधारो म्हारे देस! राजस्थान के आसमान तले दो परिवार, एक उत्सव। आपकी उपस्थिति से ही यह पूरा होगा।',
+          message: '<p>बड़ों के आशीर्वाद से,</p><p><b>श्रीमती एवं श्री राजेन्द्र सिंह शेखावत</b> तथा <b>श्रीमती एवं श्री अनिल भंडारी</b> आपको</p><p style="text-align:center"><b>इशिता</b> एवं <b>विहान</b></p><p>के शुभ विवाह में सपरिवार सादर आमंत्रित करते हैं।</p>',
+          thankyou: 'आपका आशीर्वाद ही हमारे उत्सव की सबसे सुंदर रोशनी है।' }),
+        pa: T({ title: 'ਇਸ਼ਿਤਾ ਅਤੇ ਵਿਹਾਨ', subtitle: 'ਆਪਣੇ ਵਿਆਹ ਦੇ ਸ਼ਾਹੀ ਜਸ਼ਨ ਵਿੱਚ ਤੁਹਾਨੂੰ ਸੱਦਾ ਦਿੰਦੇ ਹਨ', familyName: 'ਵੱਡਿਆਂ ਦੇ ਅਸ਼ੀਰਵਾਦ ਨਾਲ', hostName: 'ਸ਼ੇਖਾਵਤ ਅਤੇ ਭੰਡਾਰੀ ਪਰਿਵਾਰ',
+          welcome: 'ਦੋ ਪਰਿਵਾਰ, ਇੱਕ ਜਸ਼ਨ, ਰਾਜਸਥਾਨ ਦੇ ਅਸਮਾਨ ਹੇਠ। ਤੁਹਾਡੀ ਹਾਜ਼ਰੀ ਨਾਲ ਹੀ ਇਹ ਪੂਰਾ ਹੋਵੇਗਾ।',
+          thankyou: 'ਤੁਹਾਡਾ ਅਸ਼ੀਰਵਾਦ ਹੀ ਸਾਡੇ ਜਸ਼ਨ ਦੀ ਸਭ ਤੋਂ ਸੋਹਣੀ ਰੌਸ਼ਨੀ ਹੈ।' }),
+      },
+      events: [
+        ev(Object.assign({ name: 'Mehendi & Sangeet', date: inDays(79), start: '17:00', end: '23:00', dressCode: 'Leheriya & bandhej' }, v)),
+        ev(Object.assign({ name: 'Wedding Ceremony', date: d, start: '19:00', end: '23:30', dressCode: 'Royal Rajasthani' }, v)),
+      ],
+    });
+    inv.mainEventId = inv.events[1].id;
+    inv.design.sections.hosts = false; inv.design.border = 'ornate';
+    inv.media.gallery = [1, 2, 3].map((i) => ({ ref: art(i % 2 ? 'couple' : 'family', '#7a1340', '#e2b55c', 'Photo ' + i), caption: '' }));
+    inv.settings.rsvpDeadline = inDays(65); inv.settings.maxPerInvite = 5;
+    return inv;
+  }
+
+  function pastel() {
+    const inv = M.newInvitation('engagement', 'pastel-bloom');
+    const v = { venue: 'The Tamarind Tree', address: 'Kanakapura Road', city: 'Bengaluru, Karnataka', pin: '560062' };
+    Object.assign(inv, {
+      slug: 'anaya-reyansh-engagement', languages: ['en', 'hi'], defaultLang: 'en', paletteIndex: 0, layout: 'portrait',
+      dressCode: 'Pastels', contact: { name: 'Nisha Rao (Anaya\'s mother)', phone: '+91 98450 00000' },
+      text: {
+        en: T({ title: 'Anaya & Reyansh', subtitle: 'are getting engaged', familyName: 'Save the date', hostName: 'The Rao & Kulkarni Families',
+          welcome: 'Come for the rings, stay for the mango lassi and a long, happy lunch in the garden.',
+          message: '<p>With hearts full of joy, the <b>Rao</b> and <b>Kulkarni</b> families invite you to the ring ceremony of</p><p style="text-align:center"><b>Anaya</b> &amp; <b>Reyansh</b></p><p>Celebrate the first chapter of their story with us.</p>',
+          thankyou: 'Thank you for celebrating with us.' }),
+        hi: T({ title: 'अनाया और रेयांश', subtitle: 'की सगाई', familyName: 'तारीख़ याद रखें', hostName: 'राव एवं कुलकर्णी परिवार',
+          welcome: 'अंगूठियों की रस्म के लिए आइए, और बगीचे में मैंगो लस्सी व लंबे, खुशनुमा भोज के लिए रुकिए।',
+          message: '<p>खुशियों भरे दिल से राव एवं कुलकर्णी परिवार आपको <b>अनाया</b> और <b>रेयांश</b> की सगाई में सादर आमंत्रित करते हैं।</p>' }),
+      },
+      events: [ev(Object.assign({ name: 'Ring Ceremony', date: inDays(40), start: '10:30', end: '15:00', dressCode: 'Pastels' }, v))],
+    });
+    inv.design.sections.hosts = false;
+    inv.settings.rsvpDeadline = inDays(30); inv.settings.maxPerInvite = 4;
+    return inv;
+  }
+
+  function foilAnniversary() {
+    const inv = M.newInvitation('anniversary', 'ivory-foil');
+    Object.assign(inv, {
+      slug: 'sunil-rekha-25', languages: ['en', 'hi'], defaultLang: 'en', paletteIndex: 0, layout: 'portrait',
+      dressCode: 'Black tie / Indian formal', contact: { name: 'Kabir Malhotra (son)', phone: '+91 98100 00000' },
+      text: {
+        en: T({ title: 'Sunil & Rekha', subtitle: 'Twenty-five years of togetherness', familyName: 'Their children invite you to celebrate', hostName: 'Kabir & Tara Malhotra',
+          welcome: 'Twenty-five years, two children, one beautiful story. Join us to raise a toast to Mum and Dad.',
+          message: '<p>Please join us for an evening of music, memories and dinner as we celebrate the <b>silver wedding anniversary</b> of <b>Sunil &amp; Rekha Malhotra</b>.</p>',
+          thankyou: 'Thank you for being part of their journey.' }),
+        hi: T({ title: 'सुनील और रेखा', subtitle: 'साथ के पच्चीस वर्ष', familyName: 'उनके बच्चे आपको आमंत्रित करते हैं', hostName: 'कबीर एवं तारा मल्होत्रा',
+          message: '<p><b>सुनील एवं रेखा मल्होत्रा</b> की विवाह की रजत जयंती पर संगीत, यादों और रात्रि भोज की एक शाम में आप सादर आमंत्रित हैं।</p>' }),
+      },
+      events: [ev({ name: 'Anniversary Dinner', date: inDays(28), start: '19:30', end: '23:00', venue: 'The Leela Palace', address: 'Diplomatic Enclave, Chanakyapuri', city: 'New Delhi', pin: '110023' })],
+    });
+    inv.design.sections.hosts = false;
+    inv.settings.rsvpDeadline = inDays(20); inv.settings.maxPerInvite = 2;
+    return inv;
+  }
+
+  function templeHousewarming() {
+    const inv = M.newInvitation('housewarming', 'temple-gopuram');
+    Object.assign(inv, {
+      slug: 'iyer-gruhapravesam', languages: ['en', 'hi'], defaultLang: 'en', paletteIndex: 0, layout: 'portrait',
+      dressCode: 'Traditional', contact: { name: 'Karthik Iyer', phone: '+91 94440 00000' },
+      text: {
+        en: T({ title: 'Gruhapravesam', subtitle: 'With the blessings of the divine, we step into our new home', familyName: 'Lakshmi & Karthik Iyer', hostName: 'The Iyer Family',
+          welcome: 'Please join us for the Ganapathi Homam and a traditional lunch served on banana leaf.',
+          message: '<p>With the blessings of our elders, <b>Lakshmi &amp; Karthik Iyer</b> invite you and your family to the <b>Gruhapravesam</b> of our new home.</p><p>Your presence and blessings will fill it with joy.</p>',
+          instructions: 'Please arrive by 6:45 AM for the homam.\nLunch (vazhai ilai saapadu) will be served from 11:30 AM.',
+          thankyou: 'Thank you for blessing our new beginning.' }),
+        hi: T({ title: 'गृह प्रवेश', subtitle: 'प्रभु के आशीर्वाद से हम अपने नए घर में प्रवेश कर रहे हैं', familyName: 'लक्ष्मी एवं कार्तिक अय्यर', hostName: 'अय्यर परिवार',
+          message: '<p>बड़ों के आशीर्वाद से <b>लक्ष्मी एवं कार्तिक अय्यर</b> आपको सपरिवार अपने नए घर के <b>गृह प्रवेश</b> में आमंत्रित करते हैं।</p>' }),
+      },
+      events: [
+        ev({ name: 'Ganapathi Homam', date: inDays(33), start: '07:00', end: '10:30', venue: 'Sri Lakshmi Nilayam', address: '12, 3rd Cross Street, Mylapore', city: 'Chennai, Tamil Nadu', pin: '600004' }),
+        ev({ name: 'Lunch', date: inDays(33), start: '11:30', end: '14:00', venue: 'Sri Lakshmi Nilayam', address: '12, 3rd Cross Street, Mylapore', city: 'Chennai, Tamil Nadu', pin: '600004' }),
+      ],
+    });
+    inv.mainEventId = inv.events[0].id;
+    inv.design.sections.hosts = false;
+    inv.settings.rsvpDeadline = inDays(27); inv.settings.maxPerInvite = 6;
+    return inv;
+  }
+
   async function create(store) {
-    const list = [dham(), wedding(), birthday(), corporate()];
+    const list = [dham(), wedding(), rajwada(), pastel(), foilAnniversary(), templeHousewarming(), birthday(), corporate()];
     for (const inv of list) {
       let slug = inv.slug, n = 2;
       while (!(await store.slugAvailable(slug, inv.id))) slug = inv.slug + '-' + n++;
@@ -155,5 +255,5 @@
     }
     return list;
   }
-  window.IXSamples = { create, dham, wedding, birthday, corporate };
+  window.IXSamples = { create, dham, wedding, rajwada, pastel, foilAnniversary, templeHousewarming, birthday, corporate };
 })();

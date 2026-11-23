@@ -142,7 +142,14 @@
     return { start, end };
   };
   const LOCALES = { en: 'en-IN', hi: 'hi-IN', pa: 'pa-IN' };
-  IX.locale = (lang) => LOCALES[lang] || lang || 'en-IN';
+  // Some browsers ship without month/day names for a locale and print codes like "M02".
+  // In that case fall back to Indian English rather than showing codes to guests.
+  const localeOk = {};
+  IX.locale = (lang) => {
+    const loc = LOCALES[lang] || lang || 'en-IN';
+    if (!(loc in localeOk)) { try { localeOk[loc] = !/M\d|^\d+$/.test(new Intl.DateTimeFormat(loc, { month: 'long' }).format(new Date(2020, 1, 1))); } catch (e) { localeOk[loc] = false; } }
+    return localeOk[loc] ? loc : 'en-IN';
+  };
   IX.fmtDate = (date, tz, lang = 'en', opts) => {
     if (!date) return '';
     const d = date instanceof Date ? date : IX.zonedToUtc(date, '12:00', tz);

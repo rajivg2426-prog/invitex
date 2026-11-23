@@ -90,6 +90,7 @@
     const set = (k, v) => root.style.setProperty(k, v);
     set('--bg', p.bg); set('--bg2', p.bg2); set('--surface', p.surface); set('--text', p.text); set('--muted', p.muted);
     set('--accent', p.accent); set('--accent2', p.accent2); set('--gold', p.gold || p.accent); set('--on-accent', p.onAccent || '#fff');
+    set('--paper', p.paper || '#fff6e6'); set('--paper2', p.paper2 || p.paper || '#f7e2c8'); set('--ink', p.ink || p.accent); set('--ink2', p.ink2 || p.muted); set('--foil-a', p.foilA || '#6e4410'); set('--foil-b', p.foilB || p.accent); set('--foil-c', p.foilC || p.foilB || p.accent); set('--wash1', p.wash1 || 'transparent'); set('--wash2', p.wash2 || 'transparent');
     set('--f-script', IXT.fontStack(d.fonts.script, 'script')); set('--f-head', IXT.fontStack(d.fonts.head, 'head')); set('--f-body', IXT.fontStack(d.fonts.body, 'body'));
     set('--scale', d.fontScale || 1);
     set('--gap', { compact: '2.2rem', comfortable: '3.4rem', airy: '4.8rem' }[d.spacing] || '3.4rem');
@@ -164,6 +165,117 @@
   const sec = (id, inner, cls = '') => `<section class="ix-sec ix-sec-${id} reveal ${cls}" id="sec-${id}" aria-labelledby="h-${id}">${inner}</section>`;
   const h2 = (id, text) => `<h2 class="ix-h2" id="h-${id}">${esc(text)}</h2>`;
 
+  // shared helpers for the designed heroes
+  const splitNames = (title) => { const p = title.split(/\s+(?:&|and|और|एवं|ਅਤੇ|weds|संग)\s+/i); return p.length === 2 ? p : null; };
+  const dateParts = (inv, ev) => {
+    if (!ev) return null;
+    const tz = inv.timezone, d = IX.zonedToUtc(ev.date, ev.start || '12:00', tz);
+    const f = (o) => new Intl.DateTimeFormat(IX.locale(S.lang), { ...o, timeZone: tz }).format(d);
+    return { weekday: f({ weekday: 'long' }), day: f({ day: '2-digit' }), month: f({ month: 'long' }), monthShort: f({ month: 'short' }), year: f({ year: 'numeric' }), num: f({ day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/[/.-]/g, ' · '), time: ev.start ? IX.fmtTime(ev.date, ev.start, tz, S.lang) : '' };
+  };
+  const rsvpLink = (inv, cls) => (inv.design.sections.rsvp && !isPrint ? `<a class="${cls}" href="#sec-rsvp">${esc(t('rsvp'))}</a>` : '');
+  const voiceBtn = (inv) => (url(inv.media.voice) && !isPrint ? `<button type="button" class="ix-btn ix-btn-ghost ix-voice-btn" data-voice>▶ ${esc(t('playVoice'))}</button>` : '');
+  const greetP = (cls) => (S.guest ? `<p class="${cls}">${esc(t('dear'))} ${esc(S.guest.name)},</p>` : '');
+  const shortWelcome = (inv) => { const w = M.txt(inv, S.lang, 'welcome'); return w.length > 160 ? w.slice(0, 157).replace(/\s+\S*$/, '') + '…' : w; };
+
+  // "Pastel Watercolour": painted blooms in two corners, airy type
+  function pastelHero(ctx, ev, sub, host) {
+    const { inv, motif } = ctx, n = splitNames(ctx.title), d = dateParts(inv, ev), w = shortWelcome(inv);
+    return `<section class="ix-hero ix-hero-pastel" id="sec-opening" aria-label="${esc(ctx.title)}">
+      <i class="pb-wash a" aria-hidden="true"></i><i class="pb-wash b" aria-hidden="true"></i><i class="pb-wash c" aria-hidden="true"></i><i class="pb-wash d" aria-hidden="true"></i>
+      <div class="pb-flo tl" aria-hidden="true">${motif.pastel.flowers}</div><div class="pb-flo br" aria-hidden="true">${motif.pastel.flowers}</div>
+      <div class="pb-c">
+        ${greetP('pb-greet')}
+        ${host ? `<p class="pb-script">${esc(host)}</p>` : ''}
+        <h1 class="pb-names">${n ? `${esc(n[0])}<span class="pb-amp">&amp;</span>${esc(n[1])}` : esc(ctx.title)}</h1>
+        ${sub ? `<p class="pb-sub">${esc(sub)}</p>` : ''}
+        ${d ? `<div class="pb-date"><span>${esc(d.weekday)}</span><b>${esc(d.day)}</b><span>${esc(d.month)}</span></div><p class="pb-sub pb-year">${esc(d.year)}${d.time ? ` · ${esc(d.time)}` : ''}</p>` : ''}
+        ${ev && ev.venue ? `<p class="pb-venue">${esc(ev.venue)}${ev.city ? `<small>${esc(ev.city)}</small>` : ''}</p>` : ''}
+        ${w ? `<p class="pb-note">${esc(w)}</p>` : ''}
+        ${voiceBtn(inv)}
+        ${rsvpLink(inv, 'pb-btn')}
+      </div>
+    </section>`;
+  }
+
+  // "Ivory Gold Foil": monogram in a laurel wreath, double gold border, foil lettering
+  function foilHero(ctx, ev, sub, host) {
+    const { inv, motif } = ctx, n = splitNames(ctx.title), d = dateParts(inv, ev);
+    const initial = (x) => (x.trim()[0] || '').toUpperCase();
+    const mono = n ? `${esc(initial(n[0]))}<span>&amp;</span>${esc(initial(n[1]))}` : esc(initial(ctx.title));
+    return `<section class="ix-hero ix-hero-foil" id="sec-opening" aria-label="${esc(ctx.title)}">
+      <div class="fg-frame">
+        <div class="fg-mono" aria-hidden="true">${motif.foil.wreath}<p class="fg-foil">${mono}</p></div>
+        ${greetP('fg-greet')}
+        ${host ? `<p class="fg-k">${esc(host)}</p>` : ''}
+        <h1 class="fg-names fg-foil">${n ? `${esc(n[0])}<span class="fg-amp">&amp;</span>${esc(n[1])}` : esc(ctx.title)}</h1>
+        <i class="fg-rule" aria-hidden="true"></i>
+        ${sub ? `<p class="fg-k fg-sub">${esc(sub)}</p><i class="fg-rule" aria-hidden="true"></i>` : ''}
+        ${d ? `<p class="fg-date">${esc(d.weekday)}<b>${esc(d.num)}</b>${esc(d.time)}</p>` : ''}
+        ${ev && ev.venue ? `<p class="fg-venue">${esc(ev.venue)}${ev.city ? `<small>${esc(ev.city)}</small>` : ''}</p>` : ''}
+        ${voiceBtn(inv)}
+        ${rsvpLink(inv, 'fg-btn')}
+      </div>
+    </section>`;
+  }
+
+  // "Temple Gopuram": South Indian temple tower, banana leaves, jasmine and lamps
+  function templeHero(ctx, ev, sub, host) {
+    const { inv, motif } = ctx, a = motif.temple, n = splitNames(ctx.title), d = dateParts(inv, ev);
+    const joiner = { en: 'weds', hi: 'संग', pa: 'ਸੰਗ' }[S.lang] || '&';
+    return `<section class="ix-hero ix-hero-temple" id="sec-opening" aria-label="${esc(ctx.title)}" style="--kolam:${esc(a.kolam)}">
+      <div class="tg-jas l" aria-hidden="true">${a.jasmine}</div><div class="tg-jas r" aria-hidden="true">${a.jasmine}</div>
+      <div class="tg-leaf l" aria-hidden="true">${a.leafL}</div><div class="tg-leaf r" aria-hidden="true">${a.leafR}</div>
+      <div class="tg-gopuram" aria-hidden="true">${a.gopuram}</div>
+      <div class="tg-c">
+        ${greetP('tg-greet')}
+        ${host ? `<p class="tg-k">${esc(host)}</p>` : ''}
+        <h1 class="tg-names tg-foil">${n && inv.category === 'wedding' ? `${esc(n[0])}<span class="tg-amp">${esc(joiner)}</span>${esc(n[1])}` : n ? `${esc(n[0])}<span class="tg-amp">&amp;</span>${esc(n[1])}` : esc(ctx.title)}</h1>
+        ${sub ? `<p class="tg-sub">${esc(sub)}</p>` : ''}
+        ${d ? `<div class="tg-date">${esc(d.weekday)}<b>${esc(d.day)} ${esc(d.monthShort)} ${esc(d.year)}</b>${esc(d.time)}</div>` : ''}
+        ${ev && ev.venue ? `<p class="tg-venue">${esc(ev.venue)}${ev.city ? `<small>${esc(ev.city)}</small>` : ''}</p>` : ''}
+        ${voiceBtn(inv)}
+      </div>
+      <div class="tg-lamps" aria-hidden="true"><span>${a.lamp}</span><span>${a.lamp}</span></div>
+      <div class="tg-border" aria-hidden="true">${a.border}</div>
+      ${rsvpLink(inv, 'tg-btn')}
+    </section>`;
+  }
+
+  // "Rajwada Jharokha": royal Rajasthani arch on a jaali background with marigold garlands
+  function jharokhaHero(ctx, ev, sub, host) {
+    const { inv, motif } = ctx, tz = inv.timezone, art = motif.jharokha;
+    const parts = ctx.title.split(/\s+(?:&|and|और|एवं|ਅਤੇ|weds|संग)\s+/i);
+    const names = parts.length === 2
+      ? `${esc(parts[0])}<span class="rj-amp">&amp;</span>${esc(parts[1])}`
+      : esc(ctx.title);
+    let dateHTML = '';
+    if (ev) {
+      const d = IX.zonedToUtc(ev.date, ev.start || '12:00', tz);
+      const f = (o) => new Intl.DateTimeFormat(IX.locale(S.lang), { ...o, timeZone: tz }).format(d);
+      dateHTML = `<div class="rj-date"><span>${esc(f({ weekday: 'long' }))}</span><b class="rj-foil">${esc(f({ day: 'numeric' }))}</b><span>${esc(f({ month: 'long' }))}</span></div>
+        <p class="rj-year">${esc(f({ year: 'numeric' }))}${ev.start ? ` · ${esc(IX.fmtTime(ev.date, ev.start, tz, S.lang))}` : ''}</p>`;
+    }
+    const rsvpOn = inv.design.sections.rsvp && !isPrint;
+    return `<section class="ix-hero ix-hero-rajwada" id="sec-opening" aria-label="${esc(ctx.title)}" style="--jaali:${esc(art.jaali)}">
+      <div class="rj-garland" aria-hidden="true">${art.garland}</div>
+      <div class="rj-arch">
+        <div class="rj-top">${art.arch}</div>
+        <div class="rj-body">
+          ${S.guest ? `<p class="rj-greet">${esc(t('dear'))} ${esc(S.guest.name)},</p>` : ''}
+          ${host ? `<p class="rj-kicker">${esc(host)}</p>` : ''}
+          <h1 class="rj-names rj-foil">${names}</h1>
+          ${sub ? `<p class="rj-sub">${esc(sub)}</p>` : ''}
+          ${dateHTML}
+          ${ev && ev.venue ? `<p class="rj-venue">${esc(ev.venue)}${ev.city ? `<small>${esc(ev.city)}</small>` : ''}</p>` : ''}
+          ${url(inv.media.voice) && !isPrint ? `<button type="button" class="ix-btn ix-btn-ghost ix-voice-btn" data-voice>▶ ${esc(t('playVoice'))}</button>` : ''}
+          <div class="rj-mandala" aria-hidden="true">${art.mandala}</div>
+        </div>
+      </div>
+      ${rsvpOn ? `<a class="rj-btn" href="#sec-rsvp">${esc(t('rsvp'))}</a>` : ''}
+    </section>`;
+  }
+
   const SECTIONS = {
     opening(ctx) {
       const { inv, motif } = ctx;
@@ -178,6 +290,10 @@
         const f = (o) => new Intl.DateTimeFormat(IX.locale(S.lang), { ...o, timeZone: tz }).format(d);
         return `<div class="ix-datebar"><span>${esc(f({ weekday: 'long' }))}</span><span class="ix-datebig"><small>${esc(f({ month: 'short' }))}</small><b>${esc(f({ day: 'numeric' }))}</b><small>${esc(f({ year: 'numeric' }))}</small></span><span>${esc(ev.start ? IX.fmtTime(ev.date, ev.start, tz, S.lang) : '')}</span></div>`;
       })() : '';
+      if (motif.jharokha) return jharokhaHero(ctx, ev, sub, host);
+      if (motif.pastel) return pastelHero(ctx, ev, sub, host);
+      if (motif.foil) return foilHero(ctx, ev, sub, host);
+      if (motif.temple) return templeHero(ctx, ev, sub, host);
       return `<section class="ix-hero" id="sec-opening" aria-label="${esc(ctx.title)}">
         ${deco(ctx)}
         ${motif.hero && !cover ? `<div class="ix-hero-art" aria-hidden="true">${motif.hero}</div>` : ''}

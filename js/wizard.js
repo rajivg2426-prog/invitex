@@ -170,7 +170,7 @@
       <div class="theme-grid" role="radiogroup" aria-label="Design template">${themeIds.map((id) => {
         const t = IXT.THEMES[id], p = t.palettes[0], mo = IXT.motif(t.motif, p);
         return `<button type="button" class="theme ${id === inv.theme ? 'on' : ''}" role="radio" aria-checked="${id === inv.theme}" data-theme-pick="${id}">
-          <div class="theme-sw" style="background:linear-gradient(135deg,${p.bg},${p.bg2});color:${p.accent}">${mo.corner || ''}<span class="tt" style="font-family:'${t.fonts.script}',serif">Aa</span></div>
+          <div class="theme-sw" style="background:linear-gradient(135deg,${p.bg},${p.bg2});color:${p.accent}">${(() => { const a = mo.jharokha ? mo.jharokha.arch : mo.pastel ? mo.pastel.flowers : mo.foil ? mo.foil.wreath : mo.temple ? mo.temple.gopuram : ''; return a ? `<span class="sw-art sw-${t.motif}">${a}</span>` : `${mo.corner || ''}<span class="tt" style="font-family:'${t.fonts.script}',serif">Aa</span>`; })()}</div>
           <div class="theme-name">${esc(t.name)}${id === cat.theme ? '<small>Recommended</small>' : ''}</div></button>`;
       }).join('')}</div>
     </div>

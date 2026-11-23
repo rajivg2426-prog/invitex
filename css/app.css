@@ -277,3 +277,9 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 /* guest import preview */
 #impTbl tr.is-skip td { color: var(--muted); } #impTbl tr.is-skip .nm { text-decoration: line-through; } #impTbl tr.is-skip { background: #fdf1f1; }
 #impTbl .bad { color: #b3261e; font-weight: 600; } #impTbl .good { color: #1b7f4b; font-weight: 700; }
+
+/* thumbnails for the designed themes */
+.sw-art { position: absolute; inset: 6px; display: grid; place-items: center; }
+.sw-art svg { width: auto; height: 100%; max-width: 100%; display: block; }
+.sw-jharokha { inset: 8px 0 0; } .sw-jharokha svg { height: 100%; }
+.sw-watercolour { inset: 0 auto auto 0; width: 70%; } .sw-watercolour svg { width: 100%; height: auto; }

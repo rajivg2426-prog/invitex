@@ -134,6 +134,42 @@
         { name: 'Earth', bg: '#f7f1e8', bg2: '#eadfcd', surface: 'rgba(90,60,30,0.06)', text: '#3c2a17', muted: '#7a6650', accent: '#8d5a2b', accent2: '#4e7d4b', onAccent: '#fff' },
       ],
     },
+    'rajwada-jharokha': {
+      name: 'Rajwada Jharokha', motif: 'jharokha', opener: 'doors',
+      fonts: { script: 'Pinyon Script', head: 'Cinzel Decorative', body: 'Cormorant Garamond' },
+      palettes: [
+        { name: 'Rani Maroon', bg: '#7a1340', bg2: '#2c0517', surface: 'rgba(255,240,220,0.07)', text: '#f8ead2', muted: '#e3c38c', accent: '#e2b55c', accent2: '#ffa000', gold: '#f3d488', onAccent: '#3a0718', paper: '#fff6e6', paper2: '#f7e2c8', ink: '#5a1530', ink2: '#8a4a3c', foilA: '#6e4410', foilB: '#c99a45' },
+        { name: 'Royal Neel', bg: '#1b2f6b', bg2: '#0a1233', surface: 'rgba(230,235,255,0.07)', text: '#f2ecdc', muted: '#d9c48f', accent: '#e2b55c', accent2: '#ff8f00', gold: '#f3d488', onAccent: '#0a1233', paper: '#fdf7ea', paper2: '#efe2c8', ink: '#1b2f6b', ink2: '#5b5a7a', foilA: '#6e4410', foilB: '#c99a45' },
+        { name: 'Peacock Green', bg: '#0f5a4f', bg2: '#06261f', surface: 'rgba(230,255,245,0.07)', text: '#f3ecd8', muted: '#d8c48c', accent: '#e2b55c', accent2: '#ff8f00', gold: '#f3d488', onAccent: '#06261f', paper: '#fdf8ec', paper2: '#eee2c6', ink: '#0d4a40', ink2: '#5e6b55', foilA: '#6e4410', foilB: '#c99a45' },
+      ],
+    },
+    'pastel-bloom': {
+      name: 'Pastel Watercolour', motif: 'watercolour', opener: 'fade',
+      fonts: { script: 'Pinyon Script', head: 'Cormorant Garamond', body: 'Cormorant Garamond' },
+      palettes: [
+        { name: 'Blush & Sage', bg: '#fbf7f1', bg2: '#f3e9e1', surface: 'rgba(120,70,70,0.05)', text: '#4c3b3a', muted: '#8f7a72', accent: '#c07f86', accent2: '#9fb394', onAccent: '#fff', petal1: '#f1b8b9', petal2: '#e8999f', petal3: '#f8d2c6', leaf1: '#a9c29a', leaf2: '#9db58d', wash1: '#f6d4d2', wash2: '#dfe8d6' },
+        { name: 'Lavender & Mint', bg: '#f8f6fb', bg2: '#eeeaf4', surface: 'rgba(80,60,120,0.05)', text: '#3f3654', muted: '#7d7491', accent: '#8f7bb8', accent2: '#8fb8a8', onAccent: '#fff', petal1: '#cdbbe6', petal2: '#b39ddb', petal3: '#e9dcf5', leaf1: '#a8cbbb', leaf2: '#8fb8a8', wash1: '#e4dbf2', wash2: '#d9ece4' },
+        { name: 'Peach & Eucalyptus', bg: '#fcf6ef', bg2: '#f6e7d8', surface: 'rgba(140,80,40,0.05)', text: '#4d3a2c', muted: '#8f7764', accent: '#d88a5b', accent2: '#8aa79b', onAccent: '#fff', petal1: '#f7c3a1', petal2: '#ee9f76', petal3: '#fde0c8', leaf1: '#a3bcb1', leaf2: '#8aa79b', wash1: '#fbdcc6', wash2: '#dbe7e1' },
+      ],
+    },
+    'ivory-foil': {
+      name: 'Ivory Gold Foil', motif: 'foil', opener: 'fade',
+      fonts: { script: 'Pinyon Script', head: 'Italiana', body: 'Bodoni Moda' },
+      palettes: [
+        { name: 'Ivory & Gold', bg: '#f7f2e9', bg2: '#efe6d6', surface: 'rgba(120,90,40,0.05)', text: '#2f2a24', muted: '#7d6a4c', accent: '#b8913f', accent2: '#7d6a4c', onAccent: '#fff', foilA: '#7a5a22', foilB: '#b8913f', foilC: '#dcbf72' },
+        { name: 'Blush & Rose Gold', bg: '#f8ece8', bg2: '#f0dcd6', surface: 'rgba(140,70,70,0.05)', text: '#3d2a2a', muted: '#8a6a66', accent: '#b76e5d', accent2: '#8a6a66', onAccent: '#fff', foilA: '#7d3f33', foilB: '#b0705e', foilC: '#d9a08c' },
+        { name: 'Black & Gold', bg: '#151412', bg2: '#0a0a09', surface: 'rgba(255,240,200,0.05)', text: '#f1e9d6', muted: '#bfae8a', accent: '#d4b062', accent2: '#bfae8a', onAccent: '#151412', foilA: '#9c7630', foilB: '#e8cf86', foilC: '#fff3c4' },
+      ],
+    },
+    'temple-gopuram': {
+      name: 'Temple Gopuram', motif: 'gopuram', opener: 'doors',
+      fonts: { script: 'Cormorant Garamond', head: 'Marcellus', body: 'Cormorant Garamond' },
+      palettes: [
+        { name: 'Temple Emerald', bg: '#155440', bg2: '#082419', surface: 'rgba(255,240,200,0.06)', text: '#f6e7c1', muted: '#d9c08a', accent: '#e9c46a', accent2: '#e65100', onAccent: '#0d3b2e', leaf1: '#2f7d3a', leaf2: '#5fae4f' },
+        { name: 'Kumkum Red', bg: '#7a1014', bg2: '#33060a', surface: 'rgba(255,240,200,0.06)', text: '#fbe9c9', muted: '#e5c58c', accent: '#f0c75e', accent2: '#ff8f00', onAccent: '#33060a', leaf1: '#2f7d3a', leaf2: '#5fae4f' },
+        { name: 'Kanjivaram Purple', bg: '#4a1757', bg2: '#1d0724', surface: 'rgba(255,240,220,0.06)', text: '#f7e8cf', muted: '#dcc08c', accent: '#eac36a', accent2: '#ff8f00', onAccent: '#1d0724', leaf1: '#2f7d3a', leaf2: '#5fae4f' },
+      ],
+    },
     'minimal-ivory': {
       name: 'Minimal Ivory (blank)', motif: 'minimal', opener: 'fade',
       fonts: { script: 'Cormorant Garamond', head: 'Cormorant Garamond', body: 'Inter' },
@@ -146,15 +182,15 @@
   };
 
   const FONT_CHOICES = {
-    script: ['Great Vibes', 'Parisienne', 'Allura', 'Pacifico', 'Satisfy', 'Kaushan Script', 'Yatra One', 'Dancing Script', 'Kalam'],
-    head: ['Cormorant Garamond', 'Playfair Display', 'Montserrat', 'Poppins', 'Merriweather', 'Baloo 2', 'Bebas Neue', 'Space Grotesk', 'Tiro Devanagari Hindi', 'Lora'],
-    body: ['Lora', 'Lato', 'Inter', 'Nunito', 'Mukta', 'Source Sans 3', 'Cormorant Garamond', 'Poppins'],
+    script: ['Pinyon Script', 'Great Vibes', 'Parisienne', 'Allura', 'Pacifico', 'Satisfy', 'Kaushan Script', 'Yatra One', 'Dancing Script', 'Kalam'],
+    head: ['Cinzel Decorative', 'Cinzel', 'Italiana', 'Marcellus', 'Bodoni Moda', 'Cormorant Garamond', 'Playfair Display', 'Montserrat', 'Poppins', 'Merriweather', 'Baloo 2', 'Bebas Neue', 'Space Grotesk', 'Tiro Devanagari Hindi', 'Lora'],
+    body: ['Bodoni Moda', 'Montserrat', 'Lora', 'Lato', 'Inter', 'Nunito', 'Mukta', 'Source Sans 3', 'Cormorant Garamond', 'Poppins'],
   };
   // Indic fallbacks appended to every font stack so Hindi / Punjabi always render.
   const INDIC = "'Noto Sans Devanagari', 'Noto Sans Gurmukhi', 'Mukta', sans-serif";
   const fontStack = (f, kind) => `'${f}', ${kind === 'body' ? '' : "'Tiro Devanagari Hindi', "}${INDIC}`;
   const FONT_URL =
-    'https://fonts.googleapis.com/css2?family=Great+Vibes&family=Parisienne&family=Allura&family=Pacifico&family=Satisfy&family=Kaushan+Script&family=Yatra+One&family=Dancing+Script:wght@500;700&family=Kalam:wght@400;700' +
+    'https://fonts.googleapis.com/css2?family=Pinyon+Script&family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600&family=Italiana&family=Marcellus&family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;1,6..96,400&family=Great+Vibes&family=Parisienne&family=Allura&family=Pacifico&family=Satisfy&family=Kaushan+Script&family=Yatra+One&family=Dancing+Script:wght@500;700&family=Kalam:wght@400;700' +
     '&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Montserrat:wght@400;600;700&family=Poppins:wght@400;500;600&family=Merriweather:wght@400;700&family=Baloo+2:wght@500;700&family=Bebas+Neue&family=Space+Grotesk:wght@400;600&family=Tiro+Devanagari+Hindi&family=Lora:ital,wght@0,400;0,600;1,400' +
     '&family=Lato:wght@400;700&family=Inter:wght@400;500;600&family=Nunito:wght@400;700&family=Mukta:wght@400;600&family=Source+Sans+3:wght@400;600&family=Noto+Sans+Devanagari:wght@400;600&family=Noto+Sans+Gurmukhi:wght@400;600&display=swap';
 
@@ -303,6 +339,86 @@
       <path d="M0 140 Q 80 110 150 135 T 300 130 V160 H0Z" fill="${p.accent2}" opacity=".7"/>
       <path d="M60 50 q6 -5 12 0 q6 -5 12 0 M200 35 q5 -4 10 0 q5 -4 10 0 M230 60 q4 -3 8 0 q4 -3 8 0" stroke="${p.text}" stroke-width="1.5" fill="none" opacity=".6"/></svg>`;
     return { hero, corner: '', divider: dividerSVG(p.accent) };
+  };
+  // Rajwada Jharokha: cusped Rajasthani arch, jaali lattice, marigold garland, lotus, mandala and diyas
+  M.jharokha = (p) => {
+    const gold = `<linearGradient id="rjg" x1="0" x2="1"><stop offset="0" stop-color="#a8742a"/><stop offset=".3" stop-color="#f6dd8c"/><stop offset=".55" stop-color="#c8963e"/><stop offset=".75" stop-color="#fff1b8"/><stop offset="1" stop-color="#a8742a"/></linearGradient>`;
+    const archD = 'C14 210 30 190 52 178 C46 150 62 128 86 124 C88 96 110 78 136 80 C144 52 158 34 171 18 C184 34 198 52 206 80 C232 78 254 96 256 124 C280 128 296 150 290 178 C312 190 328 210 328 250';
+    const innerD = 'M28 262 V256 C28 222 42 206 62 196 C56 170 70 150 92 146 C94 120 114 104 138 106 C146 80 158 62 171 46 C184 62 196 80 204 106 C228 104 248 120 250 146 C272 150 286 170 280 196 C300 206 314 222 314 256 V262';
+    const arch = `<svg viewBox="0 0 342 262" preserveAspectRatio="xMidYMax meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>${gold}<linearGradient id="rjp" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${p.paper}"/><stop offset="1" stop-color="${p.paper}"/></linearGradient></defs>
+      <path d="M14 263 V250 ${archD} V263Z" fill="${p.paper}"/>
+      <path d="M14 262 V250 ${archD} V262" fill="none" stroke="url(#rjg)" stroke-width="3"/>
+      <path d="${innerD}" fill="none" stroke="url(#rjg)" stroke-width="1.2"/>
+      <path d="M171 18 V2 M163 8 Q171 -2 179 8" stroke="url(#rjg)" stroke-width="2" fill="none"/>
+      <g transform="translate(171 214)" fill="none" stroke="${p.foilB}" stroke-width="1.4"><path d="M0 -26 C10 -14 10 0 0 8 C-10 0 -10 -14 0 -26Z"/><path d="M0 8 C-8 -4 -22 -8 -30 -4 C-24 6 -12 10 0 8Z"/><path d="M0 8 C8 -4 22 -8 30 -4 C24 6 12 10 0 8Z"/><path d="M-40 14 H40"/></g></svg>`;
+    let garland = `<path d="M0 4 Q195 40 390 4" stroke="#2e7d32" stroke-width="3" fill="none"/>`;
+    for (let i = 0; i < 26; i++) { const t = i / 25, x = t * 390, y = 4 + 36 * 4 * t * (1 - t) * 0.5; garland += `<circle cx="${x.toFixed(1)}" cy="${(y + 3).toFixed(1)}" r="4.6" fill="${i % 2 ? '#ffa000' : '#e64a19'}"/>`; }
+    [[18, 10], [52, 7], [86, 4], [304, 4], [338, 7], [372, 10]].forEach(([x, l]) => {
+      for (let i = 0; i < l; i++) { const y = 6 + i * 10; garland += `<circle cx="${x}" cy="${y}" r="5.2" fill="${i % 3 === 2 ? '#e64a19' : '#ffa000'}"/><circle cx="${x}" cy="${y}" r="2" fill="#ffd54f" opacity=".8"/>`; }
+      garland += `<path d="M${x - 4} ${6 + l * 10} q4 10 8 0" fill="#2e7d32"/>`;
+    });
+    garland = `<svg viewBox="0 0 390 120" preserveAspectRatio="xMidYMin slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${garland}</svg>`;
+    let petals = '';
+    for (let i = 0; i <= 12; i++) { const a = Math.PI * i / 12, x = Math.cos(a) * -80, y = -Math.sin(a) * 80; petals += `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="5" ry="10" transform="rotate(${90 - i * 15} ${x.toFixed(1)} ${y.toFixed(1)})"/>`; }
+    const diya = (x) => `<g transform="translate(${x} 96)"><path d="M-14 0 Q0 14 14 0Z" fill="${p.foilB}"/><path d="M0 -4 C-5 -12 0 -20 0 -24 C0 -20 5 -12 0 -4Z" fill="#ff9800" class="rj-flame"/><path d="M0 -6 C-2 -10 0 -14 0 -16 C0 -14 2 -10 0 -6Z" fill="#ffe082"/></g>`;
+    const mandala = `<svg viewBox="0 0 300 110" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><g transform="translate(150 100) scale(.8)" fill="none" stroke="${p.foilB}" stroke-width="1.2"><path d="M-90 0 A90 90 0 0 1 90 0"/><path d="M-70 0 A70 70 0 0 1 70 0"/><path d="M-50 0 A50 50 0 0 1 50 0"/>${petals}</g>${diya(40)}${diya(260)}</svg>`;
+    const jaali = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'><path d='M20 2 C26 10 30 14 38 20 C30 26 26 30 20 38 C14 30 10 26 2 20 C10 14 14 10 20 2Z' fill='none' stroke='${p.gold}' stroke-opacity='.16'/><circle cx='20' cy='20' r='3' fill='none' stroke='${p.gold}' stroke-opacity='.16'/></svg>`)}")`;
+    return { corner: '', hero: '', divider: dividerSVG(p.accent), jharokha: { arch, garland, mandala, jaali } };
+  };
+  // Pastel Watercolour: soft washes and painted blooms (displacement filter gives uneven, hand-painted edges)
+  M.watercolour = (p) => {
+    const defs = `<defs><filter id="wcf" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency=".035" numOctaves="3" seed="4"/><feDisplacementMap in="SourceGraphic" scale="9"/><feGaussianBlur stdDeviation=".6"/></filter></defs>`;
+    const bloom = (x, y, r, c1, c2) => { let s = `<g transform="translate(${x} ${y})" filter="url(#wcf)">`; for (let k = 0; k < 3; k++) { const rr = r * (1 - k * 0.28); for (let i = 0; i < 6; i++) s += `<ellipse cx="0" cy="${(-rr * 0.55).toFixed(1)}" rx="${(rr * 0.45).toFixed(1)}" ry="${(rr * 0.6).toFixed(1)}" fill="${k % 2 ? c2 : c1}" opacity=".42" transform="rotate(${i * 60 + k * 25})"/>`; } return s + `<circle r="${(r * 0.16).toFixed(1)}" fill="#e8b86d" opacity=".8"/></g>`; };
+    const leafP = (x, y, l, a, c) => `<path filter="url(#wcf)" transform="translate(${x} ${y}) rotate(${a})" d="M0 0 Q ${l * 0.5} ${-l * 0.35} ${l} 0 Q ${l * 0.5} ${l * 0.35} 0 0Z" fill="${c}" opacity=".55"/><path transform="translate(${x} ${y}) rotate(${a})" d="M2 0 L ${l * 0.9} 0" stroke="${p.leaf2}" stroke-width=".8" opacity=".6"/>`;
+    const bud = (x, y, c) => `<circle cx="${x}" cy="${y}" r="5" fill="${c}" opacity=".6" filter="url(#wcf)"/>`;
+    const cluster = [leafP(40, 120, 90, -25, p.leaf1), leafP(70, 70, 80, -70, p.leaf2), leafP(150, 40, 70, 10, p.leaf1), leafP(30, 170, 70, 40, p.leaf2), leafP(170, 95, 60, 30, p.leaf1), leafP(110, 150, 55, 60, p.leaf1),
+      bloom(80, 85, 46, p.petal1, p.petal2), bloom(150, 70, 32, p.petal3, p.petal2), bloom(45, 150, 30, p.petal1, p.petal2), bloom(120, 130, 22, p.petal3, p.petal1),
+      bud(195, 40, p.petal2), bud(205, 60, p.petal1), bud(18, 205, p.petal1), bud(190, 120, p.petal3)].join('');
+    const flowers = `<svg viewBox="0 0 300 260" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${defs}${cluster}</svg>`;
+    return { corner: '', hero: '', divider: dividerSVG(p.accent), pastel: { flowers } };
+  };
+  // Ivory Gold Foil: laurel wreath for a monogram
+  M.foil = (p) => {
+    let w = ''; const R = 64;
+    const branch = (dir) => {
+      const pts = [];
+      for (let i = 0; i <= 11; i++) {
+        const deg = dir > 0 ? 80 - i * 13 : 100 + i * 13, a = deg * Math.PI / 180, x = 85 + Math.cos(a) * R, y = 85 + Math.sin(a) * R;
+        pts.push((i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1));
+        if (i === 11) break;
+        const tang = deg + (dir > 0 ? -90 : 90);
+        [40, -40].forEach((off, j) => { const t = (tang + off * dir) * Math.PI / 180, lx = x + Math.cos(t) * 6, ly = y + Math.sin(t) * 6; w += `<ellipse cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" rx="2.6" ry="7" transform="rotate(${(tang + off * dir + 90).toFixed(1)} ${lx.toFixed(1)} ${ly.toFixed(1)})" ${j ? 'opacity=".8"' : ''}/>`; });
+      }
+      w += `<path d="${pts.join(' ')}" fill="none" stroke="url(#fgg)" stroke-width=".9"/>`;
+    };
+    branch(1); branch(-1);
+    const wreath = `<svg viewBox="0 0 170 170" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="fgg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${p.foilA}"/><stop offset=".3" stop-color="${p.foilC}"/><stop offset=".5" stop-color="${p.foilB}"/><stop offset=".7" stop-color="${p.foilC}"/><stop offset="1" stop-color="${p.foilA}"/></linearGradient></defs><g fill="url(#fgg)">${w}<circle cx="85" cy="151" r="3"/></g></svg>`;
+    return { corner: '', hero: '', divider: dividerSVG(p.accent), foil: { wreath } };
+  };
+  // Temple Gopuram: South Indian temple tower, banana leaves, jasmine strings, brass lamps, temple border
+  M.gopuram = (p) => {
+    const gold = `<linearGradient id="tgg" x1="0" x2="1"><stop offset="0" stop-color="#b7862f"/><stop offset=".35" stop-color="#f7dc8a"/><stop offset=".55" stop-color="#c99a3e"/><stop offset=".75" stop-color="#ffefb5"/><stop offset="1" stop-color="#b7862f"/></linearGradient>`;
+    let g = ''; const cx = 120; let y = 200, w = 150;
+    g += `<rect x="${cx - w / 2 - 6}" y="${y}" width="${w + 12}" height="8"/><path d="M${cx - 14} ${y + 8} v-22 q14 -16 28 0 v22"/>`;
+    for (let i = 0; i < 5; i++) {
+      const nw = w - 20, ny = y - 28;
+      g += `<path d="M${cx - w / 2} ${y} L${cx - nw / 2} ${ny + 4} H${cx + nw / 2} L${cx + w / 2} ${y}"/><path d="M${cx - nw / 2 - 3} ${ny + 4} H${cx + nw / 2 + 3}" stroke-width="2.4"/>`;
+      const cols = Math.max(3, 6 - i);
+      for (let j = 0; j < cols; j++) { const x = cx - nw / 2 + 10 + j * (nw - 20) / (cols - 1) - 4; g += `<path d="M${x.toFixed(1)} ${y - 3} v-12 q4 -7 8 0 v12" stroke-width=".8"/>`; }
+      y = ny + 4; w = nw;
+    }
+    g += `<path d="M${cx - w / 2 - 8} ${y} Q${cx - w / 2 - 8} ${y - 30} ${cx} ${y - 34} Q${cx + w / 2 + 8} ${y - 30} ${cx + w / 2 + 8} ${y}"/><circle cx="${cx}" cy="${y - 16}" r="7"/>`;
+    for (let k = -2; k <= 2; k++) { const x = cx + k * 14, yy = y - 34 + Math.abs(k) * 3; g += `<path d="M${x - 3} ${yy} q3 -9 6 0Z" fill="url(#tgg)"/><path d="M${x} ${yy - 8} v-6"/>`; }
+    const gopuram = `<svg viewBox="0 0 240 215" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>${gold}</defs><g fill="none" stroke="url(#tgg)" stroke-width="1.6">${g}</g></svg>`;
+    const blade = (flip) => `<svg viewBox="0 0 90 430" preserveAspectRatio="xMinYMax meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"${flip ? ' style="transform:scaleX(-1)"' : ''}><defs><linearGradient id="tgl" x1="0" x2="1"><stop offset="0" stop-color="${p.leaf1}"/><stop offset="1" stop-color="${p.leaf2}"/></linearGradient></defs><g transform="translate(0 430)"><path d="M0 0 C 10 -160 30 -300 60 -420 C 74 -300 66 -150 40 0Z" fill="url(#tgl)"/><path d="M8 0 C 20 -150 40 -290 60 -420" stroke="#a7d18b" stroke-width="1.5" fill="none"/>${Array.from({ length: 14 }, (_, i) => `<path d="M${12 + i * 1.5} ${-20 - i * 28} l${18 - i * 0.5} -14" stroke="#1f5e2b" stroke-width=".8" opacity=".6"/>`).join('')}</g></svg>`;
+    let jas = ''; for (let i = 0; i < 16; i++) jas += `<circle cx="${(6 + Math.sin(i) * 2).toFixed(1)}" cy="${8 + i * 12}" r="4.2" fill="#fffdf3"/><circle cx="${(6 + Math.sin(i) * 2).toFixed(1)}" cy="${8 + i * 12}" r="1.4" fill="#f3e3a8"/>`;
+    jas += `<circle cx="6" cy="${8 + 16 * 12}" r="5" fill="#e65100"/>`;
+    const jasmine = `<svg viewBox="0 0 12 210" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${jas}</svg>`;
+    const lamp = `<svg viewBox="-20 -96 40 98" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>${gold.replace('tgg', 'tgl2')}</defs><g fill="url(#tgl2)"><path d="M-14 0 H14 L10 -6 H-10Z"/><rect x="-2" y="-46" width="4" height="40"/><path d="M-18 -46 Q0 -36 18 -46 Q0 -52 -18 -46Z"/><circle cy="-80" r="4"/><path d="M-3 -84 L0 -92 L3 -84Z"/></g><path class="rj-flame" d="M0 -54 C-4 -62 0 -70 0 -74 C0 -70 4 -62 0 -54Z" fill="#ffb300"/></svg>`;
+    let bb = '<path d="M0 16 H390" stroke="#c99a3e" stroke-width="1"/>'; for (let i = 0; i < 14; i++) { const x = i * 30; bb += `<path d="M${x} 16 l15 -12 l15 12" stroke="#c99a3e" fill="none" stroke-width="1"/><circle cx="${x + 15}" cy="0" r="1.8" fill="#c99a3e"/>`; }
+    const border = `<svg viewBox="0 -4 390 22" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${bb}</svg>`;
+    const kolam = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='34' height='34'><circle cx='17' cy='17' r='1.6' fill='${p.text}' fill-opacity='.14'/><path d='M17 5 C27 5 29 7 29 17 C29 27 27 29 17 29 C7 29 5 27 5 17 C5 7 7 5 17 5Z' fill='none' stroke='${p.text}' stroke-opacity='.12' stroke-width='.8'/></svg>`)}")`;
+    return { corner: '', hero: '', divider: dividerSVG(p.accent), temple: { gopuram, leafL: blade(false), leafR: blade(true), jasmine, lamp, border, kolam } };
   };
   M.minimal = (p) => ({ corner: '', hero: '', divider: dividerSVG(p.accent) });
 

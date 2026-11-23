@@ -290,3 +290,116 @@ textarea.ix-input { resize: vertical; }
   .ix-sec, .ix-event { break-inside: avoid; }
   .reveal { opacity: 1 !important; transform: none !important; }
 }
+
+/* ---------- Rajwada Jharokha hero (royal arch, jaali, marigold garlands) ---------- */
+.ix-hero.ix-hero-rajwada { justify-content: flex-start; padding: 0 0 2.2rem; background-image: var(--jaali), radial-gradient(90% 60% at 50% 40%, var(--bg) 0%, color-mix(in srgb, var(--bg) 55%, var(--bg2)) 60%, var(--bg2) 100%); background-size: 40px 40px, cover; }
+.rj-garland { position: relative; width: 100%; height: 120px; margin-bottom: -28px; z-index: 2; }
+.rj-garland svg { width: 100%; height: 100%; display: block; }
+.rj-arch { position: relative; width: min(88%, 380px); margin: 0 auto; filter: drop-shadow(0 18px 30px rgba(0,0,0,.35)); }
+.rj-top { line-height: 0; margin-bottom: -1px; }
+.rj-top svg { width: 100%; height: auto; display: block; }
+.rj-body { display: flow-root; position: relative; margin: 0 4.1%; padding: 0 1.1rem 1rem; background: linear-gradient(180deg, var(--paper), var(--paper2)); color: var(--ink); text-align: center;
+  border-left: 3px solid; border-right: 3px solid; border-bottom: 3px solid; border-image: linear-gradient(180deg, #c8963e, #f6dd8c, #a8742a) 1; }
+.rj-body::before { content: ''; position: absolute; inset: 0 3.6% 3.6% 3.6%; border: 1.2px solid #c8963e; border-top: 0; pointer-events: none; opacity: .9; }
+.rj-foil { background: linear-gradient(100deg, var(--foil-a) 0%, var(--foil-b) 25%, color-mix(in srgb, var(--foil-a) 80%, #fff) 45%, var(--foil-b) 65%, var(--foil-a) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.rj-greet { margin: 0 0 .3rem; font-family: var(--f-script); font-size: 1.6em; color: var(--ink2); }
+.rj-kicker { margin: 0 auto; max-width: 18rem; font: 500 .64rem/1.7 'Cinzel', var(--f-body); letter-spacing: .18em; text-transform: uppercase; color: var(--ink2); }
+.rj-names { margin: .7rem 0 0; font-family: var(--f-head); font-weight: 700; font-size: clamp(2rem, 10vw, 2.6rem); line-height: 1.05; text-transform: uppercase; overflow-wrap: anywhere; }
+.rj-amp { display: block; font-family: var(--f-script); font-weight: 400; font-size: 1.25em; line-height: .9; text-transform: none; }
+.rj-sub { margin: .8rem .3rem 0; font-style: italic; font-size: 1.08em; line-height: 1.35; color: var(--ink); }
+.rj-date { display: flex; justify-content: center; align-items: center; gap: .7rem; margin-top: 1rem; font-family: 'Cinzel', var(--f-body); color: var(--ink); }
+.rj-date span { flex: 1; max-width: 6.2rem; font-size: .68rem; letter-spacing: .18em; text-transform: uppercase; border-top: 1px solid #c9a15b; border-bottom: 1px solid #c9a15b; padding: .4rem 0; }
+.rj-date b { font-size: 2.2rem; font-weight: 600; line-height: 1; }
+.rj-year { margin: .45rem 0 0; font: .66rem/1.4 'Cinzel', var(--f-body); letter-spacing: .2em; color: var(--ink2); }
+.rj-venue { margin: .9rem 0 0; font-size: 1.02em; color: var(--ink); }
+.rj-venue small { display: block; font: .6rem/1.5 'Cinzel', var(--f-body); letter-spacing: .2em; text-transform: uppercase; color: var(--ink2); margin-top: .15rem; }
+.rj-body .ix-voice-btn { margin-top: .8rem; color: var(--ink); border-color: #c8963e; }
+.rj-mandala { width: 86%; margin: .6rem auto 0; }
+.rj-mandala svg { width: 100%; height: auto; display: block; }
+.rj-flame { transform-origin: 0 -4px; animation: rjFlicker 1.6s ease-in-out infinite alternate; }
+@keyframes rjFlicker { from { transform: scale(1, 1); } to { transform: scale(.88, 1.12); } }
+.rj-btn { position: relative; z-index: 1; margin-top: 1.6rem; padding: .8rem 1.7rem; border-radius: 999px; font: 600 .72rem/1.2 'Cinzel', var(--f-body); letter-spacing: .22em; text-transform: uppercase; text-decoration: none; color: var(--on-accent); background: linear-gradient(100deg, #c8963e, #f6dd8c 45%, #c8963e); box-shadow: 0 8px 20px rgba(0,0,0,.3); }
+.lang-hi .rj-kicker, .lang-pa .rj-kicker, .lang-hi .rj-date span, .lang-pa .rj-date span, .lang-hi .rj-year, .lang-pa .rj-year, .lang-hi .rj-btn, .lang-pa .rj-btn, .lang-hi .rj-venue small, .lang-pa .rj-venue small { letter-spacing: .02em; font-family: var(--f-body); }
+.lang-hi .rj-names, .lang-pa .rj-names { font-family: 'Tiro Devanagari Hindi', 'Noto Sans Gurmukhi', var(--f-body); font-weight: 400; text-transform: none; }
+body.layout-landscape .rj-arch, body.layout-square .rj-arch { width: min(80%, 420px); }
+body.anim-none .rj-flame { animation: none; }
+
+/* ---------- Pastel Watercolour hero ---------- */
+.ix-hero.ix-hero-pastel { background: var(--bg); color: var(--text); padding: 6.5rem 1.5rem 3rem; overflow: hidden; }
+.pb-wash { position: absolute; border-radius: 50%; filter: blur(30px); pointer-events: none; }
+.pb-wash.a { left: -80px; top: -60px; width: 300px; height: 260px; background: var(--wash1, #f6d4d2); }
+.pb-wash.b { right: -90px; top: 20px; width: 240px; height: 200px; background: var(--wash2, #dfe8d6); }
+.pb-wash.c { left: -60px; bottom: -40px; width: 260px; height: 220px; background: var(--wash2, #dfe8d6); }
+.pb-wash.d { right: -70px; bottom: -70px; width: 300px; height: 260px; background: var(--wash1, #f7d9cf); }
+.pb-flo { position: absolute; width: min(78%, 320px); pointer-events: none; }
+.pb-flo svg { width: 100%; height: auto; display: block; }
+.pb-flo.tl { left: -20px; top: -16px; } .pb-flo.br { right: -24px; bottom: -12px; transform: rotate(180deg); }
+.pb-c { position: relative; z-index: 1; max-width: 22rem; margin: 0 auto; }
+.pb-greet { margin: 0 0 .3rem; font-family: var(--f-body); font-style: italic; color: var(--muted); }
+.pb-script { margin: 0; font-family: var(--f-script); font-size: 2em; line-height: 1.2; color: var(--accent); }
+.pb-names { margin: .4rem 0 0; font-family: var(--f-head); font-style: italic; font-weight: 400; font-size: clamp(2.6rem, 13vw, 3.4rem); line-height: 1; color: var(--text); overflow-wrap: anywhere; }
+.pb-amp { display: block; font-family: var(--f-script); font-style: normal; font-size: .72em; color: var(--accent2); margin: .1em 0; }
+.pb-sub { margin: 1.1rem 0 0; font: 500 .66rem/1.6 Montserrat, system-ui, sans-serif; letter-spacing: .3em; text-transform: uppercase; color: var(--muted); }
+.pb-year { margin-top: .5rem; }
+.pb-date { display: flex; justify-content: center; align-items: center; margin-top: 1.3rem; font: 500 .64rem/1 Montserrat, system-ui, sans-serif; letter-spacing: .26em; text-transform: uppercase; color: var(--text); }
+.pb-date span { width: 5.6rem; padding: .55rem 0; border-top: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
+.pb-date b { font-family: var(--f-head); font-weight: 500; font-size: 2.7rem; letter-spacing: 0; padding: 0 1rem; color: var(--accent); }
+.pb-venue { margin: 1.1rem 0 0; font-style: italic; font-size: 1.15em; }
+.pb-venue small { display: block; font: 500 .6rem/1.6 Montserrat, system-ui, sans-serif; font-style: normal; letter-spacing: .26em; text-transform: uppercase; color: var(--muted); margin-top: .3rem; }
+.pb-note { margin: 1.1rem auto 0; max-width: 19rem; font-size: 1.02em; line-height: 1.45; color: color-mix(in srgb, var(--text) 85%, transparent); }
+.pb-btn { display: inline-block; margin-top: 1.6rem; padding: .85rem 1.8rem; border-radius: 999px; background: var(--accent); color: var(--on-accent); font: 500 .68rem/1.2 Montserrat, system-ui, sans-serif; letter-spacing: .26em; text-transform: uppercase; text-decoration: none; box-shadow: 0 8px 18px color-mix(in srgb, var(--accent) 35%, transparent); }
+.ix-hero-pastel .ix-voice-btn { margin-top: 1rem; }
+
+/* ---------- Ivory Gold Foil hero ---------- */
+.ix-hero.ix-hero-foil { background: var(--bg); color: var(--text); padding: 3.6rem 1.1rem 1.4rem; }
+.fg-frame { position: relative; width: 100%; max-width: 26rem; margin: 0 auto; padding: 2.2rem 1.6rem 2.4rem; border: 1.5px solid var(--foil-b); text-align: center; }
+.fg-frame::before { content: ''; position: absolute; inset: 6px; border: .6px solid var(--foil-b); pointer-events: none; }
+.fg-foil { background: linear-gradient(115deg, var(--foil-a) 0%, var(--foil-b) 24%, var(--foil-c) 34%, var(--foil-a) 50%, var(--foil-b) 70%, var(--foil-c) 78%, var(--foil-a) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.fg-mono { position: relative; width: 150px; height: 150px; margin: 0 auto 1rem; }
+.fg-mono svg { width: 100%; height: 100%; display: block; }
+.fg-mono p { position: absolute; inset: 0; display: grid; place-items: center; grid-auto-flow: column; justify-content: center; align-items: center; margin: 0; font-family: var(--f-head); font-size: 3.1rem; line-height: 1; padding-bottom: .4rem; }
+.fg-mono p span { font-family: var(--f-script); font-size: .62em; margin: 0 .08em; }
+.fg-greet { margin: 0 0 .4rem; font-family: var(--f-script); font-size: 1.5em; color: var(--accent); }
+.fg-k { margin: 0 auto; max-width: 19rem; font: 500 .62rem/1.9 Montserrat, system-ui, sans-serif; letter-spacing: .3em; text-transform: uppercase; color: var(--muted); }
+.fg-names { margin: 1rem 0 0; font-family: var(--f-head); font-weight: 400; font-size: clamp(2.4rem, 11vw, 3rem); line-height: 1.05; letter-spacing: .04em; text-transform: uppercase; overflow-wrap: anywhere; }
+.fg-amp { display: block; font-family: var(--f-script); font-size: .72em; text-transform: none; letter-spacing: 0; margin: .05em 0; }
+.fg-rule { display: block; width: 60px; height: 1px; background: var(--foil-b); margin: 1.2rem auto; }
+.fg-sub { letter-spacing: .22em; }
+.fg-date { margin: 0; font: 500 .7rem/1.6 Montserrat, system-ui, sans-serif; letter-spacing: .3em; text-transform: uppercase; color: var(--text); }
+.fg-date b { display: block; font-family: var(--f-body); font-weight: 400; font-size: 1.3rem; letter-spacing: .12em; margin: .35rem 0; }
+.fg-venue { margin: 1rem 0 0; font-family: var(--f-body); font-style: italic; font-size: 1.02em; }
+.fg-venue small { display: block; font: 500 .58rem/1.6 Montserrat, system-ui, sans-serif; font-style: normal; letter-spacing: .3em; text-transform: uppercase; color: var(--muted); margin-top: .35rem; }
+.fg-btn { display: inline-block; margin-top: 1.8rem; padding: .8rem 1.8rem; border: 1px solid var(--foil-b); color: var(--text); background: color-mix(in srgb, var(--bg) 70%, #fff); font: 500 .66rem/1.2 Montserrat, system-ui, sans-serif; letter-spacing: .32em; text-transform: uppercase; text-decoration: none; }
+.ix-hero-foil .ix-voice-btn { margin-top: 1rem; }
+
+/* ---------- Temple Gopuram hero ---------- */
+.ix-hero.ix-hero-temple { justify-content: flex-start; padding: 3.4rem 1.2rem 2rem; background-image: var(--kolam), radial-gradient(80% 55% at 50% 42%, var(--bg) 0%, color-mix(in srgb, var(--bg) 60%, var(--bg2)) 55%, var(--bg2) 100%); background-size: 34px 34px, cover; color: var(--text); }
+.tg-jas { position: absolute; top: 0; width: 12px; height: 210px; pointer-events: none; } .tg-jas.l { left: 32px; } .tg-jas.r { right: 32px; }
+.tg-jas svg { width: 100%; height: 100%; display: block; }
+.tg-leaf { position: absolute; bottom: 0; width: 90px; height: min(430px, 55%); pointer-events: none; } .tg-leaf.l { left: -28px; } .tg-leaf.r { right: -28px; }
+.tg-leaf svg { width: 100%; height: 100%; display: block; }
+.tg-gopuram { width: 190px; margin: 0 auto; }
+.tg-gopuram svg { width: 100%; height: auto; display: block; }
+.tg-c { position: relative; z-index: 1; max-width: 20rem; margin: .8rem auto 0; text-align: center; }
+.tg-foil { background: linear-gradient(100deg, #b7862f, #f7dc8a 30%, #c99a3e 50%, #ffefb5 65%, #b7862f); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.tg-greet { margin: 0 0 .3rem; font-style: italic; color: var(--muted); }
+.tg-k { margin: 0; font: 500 .62rem/1.7 Montserrat, system-ui, sans-serif; letter-spacing: .3em; text-transform: uppercase; color: var(--muted); }
+.tg-names { margin: .6rem 0 0; font-family: var(--f-head); font-weight: 400; font-size: clamp(2.3rem, 11vw, 2.8rem); line-height: 1.1; overflow-wrap: anywhere; }
+.tg-amp { display: block; font-family: var(--f-script); font-style: italic; font-size: .62em; color: var(--accent); -webkit-text-fill-color: var(--accent); }
+.tg-sub { margin: .8rem 0 0; font-style: italic; font-size: 1.08em; line-height: 1.4; }
+.tg-date { margin: 1.1rem auto 0; width: 14rem; max-width: 100%; border: 1px solid #c99a3e; border-radius: 4px; padding: .65rem 0; font: 500 .62rem/1.6 Montserrat, system-ui, sans-serif; letter-spacing: .24em; text-transform: uppercase; }
+.tg-date b { display: block; font-family: var(--f-head); font-weight: 400; font-size: 1.5rem; letter-spacing: .06em; margin: .2rem 0; }
+.tg-venue { margin: .9rem 0 0; font-size: 1.02em; }
+.tg-venue small { display: block; font: 500 .58rem/1.6 Montserrat, system-ui, sans-serif; letter-spacing: .26em; text-transform: uppercase; color: var(--muted); margin-top: .2rem; }
+.tg-lamps { position: relative; z-index: 1; display: flex; justify-content: space-between; width: min(80%, 300px); margin: 1rem auto 0; }
+.tg-lamps span { width: 40px; }
+.tg-lamps svg { width: 100%; height: auto; display: block; overflow: visible; }
+.tg-border { position: relative; width: 100%; height: 22px; margin-top: -.3rem; }
+.tg-border svg { width: 100%; height: 100%; display: block; }
+.tg-btn { position: relative; z-index: 1; margin-top: 1.2rem; padding: .8rem 1.7rem; border-radius: 999px; background: linear-gradient(100deg, #c99a3e, #f7dc8a 50%, #c99a3e); color: var(--on-accent); font: 600 .68rem/1.2 Montserrat, system-ui, sans-serif; letter-spacing: .24em; text-transform: uppercase; text-decoration: none; }
+.ix-hero-temple .ix-voice-btn { margin-top: 1rem; }
+
+/* Indic scripts: no wide tracking / uppercase in the new designs */
+.lang-hi :is(.pb-sub, .pb-date, .pb-venue small, .pb-btn, .fg-k, .fg-date, .fg-venue small, .fg-btn, .tg-k, .tg-date, .tg-venue small, .tg-btn),
+.lang-pa :is(.pb-sub, .pb-date, .pb-venue small, .pb-btn, .fg-k, .fg-date, .fg-venue small, .fg-btn, .tg-k, .tg-date, .tg-venue small, .tg-btn) { letter-spacing: .02em; text-transform: none; }
+.lang-hi :is(.pb-names, .fg-names, .tg-names, .fg-mono p), .lang-pa :is(.pb-names, .fg-names, .tg-names, .fg-mono p) { font-family: 'Tiro Devanagari Hindi', 'Noto Sans Gurmukhi', var(--f-body); font-style: normal; text-transform: none; letter-spacing: 0; }
