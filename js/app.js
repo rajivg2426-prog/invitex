@@ -155,7 +155,7 @@
       <div class="card stack">
         <h2>Data mode: ${local ? 'Demo / Local' : 'Production (Supabase)'}</h2>
         ${local ? `<div class="notice warn"><b>Your data is stored only in this browser on this device</b> (IndexedDB). Guest links open only in this same browser, and RSVPs from other people's phones are <b>not</b> collected. To receive real RSVPs from guests, connect a Supabase project — see <a href="docs/DEPLOYMENT.md" target="_blank">docs/DEPLOYMENT.md</a>.</div>`
-          : `<div class="notice ok">Connected to Supabase. Signed in as <b>${esc(H.user && H.user.email)}</b>. Guests can open links from any device and RSVPs synchronise to your dashboard.</div><button class="btn" id="signOut">Sign out</button>`}
+          : `<div class="notice ok">Connected to Supabase. Signed in as <b>${esc(H.user && H.user.email)}</b>. Guests can open links from any device and RSVPs synchronise to your dashboard.</div><div class="row"><button class="btn" id="chk">🔌 Check connection</button><button class="btn" id="signOut">Sign out</button></div><div id="chkOut"></div>`}
       </div>
       ${local ? `<div class="card stack">
         <h2>Backup &amp; restore</h2>
@@ -170,6 +170,8 @@
       </div>` : ''}`);
     const so = v.querySelector('#signOut');
     if (so) so.onclick = async () => { await H.store.signOut(); H.user = null; H.go('#/login'); };
+    const ck = v.querySelector('#chk');
+    if (ck) ck.onclick = async () => { const r = await H.store.checkConnection(); v.querySelector('#chkOut').innerHTML = `<div class="notice ${r.ok ? 'ok' : 'bad'}">${esc(r.msg)}</div>`; };
     if (!local) return;
     v.querySelector('#exp').onclick = async () => {
       const data = await H.store.exportAll();

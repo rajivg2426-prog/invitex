@@ -440,7 +440,7 @@
     async listRsvps(invId) { return this._check(await this.sb.from('rsvps').select('*').eq('invitation_id', invId).order('updated_at', { ascending: false })).map((r) => this._r(r)); }
     async hostSaveRsvp(r) {
       const row = { invitation_id: r.invitationId, guest_id: r.guestId || null, name: r.name, phone: r.phone, email: r.email || null, status: r.status, adults: r.adults || 0, children: r.children || 0, extra_names: r.extraNames, food: r.food, requirements: r.requirements, message: r.message, event_ids: r.eventIds || [], consent: true, source: r.source || 'host' };
-      if (r.id) row.id = r.id;
+      if (r.id) row.id = r.id; else row.ref = IX.confirmationRef(); // ref is required for new rows
       return this._r(this._check(await this.sb.from('rsvps').upsert(row).select('*').single()));
     }
     async deleteRsvp(id) { this._check(await this.sb.from('rsvps').delete().eq('id', id)); }
@@ -464,6 +464,12 @@
       const vErr = model.validateRsvp(p);
       if (vErr) return { status: 'error', code: vErr };
       return this._check(await this.sb.rpc('submit_rsvp', { p_slug: slug, p_payload: p, p_password: password || null, p_guest_token: guestToken || null, p_edit_token: editToken || null }));
+    }
+    async checkConnection() {
+      const { error } = await this.sb.rpc('slug_available', { p_slug: 'connection-check', p_except: null });
+      if (error && /function .* does not exist|Could not find the function/i.test(error.message)) return { ok: false, msg: 'Connected to Supabase, but the database setup (supabase/schema.sql) has not been run yet.' };
+      if (error) return { ok: false, msg: error.message };
+      return { ok: true, msg: 'Connected. The database is set up correctly.' };
     }
     async exportAll() { throw new Error('Use the Supabase dashboard (Database > Backups) to back up production data.'); }
   }
