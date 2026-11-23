@@ -12,11 +12,12 @@
  * in the frontend.
  */
 window.INVITEX_CONFIG = {
-  SUPABASE_URL: '',          // e.g. 'https://abcdefgh.supabase.co'
-  SUPABASE_ANON_KEY: '',     // the "anon public" key from Project Settings > API
+  SUPABASE_URL: 'https://elevbhlcxqnqgfsqplrk.supabase.co',
+  // Public "publishable" key (sb_publishable_…), safe in the browser. Never the secret/service_role key.
+  SUPABASE_ANON_KEY: 'sb_publishable_pAu9_dgaoDzj2DyvA7sGug_sEe5kWF8',
   MEDIA_BUCKET: 'invite-media',
   // Optional: absolute public URL where invite.html is hosted. When empty the
   // current site location is used.
-  PUBLIC_BASE_URL: '',
+  PUBLIC_BASE_URL: 'https://rajivg2426-prog.github.io/invitex/',
   DEFAULT_TIMEZONE: 'Asia/Kolkata',
 };
