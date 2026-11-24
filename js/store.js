@@ -41,7 +41,7 @@
       events: [model.newEvent(cat.main || cat.events[0])],
       highlights: [],
       hostsList: [], // [{ref, name, role}]
-      media: { cover: '', background: '', logo: '', decor: '', gallery: [], music: '', voice: '', video: '' },
+      media: { cover: '', artwork: '', background: '', logo: '', decor: '', gallery: [], music: '', voice: '', video: '' },
       design: {
         fonts: { ...t.fonts },
         fontScale: 1,
@@ -54,6 +54,8 @@
         sectionOrder: IXT.SECTIONS.map((s) => s.id),
         sections,
         musicAutoplay: true,
+        artLayout: 'top', // top | full | card (used when media.artwork is set)
+        artWelcome: true,
       },
       settings: {
         rsvpEnabled: true,
@@ -356,7 +358,7 @@
 
   model.mediaRefs = (inv) => {
     const m = inv.media || {};
-    return [m.cover, m.background, m.logo, m.decor, m.music, m.voice, m.video, ...(m.gallery || []).map((g) => g.ref), ...(inv.hostsList || []).map((h) => h.ref)].filter(Boolean);
+    return [m.cover, m.artwork, m.background, m.logo, m.decor, m.music, m.voice, m.video, ...(m.gallery || []).map((g) => g.ref), ...(inv.hostsList || []).map((h) => h.ref)].filter(Boolean);
   };
 
   /* ======================= Supabase (production) =======================

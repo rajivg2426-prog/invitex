@@ -164,6 +164,49 @@
   const sec = (id, inner, cls = '') => `<section class="ix-sec ix-sec-${id} reveal ${cls}" id="sec-${id}" aria-labelledby="h-${id}">${inner}</section>`;
   const h2 = (id, text) => `<h2 class="ix-h2" id="h-${id}">${esc(text)}</h2>`;
 
+  // "A weds B" / "A & B" -> two names with a small connector, like a welcome board.
+  function splitNames(title) {
+    const m = String(title || '').match(/^(.+?)\s+(weds|&|and|और|संग|ਅਤੇ|ਸੰਗ|वेड्स|ਵੈਡਸ)\s+(.+)$/i);
+    return m ? [m[1], m[2], m[3]] : null;
+  }
+  // Opening screen built around the host's own uploaded painting or card.
+  function artHero(ctx, { art, ev, host, sub, logo, tz }) {
+    const { inv } = ctx;
+    const mode = ['top', 'full', 'card'].includes(inv.design.artLayout) ? inv.design.artLayout : 'top';
+    const names = splitNames(ctx.title);
+    const title = names
+      ? `<h1 class="ix-art-names" id="h-opening"><span>${esc(names[0])}</span><small>${esc(names[1])}</small><span>${esc(names[2])}</span></h1>`
+      : `<h1 class="ix-art-names one" id="h-opening"><span>${esc(ctx.title)}</span></h1>`;
+    const date = ev ? (() => {
+      const d = IX.zonedToUtc(ev.date, ev.start || '12:00', tz);
+      return new Intl.DateTimeFormat(IX.locale(S.lang), { day: 'numeric', month: 'long', year: 'numeric', timeZone: tz }).format(d);
+    })() : '';
+    const text = `<div class="ix-art-text">
+        ${logo ? `<img class="ix-logo" src="${esc(logo)}" alt="" data-fb="self">` : ''}
+        ${S.guest ? `<p class="ix-greet">${esc(t('dear'))} ${esc(S.guest.name)},</p>` : ''}
+        ${inv.design.artWelcome !== false ? `<p class="ix-art-welcome" aria-hidden="true"><i></i><span>${esc(t('welcome'))}</span><i></i></p>` : ''}
+        ${host ? `<p class="ix-kicker">${esc(host)}</p>` : ''}
+        ${title}
+        ${sub ? `<p class="ix-art-sub">${esc(sub)}</p>` : ''}
+        ${date ? `<p class="ix-art-date">${esc(date)}${ev.start ? ` · ${esc(IX.fmtTime(ev.date, ev.start, tz, S.lang))}` : ''}</p>` : ''}
+        ${ev && ev.venue ? `<p class="ix-art-venue">${esc(ev.venue)}${ev.city ? `, ${esc(ev.city)}` : ''}</p>` : ''}
+        ${url(inv.media.voice) && !isPrint ? `<button type="button" class="ix-btn ix-btn-ghost ix-voice-btn" data-voice>▶ ${esc(t('playVoice'))}</button>` : ''}
+      </div>`;
+    const next = (inv.design.sectionOrder.find((x) => x !== 'opening' && inv.design.sections[x])) || 'rsvp';
+    const scroll = isPrint ? '' : `<a href="#sec-${next}" class="ix-scroll" aria-label="Scroll down"><span aria-hidden="true">⌄</span></a>`;
+    if (mode === 'card') {
+      // The image already carries the wording, so show it whole; the names stay available to screen readers.
+      return `<section class="ix-hero ix-art art-card" id="sec-opening" aria-label="${esc(ctx.title)}">
+        <figure class="ix-art-img"><img src="${esc(art)}" alt="" loading="eager" data-fb="parent"></figure>
+        <div class="sr-only">${title}${date ? `<p>${esc(date)}</p>` : ''}${ev && ev.venue ? `<p>${esc(ev.venue)}</p>` : ''}</div>
+        ${S.guest ? `<p class="ix-greet">${esc(t('dear'))} ${esc(S.guest.name)},</p>` : ''}
+        ${scroll}</section>`;
+    }
+    return `<section class="ix-hero ix-art art-${mode}" id="sec-opening" aria-label="${esc(ctx.title)}">
+      <figure class="ix-art-img" aria-hidden="true"><img src="${esc(art)}" alt="" loading="eager" data-fb="parent"></figure>
+      ${text}${scroll}</section>`;
+  }
+
   const SECTIONS = {
     opening(ctx) {
       const { inv, motif } = ctx;
@@ -178,6 +221,8 @@
         const f = (o) => new Intl.DateTimeFormat(IX.locale(S.lang), { ...o, timeZone: tz }).format(d);
         return `<div class="ix-datebar"><span>${esc(f({ weekday: 'long' }))}</span><span class="ix-datebig"><small>${esc(f({ month: 'short' }))}</small><b>${esc(f({ day: 'numeric' }))}</b><small>${esc(f({ year: 'numeric' }))}</small></span><span>${esc(ev.start ? IX.fmtTime(ev.date, ev.start, tz, S.lang) : '')}</span></div>`;
       })() : '';
+      const art = url(inv.media.artwork);
+      if (art) return artHero(ctx, { art, ev, host, sub, logo, tz });
       return `<section class="ix-hero" id="sec-opening" aria-label="${esc(ctx.title)}">
         ${deco(ctx)}
         ${motif.hero && !cover ? `<div class="ix-hero-art" aria-hidden="true">${motif.hero}</div>` : ''}
