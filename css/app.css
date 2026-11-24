@@ -301,3 +301,20 @@ details.more summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--p
 .font-opt .fn{font:500 11.5px var(--font);color:#777}
 .font-opt.on{border-color:var(--plum2);box-shadow:0 0 0 3px color-mix(in srgb,var(--plum2) 18%,transparent)}
 .font-opt[data-font=head] .fs,.font-opt[data-font=body] .fs{font-size:18px}
+
+/* ---- 3-step editor ---- */
+.fill-panel{background:#fff;border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);margin-bottom:1rem}
+.fill-panel>summary{list-style:none;display:flex;gap:.8rem;align-items:center;padding:1rem 1.1rem;cursor:pointer}
+.fill-panel>summary::-webkit-details-marker{display:none}
+.fill-panel>summary b{display:block;font-size:1.05rem}.fill-panel>summary small{color:var(--muted);font-size:13px}
+.fill-panel>summary::after{content:'▾';margin-left:auto;color:var(--plum2);transition:transform .2s}
+.fill-panel[open]>summary::after{transform:rotate(180deg)}
+.fp-n{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#f5eef3;color:var(--plum2);font-weight:700}
+.fp-body{padding:0 .6rem .4rem}.fp-body>.card{box-shadow:none;border:1px solid var(--line)}
+details.more-details>summary,details.more-options>summary{cursor:pointer;padding:.2rem 0}
+details.more-details[open]>summary,details.more-options[open]>summary{margin-bottom:.8rem}
+.stack.sub{border-top:1px solid var(--line);padding-top:1rem;margin-top:.6rem}
+.art-prev{width:66px;height:88px;border-radius:8px;background:center/cover;border:1px solid var(--line)}
+.field.flash{animation:ixflash 1.4s ease}
+@keyframes ixflash{0%,40%{background:#fff3d6;box-shadow:0 0 0 6px #fff3d6}100%{background:transparent;box-shadow:0 0 0 6px transparent}}
+#fpWords{margin-bottom:1rem}

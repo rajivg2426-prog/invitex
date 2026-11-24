@@ -230,12 +230,9 @@
     H.render(`<div class="card help" style="max-width:820px">
       <h1>Quick guide</h1>
       <ol>
-        <li><b>Create</b> – tap <i>Create invitation</i>, choose the occasion, a design and colours.</li>
-        <li><b>Photos &amp; media</b> – drag photos in (or tap to choose). Use ✂ to crop or reposition. Add music, a voice message or a short video if you like.</li>
-        <li><b>Details</b> – add the title, host names and one or more events (e.g. Mehendi, Haldi, Wedding, Reception), each with its own date, time and venue.</li>
-        <li><b>Message</b> – write your invitation in English, हिन्दी or ਪੰਜਾਬੀ. The ✨ assistant can suggest wording; it never replaces your text unless you choose to.</li>
-        <li><b>Design</b> – fonts, colours, borders, animations and which sections appear, with a live phone/desktop preview.</li>
-        <li><b>Publish</b> – choose your link name, RSVP deadline and limits, then <i>Publish</i>. Edits after publishing are saved as a draft until you press <i>Update published invitation</i>.</li>
+        <li><b>1 · Design</b> – tap <i>Create invitation</i>, choose the occasion, a design and colours – or upload your own artwork as the card.</li>
+        <li><b>2 · Fill your card</b> – pick a message style (every line is written to match), then add the names, date and place. You can also click any line on the card preview and type right there. Photos, music, the full message and fonts are in the folded panels below.</li>
+        <li><b>3 · Share</b> – choose your link name and press <i>Publish</i>. RSVP questions, password and expiry are under <i>More options</i>. Edits after publishing stay a draft until you press <i>Update published invitation</i>.</li>
         <li><b>Share</b> – in the RSVP dashboard add guests and send each a personal WhatsApp link, or share one general link / QR code.</li>
         <li><b>Track</b> – watch confirmed attendees, adults/children, food preferences and event-wise numbers; export to CSV/Excel or print.</li>
       </ol>

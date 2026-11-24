@@ -23,7 +23,7 @@ const ok = (t, cond, note = '') => { results.push([t, !!cond, note]); console.lo
   await host.waitForSelector('.cat-grid');
   await host.click('[data-cat=wedding]');
   await host.click('[data-pal="1"]'); // emerald palette
-  await host.click('#nextBtn'); await host.waitForSelector('text=Cover photo');
+  await host.click('#nextBtn'); await host.click('#fpPhotos > summary'); await host.waitForSelector('text=Cover photo');
   await host.setInputFiles('input[data-slot=cover]', cover);
   await host.waitForSelector('#stage'); await host.waitForTimeout(400);
   await host.click('.modal-f >> text=Apply');
@@ -36,7 +36,7 @@ const ok = (t, cond, note = '') => { results.push([t, !!cond, note]); console.lo
   const toastTxt = await host.locator('#ix-toasts').innerText().catch(() => '');
   ok('TEST 13a: rejects invalid image file', /does not look like a valid/.test(toastTxt), toastTxt.split('\n').pop());
   await host.screenshot({ path: OUT + '/t1-media.png', fullPage: false });
-  await host.click('#nextBtn'); await host.waitForSelector('#tf-title');
+  await host.waitForSelector('#tf-title');
   await host.fill('#tf-title', 'Kabir & Ananya');
   await host.fill('#tf-subtitle', 'Invite you to celebrate their wedding');
   await host.fill('#tf-hostName', 'The Malhotra & Sethi Families');
@@ -53,12 +53,12 @@ const ok = (t, cond, note = '') => { results.push([t, !!cond, note]); console.lo
   await host.fill('[data-ev="1.date"]', '2027-02-15');
   await host.fill('[data-ev="1.start"]', '20:00');
   await host.click('[data-evact="copy.1"]');
-  await host.click('#nextBtn'); await host.waitForSelector('#rte');
+  await host.click('#fpMessage > summary'); await host.waitForSelector('#rte');
   await host.click('#rte'); await host.keyboard.type('We joyfully invite you to our wedding.');
   await host.selectOption('#aiStyle', 'royal'); await host.click('#aiGen'); await host.click('#aiIns');
   const msgHtml = await host.locator('#rte').innerHTML();
   ok('TEST 1b: AI assistant inserts without overwriting user text', msgHtml.includes('We joyfully invite you') && /families request the honour/.test(msgHtml));
-  await host.click('#nextBtn'); await host.waitForSelector('#secList');
+  await host.click('#fpLook > summary'); await host.waitForSelector('#secList');
   await host.click('#nextBtn'); await host.waitForSelector('#slug');
   await host.fill('#slug', 'kabir-ananya');
   await host.waitForSelector('text=Available', { timeout: 5000 });
@@ -161,11 +161,11 @@ const ok = (t, cond, note = '') => { results.push([t, !!cond, note]); console.lo
   ok('TEST 9b: ICS file with both events', (ics.match(/BEGIN:VEVENT/g) || []).length === 2 && ics.includes('DTSTART:20270214T133000Z') && ics.includes('DTSTART:20270215T143000Z'));
 
   /* TEST 10 */
-  await host.goto(BASE + 'index.html#/edit/' + invId + '/3'); await host.waitForSelector('#tf-title');
+  await host.goto(BASE + 'index.html#/edit/' + invId + '/2'); await host.waitForSelector('#tf-title');
   await host.fill('#tf-title', 'Kabir & Ananya – Forever'); await host.fill('[data-ev="0.start"]', '18:30');
   await host.waitForTimeout(1200);
   await mob.reload(); const before = await mob.locator('.ix-title').first().innerText();
-  await host.click('[data-step="6"]'); await host.waitForSelector('text=edits that guests cannot see');
+  await host.click('[data-step="3"]'); await host.waitForSelector('text=edits that guests cannot see');
   await host.click('#nextBtn'); await host.waitForSelector('text=Guests are seeing the latest version');
 await mob.reload(); await mob.waitForSelector('.ix-title'); const after = await mob.locator('.ix-title').first().innerText();
   const tm = await mob.locator('.ix-datebar').innerText();
@@ -180,9 +180,9 @@ await mob.reload(); await mob.waitForSelector('.ix-title'); const after = await 
   /* TEST 11 */
   await host.goto(BASE + 'index.html#/new'); await host.waitForSelector('.cat-grid');
   await host.click('[data-cat=corporate]'); await host.click('[data-pal="1"]'); await host.click('label:has(input[name=layout][value=landscape])');
-  await host.click('[data-step="3"]'); await host.waitForSelector('#tf-title');
+  await host.click('[data-step="2"]'); await host.waitForSelector('#tf-title');
   await host.fill('#tf-title', 'Q1 Leadership Offsite'); await host.fill('[data-ev="0.date"]', '2027-03-10'); await host.fill('[data-ev="0.start"]', '10:00'); await host.fill('[data-ev="0.venue"]', 'Taj Lands End'); await host.fill('[data-ev="0.city"]', 'Mumbai');
-  await host.click('[data-step="6"]'); await host.fill('#slug', 'q1-offsite'); await host.waitForSelector('text=Available'); await host.waitForTimeout(900);
+  await host.click('[data-step="3"]'); await host.fill('#slug', 'q1-offsite'); await host.waitForSelector('text=Available'); await host.waitForTimeout(900);
   await host.click('#nextBtn'); await host.waitForSelector('text=Guests are seeing the latest version');
   const inv2 = host.url().match(/edit\/([^/]+)/)[1];
   const corp = await ctx.newPage(); await corp.goto(BASE + 'invite.html?i=q1-offsite'); await corp.waitForSelector('#main');
@@ -201,9 +201,9 @@ await mob.reload(); await mob.waitForSelector('.ix-title'); const after = await 
 
   /* TEST 13 language switch */
   await mob.goto(BASE + 'invite.html?i=kabir-ananya'); await mob.click('#openBtn');
-  await host.goto(BASE + 'index.html#/edit/' + invId + '/3'); await host.waitForSelector('[data-langtoggle=hi]');
+  await host.goto(BASE + 'index.html#/edit/' + invId + '/2'); await host.waitForSelector('.more-details'); await host.click('.more-details > summary'); await host.waitForSelector('[data-langtoggle=hi]');
   await host.check('[data-langtoggle=hi]'); await host.waitForSelector('[data-lt=hi]'); await host.click('[data-lt=hi]'); await host.fill('#tf-title', 'कबीर और अनन्या'); await host.waitForTimeout(1000);
-  await host.click('[data-step="6"]'); await host.click('#nextBtn'); await host.waitForSelector('text=Guests are seeing the latest version');
+  await host.click('[data-step="3"]'); await host.click('#nextBtn'); await host.waitForSelector('text=Guests are seeing the latest version');
   await mob.reload(); await mob.click('#openBtn'); await mob.click('[data-lang=hi]'); await mob.waitForTimeout(400);
   const hiTitle = await mob.locator('.ix-title').first().innerText(); const hiBtn = await mob.locator('.ix-submit').innerText();
   await mob.screenshot({ path: OUT + '/t13-hindi.png' });

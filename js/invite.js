@@ -106,6 +106,30 @@
   const url = (ref) => (ref ? S.mediaUrls[ref] || '' : '');
 
   /* ---------------- render ---------------- */
+  /* Click-to-type on the card (editor preview only). Plain lines become editable in
+   * place; every change is sent to the editor, which saves it without re-drawing the
+   * preview, so the cursor stays where the host is typing. The rich main message is
+   * edited in the editor's own box instead (a click jumps there). */
+  function wireInlineEdit() {
+    const ce = (() => { const d = document.createElement('div'); d.contentEditable = 'plaintext-only'; return d.contentEditable === 'plaintext-only' ? 'plaintext-only' : 'true'; })();
+    document.querySelectorAll('[data-edit]').forEach((el) => {
+      const key = el.dataset.edit;
+      el.title = 'Click to edit';
+      if (el.dataset.editRich) { el.onclick = () => parent.postMessage({ type: 'ix-edit-focus', key, lang: S.lang }, location.origin); return; }
+      el.contentEditable = ce;
+      el.spellcheck = true;
+      if (!el.textContent.trim()) el.dataset.empty = '1';
+      el.addEventListener('focus', () => parent.postMessage({ type: 'ix-edit-focus', key, lang: S.lang, inline: true }, location.origin));
+      el.addEventListener('keydown', (e) => { if (e.key === 'Enter' && ['title', 'subtitle', 'familyName', 'hostName'].includes(key)) { e.preventDefault(); el.blur(); } });
+      el.addEventListener('input', () => {
+        const value = el.innerText.replace(/\u00a0/g, ' ').replace(/\n{3,}/g, '\n\n').replace(/\n$/, '');
+        el.dataset.empty = value.trim() ? '' : '1';
+        if (S.inv.text && S.inv.text[S.lang]) S.inv.text[S.lang][key] = value;
+        parent.postMessage({ type: 'ix-edit', key, lang: S.lang, value }, location.origin);
+      });
+    });
+  }
+
   async function render(keepScroll) {
     const inv = S.inv;
     const scrollY = window.scrollY;
@@ -167,6 +191,8 @@
     pin: '<svg class="ix-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-6.2-6.5-11.2a6.5 6.5 0 0 1 13 0C18.5 14.8 12 21 12 21z"/><circle cx="12" cy="9.8" r="2.4"/></svg>',
     down: '<svg class="ix-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></svg>',
   };
+  // In the editor's preview, lines of text are tagged so the host can click and type on the card itself.
+  const ed = (key) => (isPreview ? ` data-edit="${key}"` : '');
   const firstEvent = (inv) => (inv.events || []).find((e) => e.id === inv.mainEventId && e.date) || (inv.events || []).filter((e) => e.date).sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start))[0];
   const deco = (ctx) => (ctx.inv.design.decorations && ctx.motif.corner ? `<div class="ix-corner tl" aria-hidden="true">${ctx.motif.corner}</div><div class="ix-corner tr" aria-hidden="true">${ctx.motif.corner}</div>` : '');
   const decoB = (ctx) => (ctx.inv.design.decorations && ctx.motif.corner ? `<div class="ix-corner bl" aria-hidden="true">${ctx.motif.corner}</div><div class="ix-corner br" aria-hidden="true">${ctx.motif.corner}</div>` : '');
@@ -195,9 +221,9 @@
         <div class="ix-hero-text">
           ${logo ? `<div class="ix-logo-wrap"><img class="ix-logo" src="${esc(logo)}" alt="" data-fb="self"></div>` : ''}
           ${S.guest ? `<p class="ix-greet">${esc(t('dear'))} ${esc(S.guest.name)},</p>` : ''}
-          ${host ? `<p class="ix-kicker">${esc(host)}</p>` : ''}
-          <h1 class="ix-title">${esc(ctx.title)}</h1>
-          ${sub ? `<p class="ix-sub">${esc(sub)}</p>` : ''}
+          ${host || isPreview ? `<p class="ix-kicker"${ed('familyName')}>${esc(host)}</p>` : ''}
+          <h1 class="ix-title"${ed('title')}>${esc(isPreview ? M.txt(inv, S.lang, 'title') : ctx.title)}</h1>
+          ${sub || isPreview ? `<p class="ix-sub"${ed('subtitle')}>${esc(sub)}</p>` : ''}
           ${dateBlock}
           ${ev && ev.venue ? `<p class="ix-hero-venue">${esc(ev.venue)}${ev.city ? `<br><small>${esc(ev.city)}</small>` : ''}</p>` : ''}
           ${url(inv.media.voice) && !isPrint ? `<button type="button" class="ix-btn ix-btn-ghost ix-voice-btn" data-voice>▶ ${esc(t('playVoice'))}</button>` : ''}
@@ -209,7 +235,7 @@
     welcome(ctx) {
       const w = M.txt(ctx.inv, S.lang, 'welcome');
       if (!w) return '';
-      return sec('welcome', `${h2('welcome', t('welcome'))}${divider(ctx)}<p class="ix-lead">${IX.nl2br(w)}</p>`);
+      return sec('welcome', `${h2('welcome', t('welcome'))}${divider(ctx)}<p class="ix-lead"${ed('welcome')}>${IX.nl2br(w)}</p>`);
     },
     hosts(ctx) {
       const { inv } = ctx;
@@ -218,12 +244,12 @@
       if (!list.length && !hn) return '';
       return sec('hosts', `${h2('hosts', t('hosts'))}${divider(ctx)}
         ${list.length ? `<div class="ix-people n${Math.min(list.length, 4)}">${list.map((h) => `<figure class="ix-person">${url(h.ref) ? `<div class="ix-photo"><img src="${esc(url(h.ref))}" alt="${esc(h.name || '')}" loading="lazy" data-fb="missing"></div>` : `<div class="ix-photo missing" aria-hidden="true"></div>`}<figcaption><b>${esc(h.name || '')}</b>${h.role ? `<span>${esc(h.role)}</span>` : ''}</figcaption></figure>`).join('')}</div>` : ''}
-        ${hn ? `<p class="ix-hostname">${esc(hn)}</p>` : ''}${fam ? `<p class="ix-muted">${esc(fam)}</p>` : ''}`);
+        ${hn ? `<p class="ix-hostname"${ed('hostName')}>${esc(hn)}</p>` : ''}${fam ? `<p class="ix-muted">${esc(fam)}</p>` : ''}`);
     },
     message(ctx) {
       const m = M.txt(ctx.inv, S.lang, 'message');
       if (!m) return '';
-      return sec('message', `${h2('message', t('invitation'))}${divider(ctx)}<div class="ix-rich">${IX.sanitizeHTML(m)}</div>`, 'ix-card');
+      return sec('message', `${h2('message', t('invitation'))}${divider(ctx)}<div class="ix-rich"${isPreview ? ' data-edit="message" data-edit-rich="1"' : ''}>${IX.sanitizeHTML(m)}</div>`, 'ix-card');
     },
     countdown(ctx) {
       const ev = firstEvent(ctx.inv);
@@ -312,7 +338,7 @@
     },
     thankyou(ctx) {
       const msg = M.txt(ctx.inv, S.lang, 'thankyou') || t('thankyouMsg');
-      return `<section class="ix-closing reveal" id="sec-thankyou" aria-labelledby="h-thankyou">${deco(ctx)}<h2 class="ix-title small" id="h-thankyou">${esc(t('thankyou'))}</h2>${divider(ctx)}<p class="ix-lead">${IX.nl2br(msg)}</p>
+      return `<section class="ix-closing reveal" id="sec-thankyou" aria-labelledby="h-thankyou">${deco(ctx)}<h2 class="ix-title small" id="h-thankyou">${esc(t('thankyou'))}</h2>${divider(ctx)}<p class="ix-lead"${ed('thankyou')}>${IX.nl2br(msg)}</p>
         ${M.txt(ctx.inv, S.lang, 'hostName') ? `<p class="ix-hostname">— ${esc(M.txt(ctx.inv, S.lang, 'hostName'))}</p>` : ''}${decoB(ctx)}</section>`;
     },
   };
@@ -498,6 +524,7 @@
       if (a.isConnected) a.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }));
     document.querySelectorAll('audio[data-voice-audio], video').forEach((a) => a.addEventListener('play', () => S.music && S.music.pause()));
+    if (isPreview) wireInlineEdit();
     // opener
     const op = document.getElementById('opener');
     if (op) {
