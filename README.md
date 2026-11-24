@@ -57,6 +57,9 @@ js/samples.js         The 4 sample invitations
 js/vendor/qrcode.js   QR generator (qrcode-generator 1.4.4, MIT, Kazuhiko Arase)
 supabase/schema.sql   Tables, RLS policies, guest RPC API, storage bucket & policies
 tests/e2e.js          Playwright end-to-end test of all 13 required journeys
+tests/copy-*.{mjs,js} Writing studio tests: built-in writer, AI server step, studio in the browser
+js/copy/              Writing studio: built-in writer (engine + EN/HI/PA phrase banks) and studio screen
+supabase/functions/write-invitation-copy/  Server step for the optional AI writer
 tests/schema-test.sql SQL test of RLS + RPCs (run against Postgres with tests/supabase-stubs.sql)
 docs/                 User manual, deployment guide, test report, screenshots
 ```
@@ -66,3 +69,4 @@ docs/                 User manual, deployment guide, test report, screenshots
 - [User manual](docs/USER_MANUAL.md): for hosts, with no technical knowledge needed
 - [Deployment & Supabase setup](docs/DEPLOYMENT.md)
 - [Test report](docs/TEST_REPORT.md), including known limitations
+- [Writing studio and AI writer setup](docs/COPY_STUDIO.md)

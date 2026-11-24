@@ -344,3 +344,69 @@ details.more-details[open]>summary,details.more-options[open]>summary{margin-bot
 .ai-older summary { cursor: pointer; font-weight: 600; color: var(--plum2); }
 /* phone: keep Back / Save draft / Next on screen */
 @media (max-width: 480px) { .wiz-foot .btn { padding-left: .6rem; padding-right: .6rem; min-width: 0; } .wiz-foot #nextBtn { flex: 1 1 auto; white-space: normal; line-height: 1.2; } }
+
+/* ---------- Writing studio (js/copy/studio.js) ---------- */
+.cs-entry { display: flex; align-items: center; justify-content: space-between; gap: .8rem; flex-wrap: wrap; padding: .85rem 1rem; border: 1.5px solid color-mix(in srgb, var(--gold) 55%, var(--line)); border-radius: 12px; background: linear-gradient(180deg, #fffaf2, #fff); }
+.cs-entry > div:first-child { display: grid; gap: .15rem; min-width: 0; flex: 1 1 240px; }
+.cs-entry b { font: 600 1.15rem/1.2 'Cormorant Garamond', Georgia, serif; color: var(--plum); }
+.cs { display: grid; gap: 1rem; min-width: 0; }
+.cs-head { display: flex; align-items: flex-start; gap: .6rem; flex-wrap: wrap; }
+.cs-head h2 { font: 600 1.6rem/1.1 'Cormorant Garamond', Georgia, serif; color: var(--plum); margin: 0 0 .15rem; }
+.cs-head p { margin: 0; }
+.cs-opts { display: grid; gap: 1rem; border: 1.5px solid color-mix(in srgb, var(--gold) 45%, var(--line)); background: linear-gradient(180deg, #fffaf2, #fff 140px); }
+.cs-row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; }
+.cs-row > .field:first-child { flex: 1 1 220px; }
+.cs-styles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .45rem; }
+.cs-style { display: grid; gap: .1rem; text-align: left; padding: .55rem .7rem; border: 1.5px solid var(--line); border-radius: 10px; background: #fff; cursor: pointer; font: 13px var(--font); color: var(--ink2); min-height: 52px; }
+.cs-style b { font-size: 14px; color: var(--ink); }
+.cs-style small { font-size: 11.5px; line-height: 1.3; color: var(--muted); }
+.cs-style small em { font-style: normal; color: var(--gold2); font-weight: 600; }
+.cs-style:hover { border-color: var(--gold); }
+.cs-style.on { border-color: var(--plum2); background: #f8eff5; box-shadow: 0 0 0 3px rgba(75,29,58,.12); }
+.cs-sub { font-weight: 500; opacity: .75; font-size: 11.5px; }
+.cs-more summary { cursor: pointer; padding: .2rem 0; }
+.cs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .8rem; margin-top: .7rem; }
+.cs-span { grid-column: 1 / -1; }
+.cs-spin { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; display: inline-block; animation: spin .8s linear infinite; }
+.cs-note { margin: 0; padding: .65rem .9rem; border-radius: 10px; background: #fff6da; color: #5a4100; border: 1px solid #f0dc9c; font-size: 13.5px; }
+.cs-done { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; padding: .6rem .9rem; border-radius: 10px; background: #dcf5e8; color: #0f5c39; font-weight: 600; font-size: 14px; }
+.cs-done span { flex: 1 1 200px; }
+.cs-empty { text-align: center; color: var(--muted); padding: 1.2rem; border: 1.5px dashed var(--line); border-radius: 12px; }
+.cs-versions { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: .9rem; }
+.cs-card { display: flex; flex-direction: column; gap: .15rem; background: #fff; border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--sh); padding: .9rem; min-width: 0; }
+.cs-card.previewing { border-color: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 35%, transparent); }
+.cs-card header { display: flex; align-items: center; gap: .5rem; padding-bottom: .4rem; border-bottom: 1px solid var(--line); margin-bottom: .2rem; }
+.cs-letter { width: 28px; height: 28px; flex: none; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(135deg, var(--gold), var(--gold2)); color: var(--plum); font: 700 14px var(--font); }
+.cs-ap { font: 600 1.05rem 'Cormorant Garamond', Georgia, serif; color: var(--plum); flex: 1; }
+.cs-src { font-size: 10.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; background: #ece8f0; color: var(--ink2); white-space: nowrap; }
+.cs-src.ai { background: #f3e6c8; color: #6b4b00; } .cs-src.you { background: #e8eefc; color: #23408f; }
+.cs-line { padding: .45rem .5rem; border-radius: 8px; border: 1px solid transparent; }
+.cs-line:hover { background: #fcfaf7; }
+.cs-line.picked { border-color: var(--plum2); background: #f8eff5; }
+.cs-lh { display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.cs-tools { margin-left: auto; display: inline-flex; gap: .2rem; align-items: center; }
+.cs-ic, .cs-pick { min-width: 30px; height: 30px; border: 1px solid var(--line); background: #fff; border-radius: 8px; cursor: pointer; font: 600 13px var(--font); color: var(--ink2); padding: 0 .4rem; letter-spacing: 0; text-transform: none; }
+.cs-ic:hover, .cs-pick:hover { border-color: var(--gold); }
+.cs-ic.spin { animation: spin .8s linear infinite; }
+.cs-pick[aria-pressed="true"] { background: var(--plum2); color: #fff; border-color: var(--plum2); }
+.cs-text { margin-top: .25rem; font-size: 14.5px; line-height: 1.5; color: var(--ink); overflow-wrap: anywhere; }
+.cs-text.msg p { margin: 0 0 .45rem; } .cs-text.msg p:last-child { margin-bottom: 0; }
+.cs-text.editing { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 6px; background: #fffdf8; padding: .2rem .3rem; }
+.cs-warn { margin: .3rem .5rem 0; font-size: 12.5px; color: var(--warn); }
+.cs-card footer { display: flex; gap: .4rem; justify-content: flex-end; flex-wrap: wrap; margin-top: auto; padding-top: .6rem; border-top: 1px solid var(--line); }
+.cs-compare { display: grid; gap: .9rem; }
+.cs-cmp { background: #fff; border: 1px solid var(--line); border-radius: var(--r); padding: .8rem; }
+.cs-cmp h4 { margin: 0 0 .4rem; font: 600 1.1rem 'Cormorant Garamond', Georgia, serif; color: var(--plum); }
+.cs-cmp-i { display: grid; grid-template-columns: 28px 1fr; gap: .5rem; align-items: start; padding: .25rem 0; }
+.cs-cmp-i + .cs-cmp-i { border-top: 1px dashed var(--line); }
+.cs-cmp .cs-lh > span:first-child { display: none; }
+.cs-mix { position: sticky; bottom: .6rem; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: .6rem; flex-wrap: wrap; padding: .6rem .9rem; border-radius: 12px; background: #fff; border: 1px solid var(--line); box-shadow: var(--sh); }
+.cs-mix.on { border-color: var(--plum2); background: #fbf5f9; }
+.cs-hist ul { list-style: none; margin: .6rem 0 0; padding: 0; display: grid; gap: .5rem; }
+.cs-hist li { display: flex; gap: .6rem; align-items: center; justify-content: space-between; padding: .5rem .6rem; border: 1px solid var(--line); border-radius: 10px; }
+.cs-hist li > div { min-width: 0; }
+@media (max-width: 560px) {
+  .cs-styles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cs-opts .seg button { padding: .45rem .55rem; }
+  .cs-tools .cs-pick { min-width: 52px; }
+}
