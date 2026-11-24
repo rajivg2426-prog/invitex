@@ -46,13 +46,16 @@ Referrer-Policy: strict-origin-when-cross-origin
 X-Content-Type-Options: nosniff
 ```
 
-### 2.4 How it behaves in production
+### 2.4 AI card designs (optional)
+The "✨ Or let AI paint your card" option in step 1 needs an image-AI key and the `generate-card-art` Edge Function. Follow [AI_DESIGNS_SETUP.md](AI_DESIGNS_SETUP.md). Without it, the rest of the app works normally and the AI option shows a short "not switched on yet" message when used.
+
+### 2.5 How it behaves in production
 - Hosts sign in (email + password, or a magic link) on `index.html`.
 - Published invitations are readable by anyone with the link through `get_public_invitation`. Drafts are invisible.
 - RSVPs from any device are stored in `rsvps`. The dashboard refreshes every 30 seconds and whenever the tab regains focus.
 - Uploaded media go to Supabase Storage (public URLs). Deleting an invitation removes its rows (cascade) and its storage folder.
 
-### 2.5 Hardening checklist (recommended before a large launch)
+### 2.6 Hardening checklist (recommended before a large launch)
 - Turn on Supabase **rate limiting / captcha (hCaptcha or Turnstile)** for `submit_rsvp`, for example by calling it through an Edge Function that verifies a captcha token. Not included.
 - Turn on database **backups** (paid plans) or schedule `pg_dump`.
 - Review data retention: delete invitations after the event to remove guest personal data.
@@ -66,5 +69,7 @@ The data layer is isolated in `js/store.js`. A `FirebaseStore` class with the sa
 python3 -m http.server 8765 &          # from the invitex folder
 npm i playwright && node tests/e2e.js  # writes screenshots + results to tests/e2e-output
 # SQL tests (local Postgres):
-psql -f tests/supabase-stubs.sql && psql -d ivx -f supabase/schema.sql && psql -d ivx -f tests/schema-test.sql
+psql -f tests/supabase-stubs.sql && psql -d ivx -c 'create role service_role nologin' && psql -d ivx -f supabase/schema.sql && psql -d ivx -f tests/schema-test.sql && psql -d ivx -f tests/ai-credits-test.sql
+# AI designs: server step and editor picker
+node tests/ai-function-test.mjs && node tests/ai-design-e2e.js
 ```

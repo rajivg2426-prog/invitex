@@ -6,7 +6,7 @@
   const NSTEPS = STEPS.length;
   // One line per step telling the host what to do here and what comes next.
   const STEP_HELP = [
-    'Pick what you are celebrating and a design – or upload your own artwork as the card. You can change this later.',
+    'Pick what you are celebrating and a design – let AI paint one for you, or upload your own artwork. You can change this later.',
     'Choose a message style, then fill in the names, date and place. Tip: you can also click any line on the card preview and type right there.',
     'Pick your link name, publish, and send it on WhatsApp.',
   ];
@@ -230,6 +230,7 @@
           <div class="theme-name">${esc(t.name)}${id === cat.theme ? '<small>Recommended</small>' : ''}</div></button>`;
       }).join('')}</div>
     </div>
+    <div class="card stack ai-card" id="aiCard"></div>
     <div class="card stack">
       <h2>3. Colour theme</h2>
       <div class="swatches" role="radiogroup" aria-label="Colour theme">${th.palettes.map((p, i) => `<button type="button" class="swatch ${i === inv.paletteIndex ? 'on' : ''}" role="radio" aria-checked="${i === inv.paletteIndex}" data-pal="${i}"><i style="background:linear-gradient(135deg,${p.bg} 50%,${p.accent} 50%)"></i>${esc(p.name)}</button>`).join('')}</div>
@@ -252,11 +253,11 @@
       const ref = await IXMedia.addImage(f, { invId: inv.id, askCrop: true, aspect: '3:4', maxDim: 1800 });
       if (!ref) return;
       if (inv.media.background) await H.store.deleteMedia(inv.media.background).catch(() => {});
-      inv.media.background = ref; inv.design.bgMode = 'full'; W.bgUrl = await H.store.resolveMedia(ref);
+      inv.media.background = ref; inv.design.bgMode = 'full'; inv.design.aiArt = ''; W.bgUrl = await H.store.resolveMedia(ref);
       changed(); step1(body);
     };
     const del = body.querySelector('#artDel');
-    if (del) del.onclick = async () => { await H.store.deleteMedia(inv.media.background).catch(() => {}); inv.media.background = ''; W.bgUrl = ''; changed(); step1(body); };
+    if (del) del.onclick = async () => { await H.store.deleteMedia(inv.media.background).catch(() => {}); inv.media.background = ''; inv.design.aiArt = ''; W.bgUrl = ''; changed(); step1(body); };
     body.querySelectorAll('[data-bgmode]').forEach((r) => (r.onchange = () => { inv.design.bgMode = r.value; changed(); }));
     body.querySelectorAll('[data-cat]').forEach((b) => (b.onclick = () => {
       const c = IXT.CATEGORIES.find((x) => x.id === b.dataset.cat);
@@ -272,6 +273,121 @@
     body.querySelectorAll('[data-theme-pick]').forEach((b) => (b.onclick = () => { setTheme(b.dataset.themePick); changed(); step1(body); }));
     body.querySelectorAll('[data-pal]').forEach((b) => (b.onclick = () => { inv.paletteIndex = +b.dataset.pal; Object.assign(inv.design, { textColor: '', bgColor: '', accentColor: '' }); changed(); step1(body); }));
     body.querySelectorAll('input[name=layout]').forEach((r) => (r.onchange = () => { inv.layout = r.value; changed(); }));
+    renderAi(body);
+  }
+
+  /* ---------- Design with AI (step 1) ----------
+   * The user picks a ready style + colours (+ a few optional words). The server step
+   * (supabase/functions/generate-card-art) builds the full prompt, paints 4 backgrounds
+   * and keeps them in the user's folder. Picking one makes it the card background. */
+  const AI_STYLES = [
+    { id: 'royal', icon: '👑', name: 'Royal', hint: 'Rajasthani palace arches & peacocks', g: '#5b0f1f,#c9962f' },
+    { id: 'floral', icon: '🌸', name: 'Floral', hint: 'Soft watercolour flowers', g: '#f7d6d8,#cfe0c8' },
+    { id: 'temple', icon: '🛕', name: 'Temple', hint: 'Gopuram, diyas & banana leaves', g: '#b8421f,#e9b23c' },
+    { id: 'minimal', icon: '✨', name: 'Minimal', hint: 'Ivory paper & fine gold', g: '#fbf6ec,#d9c08a' },
+    { id: 'mehndi', icon: '🌿', name: 'Mehndi', hint: 'Henna patterns & marigolds', g: '#e8891c,#4f7a32' },
+    { id: 'pichwai', icon: '🪷', name: 'Pichwai', hint: 'Lotus pond, cows, traditional art', g: '#1f5c5a,#e7a1b0' },
+    { id: 'birthday', icon: '🎈', name: 'Birthday', hint: 'Balloons, confetti & cute animals', g: '#8fd3f4,#ffd166' },
+    { id: 'corporate', icon: '💼', name: 'Corporate', hint: 'Modern waves & gold lines', g: '#10213f,#b99a55' },
+  ];
+  const AI_COLORS = [
+    ['auto', 'Best for the style', 'conic-gradient(#b5455c,#d4a557,#3f7a5a,#3b5ba5,#b5455c)'], ['maroon-gold', 'Maroon & gold', '#6b1426,#d4a557'],
+    ['pink-peach', 'Pink & peach', '#f4b6c2,#ffd3b0'], ['emerald-gold', 'Emerald & gold', '#0f5a43,#d8b464'], ['royal-blue', 'Royal blue', '#1d3c8f,#dfe6f5'],
+    ['ivory-gold', 'Ivory & gold', '#fbf3e4,#c9a15a'], ['saffron-yellow', 'Saffron', '#f08a1c,#f6cf3f'], ['purple-lavender', 'Purple', '#5b2a86,#c9b6e8'], ['teal-coral', 'Teal & coral', '#16747a,#f28b6b'],
+  ];
+  const AI_FOR_CAT = { wedding: 'royal', engagement: 'floral', birthday: 'birthday', anniversary: 'minimal', housewarming: 'pichwai', religious: 'temple', festival: 'mehndi', corporate: 'corporate', conference: 'corporate', launch: 'corporate', school: 'floral', farewell: 'minimal', community: 'floral', custom: 'floral' };
+  const grad = (g) => (g.startsWith('conic') ? g : `linear-gradient(135deg,${g})`);
+
+  function renderAi(stepBody) {
+    const el = stepBody.querySelector('#aiCard');
+    if (!el) return;
+    const inv = W.inv, store = H.store;
+    const A = (W.ai = W.ai || { style: null, colors: 'auto', words: '', busy: false, results: [], recent: null, credits: null, error: '', picking: '' });
+    const style = A.style || AI_FOR_CAT[inv.category] || 'royal';
+    if (!store.aiAvailable) {
+      el.innerHTML = `<h2>✨ Or let AI paint your card</h2><p class="small muted" style="margin:0">AI designs work in the online version once you are signed in. In this demo copy, pick a design above or upload your own artwork below.</p>`;
+      return;
+    }
+    if (A.credits === null) { A.credits = false; store.aiCredits().then((c) => { A.credits = c; renderAi(stepBody); }).catch(() => { A.credits = { left: null }; renderAi(stepBody); }); }
+    if (A.recent === null) { A.recent = []; store.aiRecent().then((r) => { A.recent = r; renderAi(stepBody); }).catch(() => {}); }
+    const c = A.credits || {};
+    const left = c.left;
+    const none = left === 0;
+    const thumb = (u) => `<button type="button" class="ai-pick ${inv.design.aiArt === u ? 'on' : ''}" data-ai-use="${esc(u)}" ${A.picking ? 'disabled' : ''} aria-label="Use this design">
+        <span class="ai-img" style="background-image:url('${esc(u)}')"></span>
+        <span class="ai-use">${A.picking === u ? 'Applying…' : inv.design.aiArt === u ? '✓ On your card' : 'Use this design'}</span></button>`;
+    const older = (A.recent || []).filter((u) => !A.results.includes(u));
+    el.innerHTML = `
+      <div class="row between"><h2 style="margin:0">✨ Or let AI paint your card</h2>
+        <span class="pill ai-left" id="aiLeft">${left == null ? '' : none ? 'No free tries left' : `${left} free ${left === 1 ? 'try' : 'tries'} left`}</span></div>
+      <p class="small muted" style="margin:0">Choose a style and colours. AI paints 4 new background designs just for you, and your names and details are placed on top.</p>
+      <div class="field"><span class="lbl">Style</span>
+        <div class="ai-styles" role="radiogroup" aria-label="AI design style">${AI_STYLES.map((s) => `<button type="button" role="radio" aria-checked="${s.id === style}" class="ai-style ${s.id === style ? 'on' : ''}" data-ai-style="${s.id}">
+          <span class="ai-sw" style="background:${grad(s.g)}" aria-hidden="true">${s.icon}</span><b>${esc(s.name)}${s.id === AI_FOR_CAT[inv.category] ? ' <small>Suggested</small>' : ''}</b><small>${esc(s.hint)}</small></button>`).join('')}</div></div>
+      <div class="field"><span class="lbl">Colours</span>
+        <div class="ai-colors" role="radiogroup" aria-label="AI design colours">${AI_COLORS.map(([id, name, g]) => `<button type="button" role="radio" aria-checked="${id === A.colors}" class="ai-color ${id === A.colors ? 'on' : ''}" data-ai-color="${id}"><i style="background:${grad(g)}"></i>${esc(name)}</button>`).join('')}</div></div>
+      <label class="field"><span class="lbl">Anything special? <span class="tiny muted">(optional, a few words)</span></span>
+        <input class="input" id="aiWords" maxlength="120" placeholder="e.g. elephants and lotus flowers, Ganesha motif, mountains" value="${esc(A.words)}"></label>
+      <div class="row"><button class="btn primary" id="aiGo" ${A.busy || none ? 'disabled' : ''}>${A.busy ? 'Painting…' : A.results.length ? '✨ Paint 4 more designs' : '✨ Paint 4 designs'}</button>
+        <span class="tiny muted">${none ? 'You have used your free AI tries. You can still pick a design above or upload your own artwork.' : 'Each try paints 4 designs and takes about half a minute.'}</span></div>
+      ${A.error ? `<p class="notice warn" role="alert" style="margin:0">${esc(A.error)}</p>` : ''}
+      ${A.busy ? `<div class="ai-grid" aria-live="polite" aria-busy="true">${'<div class="ai-pick ai-wait"><span class="ai-img"></span></div>'.repeat(4)}</div><p class="small muted" style="margin:0;text-align:center">🎨 Painting your designs… please keep this page open.</p>` : ''}
+      ${A.results.length && !A.busy ? `<div class="field"><span class="lbl">Tap a design to put it on your card</span><div class="ai-grid">${A.results.map(thumb).join('')}</div></div>` : ''}
+      ${older.length ? `<details class="ai-older" ${A.results.length ? '' : 'open'}><summary class="small">Your earlier AI designs (${older.length})</summary><div class="ai-grid">${older.map(thumb).join('')}</div></details>` : ''}`;
+    el.querySelectorAll('[data-ai-style]').forEach((b) => (b.onclick = () => { A.style = b.dataset.aiStyle; renderAi(stepBody); }));
+    el.querySelectorAll('[data-ai-color]').forEach((b) => (b.onclick = () => { A.colors = b.dataset.aiColor; renderAi(stepBody); }));
+    el.querySelector('#aiWords').oninput = (e) => (A.words = e.target.value);
+    el.querySelector('#aiGo').onclick = async () => {
+      A.busy = true; A.error = ''; A.style = style; renderAi(stepBody);
+      try {
+        const r = await store.aiGenerate({ style, colors: A.colors, category: inv.category, words: A.words });
+        A.results = r.images || [];
+        A.credits = { ...c, used: r.used, limit: r.limit, left: r.left };
+      } catch (e) {
+        A.error = e.message;
+        if (e.code === 'no_credits') A.credits = { ...c, left: 0 };
+      }
+      A.busy = false;
+      if (W.step === 1) renderAi(stepBody);
+    };
+    el.querySelectorAll('[data-ai-use]').forEach((b) => (b.onclick = () => useAiArt(b.dataset.aiUse, stepBody)));
+  }
+
+  // Copy the chosen painting into this invitation's media and make it the card background.
+  async function useAiArt(url, stepBody) {
+    const inv = W.inv, A = W.ai;
+    if (inv.design.aiArt === url && inv.media.background) return;
+    A.picking = url; renderAi(stepBody);
+    try {
+      const src = await (await fetch(url)).blob();
+      const { blob } = await IX.compressImage(src, { maxDim: 1800, quality: 0.86 });
+      const ref = await H.store.putMedia(blob, { name: 'ai-design.webp', invitationId: inv.id });
+      if (inv.media.background) await H.store.deleteMedia(inv.media.background).catch(() => {});
+      inv.media.background = ref; inv.design.bgMode = 'full'; inv.design.aiArt = url;
+      matchPaletteTo(src);
+      W.bgUrl = await H.store.resolveMedia(ref);
+      A.picking = '';
+      changed(); step1(stepBody);
+      IX.toast('Design applied. Your names and details sit on top of it – see the preview.', 'ok', 4000);
+    } catch (e) {
+      A.picking = ''; A.error = 'Could not apply that design: ' + e.message; renderAi(stepBody);
+    }
+  }
+  // Light painting → light colour theme (dark text); dark painting → dark theme, so the text panels blend in.
+  async function matchPaletteTo(blob) {
+    try {
+      const u = URL.createObjectURL(blob); const img = await IX.loadImage(u); URL.revokeObjectURL(u);
+      const c = document.createElement('canvas'); c.width = c.height = 24;
+      const x = c.getContext('2d'); x.drawImage(img, 0, 0, 24, 24);
+      const d = x.getImageData(0, 0, 24, 24).data; let sum = 0;
+      for (let i = 0; i < d.length; i += 4) sum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+      const light = sum / (d.length / 4) / 255 > 0.55;
+      const lum = (hex) => { const n = parseInt(String(hex).replace('#', '').slice(0, 6), 16); return isNaN(n) ? 0.5 : ((n >> 16) * 0.2126 + ((n >> 8) & 255) * 0.7152 + (n & 255) * 0.0722) / 255; };
+      const pals = IXT.THEMES[W.inv.theme].palettes;
+      if ((lum(pals[W.inv.paletteIndex].bg) > 0.55) === light) return;
+      const i = pals.findIndex((p) => (lum(p.bg) > 0.55) === light);
+      if (i >= 0) { W.inv.paletteIndex = i; Object.assign(W.inv.design, { textColor: '', bgColor: '', accentColor: '' }); changed(); if (W.step === 1) step1(document.getElementById('stepBody')); }
+    } catch (e) { /* keep the current colours */ }
   }
   // Fill every wording field in one matching style ("type of message"), in all languages.
   function applyTone(inv, tone, category = inv.category) {
