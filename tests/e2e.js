@@ -98,9 +98,9 @@ const ok = (t, cond, note = '') => { results.push([t, !!cond, note]); console.lo
   ok('TEST 3: WhatsApp click-to-chat opens with personalised message', waUrl.startsWith('https://wa.me/919876543210?text=') && waUrl.includes('Dear Rakesh Verma') && waUrl.includes('Kabir & Ananya') && guestLink.includes('&g='), waUrl.slice(0, 120).replace(/\n/g, ' | '));
   // personal link pre-fills the guest's name and number from the host's guest list
   const pg = await ctx.newPage(); await pg.goto(guestLink); await pg.waitForSelector('#openBtn'); await pg.click('#openBtn');
-  await pg.waitForSelector('#r-phone', { state: 'attached' });
-  const pre = await pg.evaluate(() => [document.getElementById('r-name').value, document.getElementById('r-phone').value, document.getElementById('r-phone').autocomplete]);
-  ok('TEST 3c: personal link pre-fills guest name & mobile (autocomplete=tel)', pre[0] === 'Rakesh Verma' && pre[1].replace(/\D/g, '').endsWith('9876543210') && pre[2] === 'tel', JSON.stringify(pre));
+  await pg.waitForSelector('.ix-who', { state: 'attached' });
+  const pre = await pg.evaluate(() => [document.querySelector('.ix-who-name').innerText, document.querySelector('#rsvpForm [name=phone]').value, !!document.getElementById('r-phone'), document.querySelectorAll('#rsvpForm input:not([type=hidden])').length]);
+  ok('TEST 3c: personal link knows the guest – no name/number to type, only the count + confirm', pre[0].includes('Rakesh Verma') && pre[1].replace(/\D/g, '').endsWith('9876543210') && !pre[2] && pre[3] === 1, JSON.stringify(pre));
   await pg.close();
   await host.waitForSelector('text=WhatsApp/email opened');
   ok('TEST 3b: status shows "WhatsApp opened", not "delivered"', !(await host.content()).match(/delivered on/i));
@@ -110,12 +110,12 @@ const ok = (t, cond, note = '') => { results.push([t, !!cond, note]); console.lo
   const greet = await mob.locator('.ix-op-greet').innerText(); await mob.click('#openBtn');
   await mob.locator('#sec-rsvp').scrollIntoViewIfNeeded();
   ok('TEST 4a: personalised greeting', greet.includes('Rakesh Verma'), greet);
-  const prefilled = await mob.inputValue('#r-name');
-  await mob.fill('#r-phone', '9876543210'); await mob.check('input[name=status][value=yes]');
-  await mob.fill('input[name=adults]', '2'); await mob.click('[data-step=children][data-d="1"]');
-  await mob.selectOption('#r-food', 'veg'); await mob.check('input[name=consent]');
-  const tot = await mob.locator('#r-total').innerText();
-  await mob.locator('.ix-submit').dblclick();
+  const prefilled = (await mob.locator('.ix-who-name').innerText()).includes('Rakesh Verma') ? 'Rakesh Verma' : '';
+  const startCount = await mob.inputValue('input[name=adults]');
+  await mob.click('[data-step=adults][data-d="-1"]');
+  const tot = await mob.inputValue('input[name=adults]');
+  ok('TEST 4b: count starts at the host\'s party size (4) for this guest', startCount === '4', startCount);
+  await mob.locator('.ix-yes').dblclick();
   await mob.waitForSelector('#thanks');
   const ref = await mob.locator('[data-ref]').innerText();
   await mob.screenshot({ path: OUT + '/t4-thanks.png' });
@@ -131,11 +131,11 @@ const ok = (t, cond, note = '') => { results.push([t, !!cond, note]); console.lo
   /* TEST 6 + 13 duplicate */
   await mob.evaluate(() => localStorage.clear());
   await mob.goto(BASE + 'invite.html?i=kabir-ananya'); await mob.click('#openBtn');
-  await mob.fill('#r-name', 'Imposter'); await mob.fill('#r-phone', '+91 98765-43210'); await mob.check('input[name=status][value=yes]'); await mob.check('input[name=consent]');
-  await mob.click('.ix-submit'); await mob.waitForSelector('#rsvpErr:not([hidden])');
+  await mob.fill('#r-name', 'Imposter'); await mob.fill('#r-phone', '+91 98765-43210');
+  await mob.click('.ix-yes'); await mob.waitForSelector('#rsvpErr:not([hidden])');
   ok('TEST 13b: duplicate RSVP from same mobile number blocked', /already exists/.test(await mob.locator('#rsvpErr').innerText()));
-  await mob.fill('#r-name', 'Pooja Nair'); await mob.fill('#r-phone', '9123456780'); await mob.check('input[name=status][value=no]');
-  await mob.click('.ix-submit'); await mob.waitForSelector('#thanks');
+  await mob.fill('#r-name', 'Pooja Nair'); await mob.fill('#r-phone', '9123456780');
+  await mob.click('.ix-no'); await mob.waitForSelector('#thanks');
   await host.reload(); await host.waitForSelector('.kpi.hl');
   const kp = await host.$$eval('.kpi', els => Object.fromEntries(els.map(e => [e.querySelector('.l').innerText, e.querySelector('.v').innerText])));
   ok('TEST 6: decline recorded, attendees still 3', kp['Declined'] === '1' && kp['Confirmed attendees'] === '3' && kp['Total responses'] === '2', JSON.stringify(kp));
@@ -173,9 +173,9 @@ await mob.reload(); await mob.waitForSelector('.ix-title'); const after = await 
 
   /* edit RSVP via private link */
   await mob.goto(editLink); await mob.click('#openBtn');
-  await mob.check('input[name=status][value=maybe]'); await mob.fill('input[name=adults]', '1'); await mob.click('.ix-submit'); await mob.waitForSelector('#thanks');
+  await mob.fill('input[name=adults]', '1'); await mob.click('.ix-yes'); await mob.waitForSelector('#thanks');
   const recs = await host.evaluate(async (id) => (await H.store.listRsvps(id)).map(r => r.name + ':' + r.status), invId);
-  ok('TEST 13c: guest updates RSVP via private edit link (no duplicate)', recs.length === 2 && recs.includes('Pooja Nair:maybe'), recs.join(','));
+  ok('TEST 13c: guest updates RSVP via private edit link (no duplicate)', recs.length === 2 && recs.includes('Pooja Nair:yes'), recs.join(','));
 
   /* TEST 11 */
   await host.goto(BASE + 'index.html#/new'); await host.waitForSelector('.cat-grid');
@@ -195,7 +195,8 @@ await mob.reload(); await mob.waitForSelector('.ix-title'); const after = await 
   const r2 = await host.evaluate(async ([a, b]) => [(await H.store.listRsvps(a)).length, (await H.store.listRsvps(b)).length, (await H.store.listGuests(b)).length], [invId, inv2]);
   // same phone RSVP on second invitation must be allowed (separate lists)
   await corp.click('#openBtn').catch(() => {});
-  await corp.fill('#r-name', 'Rakesh Verma'); await corp.fill('#r-phone', '9876543210'); await corp.check('input[name=status][value=yes]'); await corp.check('input[name=consent]'); await corp.click('.ix-submit'); await corp.waitForSelector('#thanks');
+  // this phone remembers the last guest (Pooja), so the card greets her – "Not you?" lets someone else reply
+  await corp.click('#notMe'); await corp.fill('#r-name', 'Rakesh Verma'); await corp.fill('#r-phone', '9876543210'); await corp.click('.ix-yes'); await corp.waitForSelector('#thanks');
   const r3 = await host.evaluate(async ([a, b]) => [(await H.store.listRsvps(a)).length, (await H.store.listRsvps(b)).length], [invId, inv2]);
   ok('TEST 12: invitations have separate guest lists & RSVP data', r2[0] === 2 && r2[1] === 0 && r2[2] === 0 && r3[0] === 2 && r3[1] === 1, JSON.stringify({ before: r2, after: r3 }));
 
@@ -208,7 +209,7 @@ await mob.reload(); await mob.waitForSelector('.ix-title'); const after = await 
   const hiTitle = await mob.locator('.ix-title').first().innerText(); const hiBtn = await mob.locator('.ix-submit').innerText();
   await mob.screenshot({ path: OUT + '/t13-hindi.png' });
   await mob.locator('#sec-rsvp').scrollIntoViewIfNeeded(); await mob.waitForTimeout(900); await mob.screenshot({ path: OUT + '/t13-hindi-rsvp.png' });
-  ok('TEST 13d: language switch shows Hindi text and labels', hiTitle === 'कबीर और अनन्या' && /उत्तर/.test(hiBtn), hiTitle + ' / ' + hiBtn);
+  ok('TEST 13d: language switch shows Hindi text and labels', hiTitle === 'कबीर और अनन्या' && /आऊँगा/.test(hiBtn), hiTitle + ' / ' + hiBtn);
 
   /* print & image */
   await host.goto(BASE + 'index.html#/dash/' + invId + '/share'); await host.waitForSelector('#dlImg'); await host.waitForTimeout(1500);

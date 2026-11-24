@@ -54,6 +54,8 @@
     if (!S.editToken && remembered && remembered.editToken) S.editToken = remembered.editToken;
     if (S.editToken) {
       try { S.existing = await S.store.getRsvpByEditToken(slug, S.editToken); } catch (e) { S.existing = null; }
+      // A personal link belongs to one guest: ignore a reply saved on this phone by someone else
+      if (S.existing && S.guest && S.guest.phone && IX.normPhone(S.existing.phone) !== IX.normPhone(S.guest.phone)) S.existing = null;
       if (!S.existing) S.editToken = '';
     }
     const want = params.get('lang') || lsGet('ivx-lang-' + slug);
@@ -343,146 +345,136 @@
     },
   };
 
-  /* ---------------- RSVP ---------------- */
+  /* ---------------- RSVP (one tap) ----------------
+   * A web page cannot read a visitor's phone number from WhatsApp or the phone.
+   * So the number comes from (1) the host's guest list, via the personal link the
+   * host sent on WhatsApp, (2) the guest's earlier reply, or (3) what this phone
+   * remembered last time. Only when none of these exist do we ask, and then the
+   * phone's own autofill offers the number with one tap. */
+  function knownGuest() {
+    const ex = S.existing || {}, g = S.guest || {}, me = lsGet('ivx-me') || {};
+    const pick = (k) => (S.guest ? g[k] || ex[k] : ex[k] || g[k]) || me[k] || '';
+    return { name: pick('name'), phone: pick('phone'), email: pick('email') };
+  }
   function rsvpInner(inv) {
     const s = inv.settings;
     if (s.rsvpDeadline && new Date(s.rsvpDeadline + 'T23:59:59') < new Date()) return `<p class="ix-notice">${esc(t('rsvpClosed'))}</p>`;
     if (S.lastRsvp) return thanksHTML(S.lastRsvp);
     const ex = S.existing || {};
-    const g = S.guest || {};
-    // Prefill order: the guest's own earlier RSVP > host's guest list (personal link) > details saved on this phone
-    const me = lsGet('ivx-me') || {};
-    const pre = { name: g.name || me.name || '', phone: g.phone || me.phone || '', email: g.email || me.email || '' };
+    const who = knownGuest();
+    const known = !S.editWho && who.name.trim().length >= 2 && IX.validPhone(who.phone);
     const limit = (S.guest && S.guest.allowed) || s.maxPerInvite || 0;
-    const evs = (inv.events || []).filter((e) => e.name);
-    const v = (k, d = '') => esc(ex[k] != null ? ex[k] : d);
-    const status = ex.status || '';
+    const heads = ex.status === 'yes' ? (ex.adults || 0) + (ex.children || 0) : (S.guest && S.guest.allowed) || 1;
+    const c = inv.contact || {};
+    const host = String(M.txt(inv, S.lang, 'hostName') || c.name || '').trim().replace(/[.。।]+$/, '');
+    const waYes = c.phone && !known && !isPreview
+      ? IX.whatsappUrl(t('waYesMsg', { title: M.txt(inv, S.lang, 'title') || M.txt(inv, 'en', 'title') }), c.phone) : '';
     return `
       ${s.rsvpDeadline ? `<p class="ix-muted center">${esc(t('rsvpBy'))}: <b>${esc(IX.fmtDate(s.rsvpDeadline, inv.timezone, S.lang))}</b></p>` : ''}
-      ${S.existing ? `<p class="ix-notice">✔ ${esc(t('ref'))}: <b>${esc(ex.ref)}</b> — ${esc(t(status))}</p>` : ''}
-      <form class="ix-form" id="rsvpForm" novalidate autocomplete="on">
-        <div class="ix-field"><label for="r-name">${esc(t('name'))} *</label><input class="ix-input" id="r-name" name="name" autocomplete="name" required maxlength="120" enterkeyhint="next" value="${v('name', pre.name)}"></div>
-        <div class="ix-field"><label for="r-phone">${esc(t('mobile'))} *</label><input class="ix-input" id="r-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required maxlength="20" placeholder="+91 98765 43210" enterkeyhint="next" value="${v('phone', pre.phone)}"></div>
-        <div class="ix-field"><label for="r-email">${esc(t('email'))}</label><input class="ix-input" id="r-email" name="email" type="email" autocomplete="email" inputmode="email" maxlength="160" value="${v('email', pre.email)}"></div>
-        <label class="ix-check ix-remember"><input type="checkbox" name="rememberMe" ${me.name || !lsGet('ivx-me-off') ? 'checked' : ''}> <span>${esc(t('rememberMe'))}</span></label>
-        <fieldset class="ix-field ix-choice"><legend>${esc(t('attend'))} *</legend>
-          ${['yes', 'no', 'maybe'].map((k) => `<label class="ix-radio"><input type="radio" name="status" value="${k}" ${status === k ? 'checked' : ''} required><span>${esc(t(k))}</span></label>`).join('')}
-        </fieldset>
-        <div class="ix-when-yes" ${status && status !== 'no' ? '' : 'hidden'}>
-          <div class="ix-counts">
-            ${counter('adults', t('adults'), ex.adults != null ? ex.adults : 1)}
-            ${s.askChildren ? counter('children', t('children'), ex.children || 0) : ''}
-            <div class="ix-total"><span>${esc(t('total'))}</span><b id="r-total">0</b>${limit ? `<small>${esc(t('maxParty', { n: limit }))}</small>` : ''}</div>
-          </div>
-          ${s.askEvents && evs.length > 1 ? `<fieldset class="ix-field"><legend>${esc(t('whichEvents'))}</legend><div class="ix-evpick">${evs.map((e) => `<label class="ix-check"><input type="checkbox" name="eventIds" value="${esc(e.id)}" ${!ex.eventIds || !ex.eventIds.length || ex.eventIds.includes(e.id) ? 'checked' : ''}><span>${esc(e.name)}</span></label>`).join('')}</div></fieldset>` : ''}
-          <div class="ix-field"><label for="r-extra">${esc(t('extraNames'))}</label><input class="ix-input" id="r-extra" name="extraNames" maxlength="500" value="${v('extraNames')}"></div>
-          ${s.askFood ? `<div class="ix-field"><label for="r-food">${esc(t('food'))}</label><select class="ix-input" id="r-food" name="food">${Object.entries(t('foodOpts')).map(([k, l]) => `<option value="${k}" ${ex.food === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>` : ''}
-          <div class="ix-field"><label for="r-req">${esc(t('requirements'))}</label><input class="ix-input" id="r-req" name="requirements" maxlength="500" value="${v('requirements')}"></div>
-        </div>
-        <div class="ix-field"><label for="r-msg">${esc(t('note'))}</label><textarea class="ix-input" id="r-msg" name="message" rows="3" maxlength="1000">${v('message')}</textarea></div>
-        <label class="ix-check ix-consent"><input type="checkbox" name="consent" ${S.existing ? 'checked' : ''} required><span>${esc(t('consent'))}</span></label>
+      <form class="ix-form ix-onetap" id="rsvpForm" novalidate autocomplete="on">
+        ${known ? `
+          <div class="ix-who">
+            <p class="ix-who-name">${esc(t('dear'))} <b>${esc(who.name)}</b></p>
+            <p class="ix-small">📱 ${esc(IX.maskPhone(who.phone))} · <button type="button" class="ix-link" id="notMe">${esc(t('notYou'))}</button></p>
+            <input type="hidden" name="name" value="${esc(who.name)}"><input type="hidden" name="phone" value="${esc(who.phone)}">
+          </div>` : `
+          <div class="ix-field"><label for="r-name">${esc(t('name'))}</label><input class="ix-input" id="r-name" name="name" autocomplete="name" required maxlength="120" enterkeyhint="next" value="${esc(who.name)}"></div>
+          <div class="ix-field"><label for="r-phone">${esc(t('mobile'))}</label><input class="ix-input" id="r-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required maxlength="20" placeholder="+91 98765 43210" enterkeyhint="done" value="${esc(who.phone)}"><span class="ix-small">${esc(t('autofillHint'))}</span></div>`}
+        <input type="hidden" name="email" value="${esc(who.email)}">
+        ${S.existing ? `<p class="ix-notice">✔ ${esc(t('youReplied'))}: <b>${esc(t(ex.status === 'yes' ? 'yesShort' : ex.status === 'no' ? 'noShort' : 'maybe'))}</b></p>` : ''}
+        ${limit === 1 ? '<input type="hidden" name="adults" value="1">' : `
+          <div class="ix-howmany"><span id="lbl-adults">${esc(t('howMany'))}</span>
+            <div class="ix-stepper" role="group" aria-labelledby="lbl-adults"><button type="button" data-step="adults" data-d="-1" aria-label="−">−</button><input class="ix-input" type="number" inputmode="numeric" min="1" max="${limit || 50}" name="adults" value="${esc(limit ? Math.min(heads, limit) : heads)}" aria-labelledby="lbl-adults"><button type="button" data-step="adults" data-d="1" aria-label="+">+</button></div></div>`}
         <p class="ix-error" id="rsvpErr" role="alert" hidden></p>
-        <button class="ix-btn ix-btn-primary ix-submit" type="submit" ${isPreview ? 'disabled title="RSVP is disabled in preview"' : ''}>${esc(S.existing ? t('update') : t('submit'))}</button>
+        <button class="ix-btn ix-btn-primary ix-submit ix-yes" type="button" data-status="yes" ${isPreview ? 'disabled title="RSVP is disabled in preview"' : ''}>✓ ${esc(t('confirmYes'))}</button>
+        <button class="ix-btn ix-btn-ghost ix-no" type="button" data-status="no" ${isPreview ? 'disabled' : ''}>${esc(t('confirmNo'))}</button>
+        <p class="ix-small center ix-privacy">${esc(t('privacyNote', { host: host || t('theHost') }))}</p>
+        ${waYes ? `<p class="ix-small center ix-wa-alt">${esc(t('orWhatsApp'))} <a target="_blank" rel="noopener" href="${esc(waYes)}">💬 ${esc(t('replyWhatsApp'))}</a></p>` : ''}
         ${isPreview ? '<p class="ix-small center">Preview – RSVP submission is disabled here.</p>' : ''}
       </form>`;
   }
-  const counter = (name, label, val) => `<div class="ix-counter"><span id="lbl-${name}">${esc(label)}</span><div class="ix-stepper" role="group" aria-labelledby="lbl-${name}"><button type="button" data-step="${name}" data-d="-1" aria-label="${esc(label)} −">−</button><input class="ix-input" type="number" inputmode="numeric" min="0" max="50" name="${name}" value="${esc(val)}" aria-labelledby="lbl-${name}"><button type="button" data-step="${name}" data-d="1" aria-label="${esc(label)} +">+</button></div></div>`;
 
   function thanksHTML(r) {
     const msg = r.status === 'yes' ? t('thanksYes') : r.status === 'no' ? t('thanksNo') : t('thanksMaybe');
     const editUrl = IX.inviteUrl(slug, { e: r.editToken, lang: S.lang });
     const c = S.inv.contact || {};
     const host = S.inv.settings.whatsappToHost && c.phone
-      ? `<a class="ix-btn ix-btn-ghost" target="_blank" rel="noopener" href="${esc(IX.whatsappUrl(`RSVP – ${M.txt(S.inv, 'en', 'title')}\nName: ${r.name}\nResponse: ${r.status.toUpperCase()}\nAttendees: ${r.adults + r.children} (${r.adults} adults, ${r.children} children)\nRef: ${r.ref}`, c.phone))}">💬 ${esc(t('sendToHost'))}</a>` : '';
+      ? `<a class="ix-btn ix-btn-ghost" target="_blank" rel="noopener" href="${esc(IX.whatsappUrl(`RSVP – ${M.txt(S.inv, 'en', 'title')}\nName: ${r.name}\nResponse: ${r.status.toUpperCase()}\nAttendees: ${r.adults + r.children}\nRef: ${r.ref}`, c.phone))}">💬 ${esc(t('sendToHost'))}</a>` : '';
     return `<div class="ix-thanks" tabindex="-1" id="thanks">
       <div class="ix-thanks-ic" aria-hidden="true">${r.status === 'yes' ? '🎉' : r.status === 'no' ? '🙏' : '⏳'}</div>
       <p class="ix-lead"><b>${esc(r.name)}</b>, ${esc(msg)}</p>
-      ${r.status === 'yes' ? `<p>${esc(t('total'))}: <b>${r.adults + r.children}</b> (${esc(t('adults'))} ${r.adults}${S.inv.settings.askChildren ? `, ${esc(t('children'))} ${r.children}` : ''})</p>` : ''}
+      ${r.status === 'yes' ? `<p>${esc(t('total'))}: <b>${r.adults + r.children}</b></p>` : ''}
       <p class="ix-ref">${esc(t('ref'))}<br><b data-ref>${esc(r.ref)}</b></p>
       ${r.status === 'yes' ? `<div class="ix-qr">${IX.qrSVG('IVX:' + slug + ':' + r.ref, { size: 168, dark: '#111', light: '#fff' })}<p class="ix-small">${esc(t('showQR'))}</p></div>` : ''}
-      ${r.editToken ? `<div class="ix-editlink"><p class="ix-small">${esc(t('editLink'))}</p><div class="ix-copyrow"><input class="ix-input" readonly value="${esc(editUrl)}" aria-label="Private edit link"><button type="button" class="ix-btn ix-btn-ghost" data-copy="${esc(editUrl)}">${esc(t('copy'))}</button></div></div>` : ''}
       <div class="ix-actions center">${host}<button type="button" class="ix-btn ix-btn-ghost" id="changeBtn">${esc(t('editResponse'))}</button></div>
+      ${r.editToken ? `<details class="ix-editlink"><summary class="ix-small">${esc(t('editLinkShort'))}</summary><p class="ix-small">${esc(t('editLink'))}</p><div class="ix-copyrow"><input class="ix-input" readonly value="${esc(editUrl)}" aria-label="Private edit link"><button type="button" class="ix-btn ix-btn-ghost" data-copy="${esc(editUrl)}">${esc(t('copy'))}</button></div></details>` : ''}
     </div>`;
-  }
-
-  function readForm(f) {
-    const fd = new FormData(f);
-    return {
-      name: fd.get('name'), phone: fd.get('phone'), email: fd.get('email'), status: fd.get('status') || '',
-      adults: IX.int(fd.get('adults'), 0), children: IX.int(fd.get('children'), 0), extraNames: fd.get('extraNames') || '',
-      food: fd.get('food') || '', requirements: fd.get('requirements') || '', message: fd.get('message') || '',
-      eventIds: fd.getAll('eventIds'), consent: !!fd.get('consent'), lang: S.lang,
-    };
   }
 
   function wireRsvp() {
     const f = document.getElementById('rsvpForm');
     const box = document.getElementById('rsvpBox');
     if (!box) return;
+    const redraw = () => { box.innerHTML = rsvpInner(S.inv); wireRsvp(); };
     const ch = document.getElementById('changeBtn');
-    if (ch) ch.onclick = async () => {
+    if (ch) ch.onclick = () => {
       S.existing = S.lastRsvp ? { ...S.lastRsvp } : S.existing;
       S.lastRsvp = null;
-      box.innerHTML = rsvpInner(S.inv);
-      wireRsvp();
-      document.getElementById('r-name')?.focus();
+      redraw();
+      box.querySelector('.ix-yes')?.focus();
     };
     box.querySelectorAll('[data-copy]').forEach((b) => (b.onclick = async () => { await IX.copy(b.dataset.copy); b.textContent = t('copied'); }));
     if (!f) return;
-    const total = () => {
-      const a = IX.int(f.adults?.value, 0), c = IX.int(f.children?.value, 0);
-      const el = document.getElementById('r-total');
-      if (el) el.textContent = a + c;
-    };
-    total();
-    f.addEventListener('input', total);
+    const notMe = document.getElementById('notMe');
+    if (notMe) notMe.onclick = () => { S.editWho = true; redraw(); document.getElementById('r-name')?.focus(); };
+    const limit = (S.guest && S.guest.allowed) || S.inv.settings.maxPerInvite || 0;
     f.querySelectorAll('[data-step]').forEach((b) => (b.onclick = () => {
       const inp = f.elements[b.dataset.step];
-      inp.value = IX.clamp(IX.int(inp.value, 0) + IX.int(b.dataset.d), 0, 50);
-      total();
-    }));
-    f.querySelectorAll('input[name=status]').forEach((r) => (r.onchange = () => {
-      f.querySelector('.ix-when-yes').hidden = r.value === 'no';
+      inp.value = IX.clamp(IX.int(inp.value, 1) + IX.int(b.dataset.d), 1, limit || 50);
     }));
     let busy = false;
-    f.onsubmit = async (e) => {
-      e.preventDefault();
+    const send = async (status, btn) => {
       if (busy || isPreview) return; // guard against double taps
       const err = document.getElementById('rsvpErr');
       const showErr = (m, field) => { err.textContent = m; err.hidden = false; if (field) { field.setAttribute('aria-invalid', 'true'); field.focus(); } };
       f.querySelectorAll('[aria-invalid]').forEach((x) => x.removeAttribute('aria-invalid'));
       err.hidden = true;
-      const p = readForm(f);
-      const limit = (S.guest && S.guest.allowed) || S.inv.settings.maxPerInvite || 0;
-      if (!p.name || p.name.trim().length < 2) return showErr(t('required'), f.name);
-      if (!IX.validPhone(p.phone)) return showErr(t('invalidPhone'), f.phone);
-      if (!IX.validEmail(p.email)) return showErr(t('invalidEmail'), f.email);
-      if (!p.status) return showErr(t('required') + ' — ' + t('attend'), f.querySelector('input[name=status]'));
-      if (p.status !== 'no' && p.adults + p.children < 1 && p.status === 'yes') return showErr(t('needPeople'), f.adults);
-      if (p.status !== 'no' && limit && p.adults + p.children > limit) return showErr(t('maxParty', { n: limit }), f.adults);
-      if (!p.consent) return showErr(t('needConsent'), f.consent);
+      const ex = S.existing || {};
+      const fd = new FormData(f);
+      const p = {
+        name: String(fd.get('name') || '').trim(), phone: String(fd.get('phone') || '').trim(), email: String(fd.get('email') || ''), status,
+        adults: status === 'yes' ? IX.int(fd.get('adults'), 1) : 0, children: 0,
+        extraNames: ex.extraNames || '', food: ex.food || '', requirements: ex.requirements || '', message: ex.message || '',
+        eventIds: ex.eventIds && ex.eventIds.length ? ex.eventIds : (S.inv.events || []).filter((e) => e.name).map((e) => e.id),
+        consent: true, lang: S.lang,
+      };
+      if (p.name.length < 2) return showErr(t('needName'), f.elements.name.type === 'hidden' ? null : f.elements.name);
+      if (!IX.validPhone(p.phone)) return showErr(t('invalidPhone'), f.elements.phone.type === 'hidden' ? null : f.elements.phone);
+      if (status === 'yes' && p.adults < 1) return showErr(t('needPeople'), f.adults);
+      if (status === 'yes' && limit && p.adults > limit) return showErr(t('maxParty', { n: limit }), f.adults);
       busy = true;
-      const btn = f.querySelector('.ix-submit');
-      btn.disabled = true; btn.textContent = t('sending');
+      const label = btn.textContent;
+      f.querySelectorAll('[data-status]').forEach((b) => (b.disabled = true));
+      btn.textContent = t('sending');
       let res;
-      try { res = await S.store.submitRsvp(slug, p, { password: S.password, guestToken: S.guestToken, editToken: S.editToken }); } catch (ex) { res = { status: 'error', message: ex.message }; }
+      try { res = await S.store.submitRsvp(slug, p, { password: S.password, guestToken: S.guestToken, editToken: S.editToken }); } catch (ex2) { res = { status: 'error', message: ex2.message }; }
       busy = false;
       if (res.status !== 'ok') {
-        btn.disabled = false; btn.textContent = S.existing ? t('update') : t('submit');
+        f.querySelectorAll('[data-status]').forEach((b) => (b.disabled = false)); btn.textContent = label;
         return showErr(res.code ? t(res.code, { n: res.n }) : res.message || 'Something went wrong. Please try again.');
       }
-      S.editToken = res.editToken;
+      S.editToken = res.editToken; S.editWho = false;
       lsSet('ivx-rsvp-' + slug, { editToken: res.editToken, ref: res.ref });
-      // Remember name/phone/email on THIS phone only (never sent anywhere else), if the guest left the box ticked
-      if (f.rememberMe && f.rememberMe.checked) { lsSet('ivx-me', { name: p.name.trim(), phone: (p.phone || '').trim(), email: (p.email || '').trim() }); lsSet('ivx-me-off', false); }
-      else { try { localStorage.removeItem('ivx-me'); } catch (e2) { /* ignore */ } lsSet('ivx-me-off', true); }
+      // Remember name & number on THIS phone only, so the next invitation is one tap too
+      lsSet('ivx-me', { name: p.name, phone: p.phone, email: p.email.trim() });
       const clean = M.cleanRsvp(p);
       S.lastRsvp = { ...clean, ref: res.ref, editToken: res.editToken };
       S.existing = { ...clean, ref: res.ref };
-      box.innerHTML = rsvpInner(S.inv);
-      wireRsvp();
+      redraw();
       document.getElementById('thanks')?.focus();
     };
+    f.querySelectorAll('[data-status]').forEach((b) => (b.onclick = () => send(b.dataset.status, b)));
+    f.onsubmit = (e) => { e.preventDefault(); send('yes', f.querySelector('.ix-yes')); };
   }
 
   /* ---------------- interactions ---------------- */

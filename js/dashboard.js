@@ -231,6 +231,7 @@
           <p class="tiny muted">Upload an Excel (.xlsx) or CSV file with columns <b>Name, WhatsApp number, Email, Max people</b>. Only Name is required. You'll see a preview before anything is added.</p>
           <div class="row"><label class="btn primary" for="impFile">📄 Upload Excel / CSV</label><input type="file" id="impFile" accept=".xlsx,.csv,.txt,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
             <button class="btn sm ghost" id="impTpl">⬇ Sample template</button></div>
+          ${'contacts' in navigator && 'select' in navigator.contacts ? '<button class="btn wa" id="pickContacts">📇 Pick from phone contacts</button><p class="tiny muted" style="margin:0">Names and numbers come straight from your phone, so each guest gets a personal link and can reply with one tap.</p>' : ''}
           <details><summary class="small">Or paste names</summary>
             <p class="tiny muted">One guest per line: <code>Name, phone, max people</code> (phone and max optional). You can paste straight from Excel.</p>
             <textarea class="input" id="bulk" rows="5" placeholder="Rakesh Kumar, 9876543210, 4&#10;Meena Aunty, +91 91234 56789"></textarea>
@@ -299,6 +300,13 @@
       if (!f) return;
       if (f.size > 5 * 1024 * 1024) return IX.toast('File is too large (max 5 MB)', 'bad');
       try { await previewImport(IXImport.toGuests(await IXImport.readFile(f))); } catch (ex) { IX.toast(ex.message, 'bad'); }
+    };
+    const pick = body.querySelector('#pickContacts');
+    if (pick) pick.onclick = async () => {
+      let list;
+      try { list = await navigator.contacts.select(['name', 'tel', 'email'], { multiple: true }); } catch (ex) { return IX.toast('Could not open your contacts', 'warn'); }
+      if (!list || !list.length) return;
+      previewImport(list.map((c) => ({ name: String((c.name || [])[0] || '').trim(), phone: String((c.tel || [])[0] || '').trim(), email: String((c.email || [])[0] || '').trim(), allowed: 0 })));
     };
     body.querySelector('#bulkAdd').onclick = () => {
       const txt = body.querySelector('#bulk').value;
