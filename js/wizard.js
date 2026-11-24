@@ -3,6 +3,30 @@
   'use strict';
   const IX = window.IX, M = IX.model, esc = IX.esc, H = window.H;
   const STEPS = ['Template', 'Photos & media', 'Details & events', 'Message', 'Design', 'Publish'];
+  // One line per step telling the host what to do here and what comes next.
+  const STEP_HELP = [
+    'Pick what you are celebrating and a design. You can change these any time.',
+    'Add a cover photo and any family or gallery photos. All optional – you can skip this step.',
+    'Choose the kind of message you want, then fill in names, date and venue. The preview updates as you type.',
+    'Check the main invitation message. It was already written for you in the style you picked – edit it freely.',
+    'Optional: change fonts, colours and which sections appear.',
+    'Choose your link name and publish. Then share it on WhatsApp.',
+  ];
+  // Friendly list of event locations for the time zone (the full world list was confusing).
+  const TZ_CHOICES = [
+    ['Asia/Kolkata', 'India'], ['Asia/Kathmandu', 'Nepal'], ['Asia/Dubai', 'UAE / Dubai'], ['Asia/Riyadh', 'Saudi Arabia / Kuwait / Qatar'],
+    ['Asia/Singapore', 'Singapore / Malaysia'], ['Europe/London', 'United Kingdom'], ['Europe/Berlin', 'Germany / France / Italy'],
+    ['America/New_York', 'USA – East coast / Toronto'], ['America/Chicago', 'USA – Central'], ['America/Los_Angeles', 'USA – West coast / Vancouver'],
+    ['Australia/Sydney', 'Australia – Sydney / Melbourne'], ['Pacific/Auckland', 'New Zealand'],
+  ];
+  // Plain-language description of each font offered (every one is loaded from Google Fonts).
+  const FONT_INFO = {
+    'Great Vibes': 'Elegant script', Parisienne: 'Graceful script', Allura: 'Fine script', Pacifico: 'Playful', Satisfy: 'Handwritten',
+    'Kaushan Script': 'Brush script', 'Yatra One': 'Festive · Hindi too', 'Dancing Script': 'Lively script', Kalam: 'Handwritten · Hindi too',
+    'Cormorant Garamond': 'Classic serif', 'Playfair Display': 'Elegant serif', Montserrat: 'Clean modern', Poppins: 'Rounded modern', Merriweather: 'Sturdy serif',
+    'Baloo 2': 'Friendly rounded', 'Bebas Neue': 'Bold capitals', 'Space Grotesk': 'Techy', 'Tiro Devanagari Hindi': 'Traditional · Hindi', Lora: 'Soft serif',
+    Lato: 'Clear sans', Inter: 'Neutral sans', Nunito: 'Soft rounded', Mukta: 'Clear · Hindi too', 'Source Sans 3': 'Plain sans',
+  };
   const LANGS = window.IX_LANGS;
   let W = null;
 
@@ -132,8 +156,10 @@
     nb.textContent = n === 6 ? (W.inv.status === 'published' ? '🚀 Update published invitation' : '🚀 Publish invitation') : 'Next →';
     nb.className = 'btn ' + (n === 6 ? 'gold' : 'primary');
     updateStatus();
+    if (n < 6) nb.textContent = `Next: ${STEPS[n]} →`;
     const body = document.getElementById('stepBody');
     [null, step1, step2, step3, step4, step5, step6][n](body);
+    body.insertAdjacentHTML('afterbegin', `<div class="step-guide"><span class="sg-n">Step ${n} of 6</span><span>${esc(STEP_HELP[n - 1])}</span></div>`);
     document.querySelector('.step-tab.on')?.scrollIntoView({ block: 'nearest', inline: 'center' });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -189,6 +215,8 @@
       inv.category = c.id;
       const untouched = inv.events.every((e) => !e.date && !e.venue);
       if (untouched) inv.events = [M.newEvent(c.main || c.events[0])];
+      const keepWording = inv.tone && !wordingUntouched(inv);
+      if (!keepWording) applyTone(inv, IXWording.tones(c.id)[0].id, c.id);
       setTheme(c.theme);
       IX.toast(`Design set to “${IXT.THEMES[c.theme].name}”. You can choose any other below.`);
       changed(); step1(body);
@@ -196,6 +224,21 @@
     body.querySelectorAll('[data-theme-pick]').forEach((b) => (b.onclick = () => { setTheme(b.dataset.themePick); changed(); step1(body); }));
     body.querySelectorAll('[data-pal]').forEach((b) => (b.onclick = () => { inv.paletteIndex = +b.dataset.pal; Object.assign(inv.design, { textColor: '', bgColor: '', accentColor: '' }); changed(); step1(body); }));
     body.querySelectorAll('input[name=layout]').forEach((r) => (r.onchange = () => { inv.layout = r.value; changed(); }));
+  }
+  // Fill every wording field in one matching style ("type of message"), in all languages.
+  function applyTone(inv, tone, category = inv.category) {
+    inv.tone = tone;
+    inv.languages.forEach((l) => {
+      const w = IXWording.build(category, l, tone, { host: M.txt(inv, l, 'hostName'), title: M.txt(inv, l, 'title') });
+      TONE_FIELDS.forEach((k) => (inv.text[l][k] = w[k]));
+    });
+  }
+  // True when the wording is still exactly what the chosen style wrote (or empty).
+  function wordingUntouched(inv) {
+    return inv.languages.every((l) => {
+      const w = inv.tone ? IXWording.build(inv.category, l, inv.tone, { host: M.txt(inv, l, 'hostName'), title: M.txt(inv, l, 'title') }) : {};
+      return TONE_FIELDS.every((k) => { const cur = (inv.text[l][k] || '').trim(); return !cur || cur === (w[k] || '').trim(); });
+    });
   }
   function setTheme(id) {
     const t = IXT.THEMES[id];
@@ -244,8 +287,9 @@
         ${listBlock(m.gallery, 'gallery')}
       </div>
       <div class="card stack"><h2>Background, logo &amp; decoration</h2>
-        ${slot('background', 'Background image', 'Shown softly behind the whole invitation.')}
-        ${slot('logo', 'Company / family logo', 'PNG with transparent background works best.')}
+        ${slot('background', 'Background image or artwork', 'Becomes the background of your card. Text is placed on soft panels so it stays easy to read.')}
+        ${m.background ? `<div class="field"><span class="lbl">How should the background be used?</span><div class="seg" role="radiogroup"><label><input type="radio" name="bgMode" value="full" data-bgmode ${inv.design.bgMode !== 'soft' ? 'checked' : ''}>As the card background</label><label><input type="radio" name="bgMode" value="soft" data-bgmode ${inv.design.bgMode === 'soft' ? 'checked' : ''}>Faint texture only</label></div></div>` : ''}
+        ${slot('logo', 'Company / family logo', 'Shown small, in a round frame at the top of the card. A PNG with a transparent background works best.')}
       </div>
       <div class="card stack"><h2>Audio &amp; video</h2>
         ${slot('music', 'Background music (MP3)', 'Starts after the guest taps “Open Invitation”. Guests can pause it any time. Max 12 MB.', 'audio')}
@@ -254,6 +298,7 @@
         <p class="tiny muted">Audio and video files are stored as uploaded (browsers cannot compress them). Use short clips for fast loading. Only upload music you have the right to use.</p>
       </div>`;
     const rerender = () => step2(body);
+    body.querySelectorAll('[data-bgmode]').forEach((r) => (r.onchange = () => { inv.design.bgMode = r.value; changed(); }));
     const aspectOf = (key) => ({ cover: '4:5', background: '3:4', logo: 'free' }[key] || '4:5');
     body.querySelectorAll('input[data-slot]').forEach((inp) => (inp.onchange = async () => {
       const f = inp.files[0]; if (!f) return;
@@ -314,6 +359,7 @@
   }
 
   /* ---------- Step 3: details & events ---------- */
+  const TONE_FIELDS = ['familyName', 'subtitle', 'welcome', 'thankyou', 'message'];
   function langTabs(active, attr = 'data-lt') {
     return `<div class="ltabs" role="tablist">${W.inv.languages.map((l) => `<button type="button" role="tab" aria-selected="${l === active}" class="ltab ${l === active ? 'on' : ''}" ${attr}="${l}" lang="${l}">${esc(LANGS[l])}${l === W.inv.defaultLang ? ' ★' : ''}</button>`).join('')}</div>`;
   }
@@ -322,11 +368,21 @@
     const cat = IXT.CATEGORIES.find((c) => c.id === inv.category);
     const tf = (k, label, ph = '', ta = false, req = false) => `<div class="field"><label for="tf-${k}">${esc(label)}${req ? ' *' : ''}</label>${ta ? `<textarea class="input" id="tf-${k}" lang="${L}" data-k="text.${L}.${k}" placeholder="${esc(ph)}" rows="3"></textarea>` : `<input class="input" id="tf-${k}" lang="${L}" data-k="text.${L}.${k}" placeholder="${esc(ph)}" ${req ? 'required' : ''}>`}${suggRow(k)}</div>`;
     const suggRow = (k) => {
+      // lines covered by the "type of message" sets are not offered one by one any more
+      if (window.IXWording && TONE_FIELDS.includes(k)) return '';
       const list = window.IXSuggest ? IXSuggest.list(inv.category, L, k) : [];
       if (!list.length) return '';
       return `<div class="sugg" data-sugg="${k}"><span class="sugg-l">${IXSuggest.APPEND.includes(k) ? 'Tap to add:' : 'Suggestions:'}</span>${list.map((t, i) => `<button type="button" class="chip" data-sg="${k}.${i}" lang="${L}" title="Use this text">${esc(t)}</button>`).join('')}</div>`;
     };
-    const tzs = IX.timezones();
+    const tzs = TZ_CHOICES.some(([z]) => z === inv.timezone) ? TZ_CHOICES : [[inv.timezone, inv.timezone.replace(/_/g, ' ')], ...TZ_CHOICES];
+    const tones = window.IXWording ? IXWording.tones(inv.category, 'en') : [];
+    const tonePicker = tones.length ? `<div class="tone-pick">
+        <div class="lbl">What kind of message do you want to send?</div>
+        <p class="tiny muted" style="margin:.1rem 0 .6rem">Pick one and all the wording on your card is written in that same style, so it reads as one message. You can still change any line below.</p>
+        <div class="tone-grid" role="radiogroup" aria-label="Type of message">${tones.map((t) => {
+          const w = IXWording.build(inv.category, L, t.id);
+          return `<button type="button" class="tone ${inv.tone === t.id ? 'on' : ''}" role="radio" aria-checked="${inv.tone === t.id}" data-tone="${t.id}"><b>${esc(t.label)}</b><span lang="${L}">${esc(w.familyName)} · ${esc(w.subtitle)}</span><i lang="${L}">“${esc(w.welcome)}”</i></button>`;
+        }).join('')}</div></div>` : '';
     body.innerHTML = `
       <div class="card stack"><h2>Languages</h2>
         <div class="row">${Object.entries(LANGS).map(([l, n]) => `<label class="check"><input type="checkbox" data-langtoggle="${l}" ${inv.languages.includes(l) ? 'checked' : ''}> <span lang="${l}">${esc(n)}</span></label>`).join('')}</div>
@@ -335,20 +391,22 @@
       </div>
       <div class="card stack"><h2>Invitation text</h2>
         ${langTabs(L)}
-        <div class="grid2">
-          ${tf('title', 'Event title', cat.id === 'wedding' ? 'Aarav & Diya' : 'e.g. Riya turns 5!', false, true)}
-          ${tf('subtitle', 'Line under the title', cat.id === 'wedding' ? 'Invite you to celebrate their wedding' : 'e.g. You are invited')}
-          ${tf('hostName', 'Host name(s)', 'e.g. The Sharma Family')}
-          ${tf('familyName', 'Family / organisation line', 'e.g. Together with their families')}
-        </div>
-        ${tf('welcome', 'Special welcome message', 'A warm line to greet your guests', true)}
-        ${tf('instructions', 'Special instructions', 'Parking, gifts, timings, children…', true)}
-        ${tf('extraInfo', 'Additional event information', 'Accommodation, travel, live stream…', true)}
-        ${tf('thankyou', 'Closing thank-you message', 'Your presence and blessings mean the world to us.', true)}
+        ${tonePicker}
+        <p class="tiny muted" style="margin:0">The fields are in the same order as they appear on the card, top to bottom.</p>
+        ${tf('familyName', 'Small line at the top', 'e.g. Together with their families')}
+        ${tf('title', cat.id === 'wedding' || cat.id === 'engagement' ? 'Names of the couple' : 'Event title', cat.id === 'wedding' ? 'Aarav & Diya' : 'e.g. Riya turns 5!', false, true)}
+        ${tf('subtitle', 'Line under the names', cat.id === 'wedding' ? 'Invite you to celebrate their wedding' : 'e.g. You are invited')}
+        ${tf('welcome', 'Welcome message', 'A warm line to greet your guests', true)}
+        ${tf('hostName', 'Invited by (host names)', 'e.g. The Sharma Family')}
+        ${tf('thankyou', 'Thank-you at the end', 'Your presence and blessings mean the world to us.', true)}
+        <details class="more"><summary>More text (optional): special instructions, extra information</summary>
+          ${tf('instructions', 'Special instructions', 'Parking, gifts, timings, children…', true)}
+          ${tf('extraInfo', 'Additional event information', 'Accommodation, travel, live stream…', true)}
+        </details>
       </div>
       <div class="card stack"><h2>General details</h2>
         <div class="grid2">
-          <div class="field"><label for="tz">Time zone of the event</label><select class="input" id="tz" data-k="timezone">${tzs.map((z) => `<option ${z === inv.timezone ? 'selected' : ''}>${esc(z)}</option>`).join('')}</select><span class="hint">Guests in other countries also see the time in their local zone.</span></div>
+          <div class="field"><label for="tz">Country where the event takes place</label><select class="input" id="tz" data-k="timezone">${tzs.map(([z, n]) => `<option value="${esc(z)}" ${z === inv.timezone ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select><span class="hint">Sets the event's clock. Guests abroad also see the time in their own zone.</span></div>
           <div class="field"><label for="dc">Dress code</label><input class="input" id="dc" data-k="dressCode" placeholder="e.g. Traditional / Formal"></div>
           <div class="field"><label for="cn">Contact person</label><input class="input" id="cn" data-k="contact.name" autocomplete="name"></div>
           <div class="field"><label for="cp">Contact mobile number</label><input class="input" id="cp" type="tel" data-k="contact.phone" placeholder="+91 98765 43210"><span class="hint">Shown to guests with Call and WhatsApp buttons.</span></div>
@@ -365,6 +423,14 @@
         <button class="btn sm" id="addHl">+ Add highlight</button>
       </div>`;
     bind(body);
+    // "type of message": rewrite every wording field at once, in one tone, in every language
+    body.querySelectorAll('[data-tone]').forEach((b) => (b.onclick = async () => {
+      const tone = b.dataset.tone;
+      const label = b.querySelector('b').textContent;
+      if (!wordingUntouched(inv) && !(await H.confirm(`Use the “${esc(label)}” wording?`, 'The top line, the line under the names, the welcome, the main message and the thank-you will be rewritten in this style (in every language you chose). Names, dates and venues stay as they are.', 'Use this wording'))) return;
+      applyTone(inv, tone);
+      changed(); step3(body); IX.toast('Wording updated – see the preview', 'ok');
+    }));
     // ready-made wording: fills an empty field; never overwrites typed text without asking
     body.querySelectorAll('[data-sg]').forEach((b) => (b.onclick = async () => {
       const [k, i] = b.dataset.sg.split('.');
@@ -385,7 +451,13 @@
     body.querySelectorAll('[data-lt]').forEach((b) => (b.onclick = () => { W.lang = b.dataset.lt; W.pvLang = W.lang; step3(body); pushPreview(); }));
     body.querySelectorAll('[data-langtoggle]').forEach((c) => (c.onchange = () => {
       const l = c.dataset.langtoggle;
-      if (c.checked) { inv.languages.push(l); inv.text[l] = Object.assign({}, M.newInvitation().text.en, inv.text[l] || {}); }
+      if (c.checked) {
+        inv.languages.push(l); inv.text[l] = Object.assign({}, M.newInvitation().text.en, inv.text[l] || {});
+        if (inv.tone && TONE_FIELDS.every((k) => !(inv.text[l][k] || '').trim())) {
+          const w = IXWording.build(inv.category, l, inv.tone, { host: M.txt(inv, l, 'hostName'), title: M.txt(inv, l, 'title') });
+          TONE_FIELDS.forEach((k) => (inv.text[l][k] = w[k]));
+        }
+      }
       else {
         if (inv.languages.length === 1) { c.checked = true; return IX.toast('At least one language is required', 'warn'); }
         inv.languages = inv.languages.filter((x) => x !== l);
@@ -495,9 +567,9 @@
       <p class="tiny muted">Typing in Hindi or Punjabi: use your phone keyboard's हिन्दी / ਪੰਜਾਬੀ layout, or a tool such as Google Input Tools on a computer. All Unicode languages are supported.</p>
     </div>
     <div class="card stack">
-      <h2>✨ Message assistant <span class="tiny muted">(optional)</span></h2>
-      <p class="small muted">Get a suggested wording in your chosen style. It is shown here first and <b>never replaces your text unless you choose to</b>.</p>
-      <div class="row"><select class="input" id="aiStyle" style="width:auto">${IXT.STYLES.map((s) => `<option value="${s}">${s[0].toUpperCase() + s.slice(1)}</option>`).join('')}</select>
+      <h2>✨ Try another style <span class="tiny muted">(optional)</span></h2>
+      <p class="small muted">See the message written in a different style. It is shown here first and <b>never replaces your text unless you choose to</b>.</p>
+      <div class="row"><select class="input" id="aiStyle" style="width:auto" aria-label="Type of message">${IXWording.tones(inv.category, 'en').map((t) => `<option value="${t.id}" ${t.id === inv.tone ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select>
         <button class="btn" id="aiGen">Suggest wording (${esc(LANGS[L])})</button></div>
       <div id="aiOut"></div>
       <p class="tiny muted">The assistant uses built-in wording templates and works offline. A cloud AI writer can be plugged in for production (see docs).</p>
@@ -518,9 +590,10 @@
     body.querySelectorAll('[data-lt]').forEach((b) => (b.onclick = () => { W.lang = b.dataset.lt; W.pvLang = W.lang; step4(body); pushPreview(); }));
     body.querySelector('#aiGen').onclick = () => {
       const style = body.querySelector('#aiStyle').value;
-      const sug = IXT.generateMessage({ category: inv.category, style, lang: L, host: inv.text[L].hostName || M.txt(inv, L, 'hostName'), title: inv.text[L].title || M.txt(inv, L, 'title') });
+      const sug = IXWording.build(inv.category, L, style, { host: M.txt(inv, L, 'hostName'), title: M.txt(inv, L, 'title') }).message;
+      const styleName = body.querySelector('#aiStyle').selectedOptions[0].textContent;
       const out = body.querySelector('#aiOut');
-      out.innerHTML = `<div class="suggest"><b>Suggestion (${esc(style)})</b><div class="body" lang="${L}">${IX.sanitizeHTML(sug)}</div>
+      out.innerHTML = `<div class="suggest"><b>Suggestion (${esc(styleName)})</b><div class="body" lang="${L}">${IX.sanitizeHTML(sug)}</div>
         <div class="row"><button class="btn sm primary" id="aiIns">Insert below my text</button><button class="btn sm" id="aiRep">Replace my text…</button><button class="btn sm ghost" id="aiNo">Discard</button></div></div>`;
       out.querySelector('#aiIns').onclick = () => { rte.innerHTML += sug; sync(); out.innerHTML = ''; IX.toast('Suggestion added below your text', 'ok'); };
       out.querySelector('#aiRep').onclick = async () => {
@@ -534,13 +607,16 @@
   /* ---------- Step 5: design ---------- */
   function step5(body) {
     const inv = W.inv, d = inv.design, p = M.palette(inv);
-    const sel = (k, list) => `<select class="input" data-k="design.fonts.${k}" id="f-${k}">${list.map((f) => `<option ${f === d.fonts[k] ? 'selected' : ''} style="font-family:'${f}'">${esc(f)}</option>`).join('')}</select>`;
+    const sample = { script: M.txt(inv, inv.defaultLang, 'title') || 'Aarav & Diya', head: (inv.events[0] && inv.events[0].name) || 'Wedding Ceremony', body: 'Join us to celebrate' };
+    const sel = (k, list) => `<div class="font-grid" role="radiogroup" aria-labelledby="fl-${k}">${list.map((f) => `<button type="button" class="font-opt ${f === d.fonts[k] ? 'on' : ''}" role="radio" aria-checked="${f === d.fonts[k]}" data-font="${k}" data-f="${esc(f)}">
+        <span class="fs" style="font-family:'${esc(f)}',serif">${esc(sample[k])}</span><span class="fn">${esc(f)}${FONT_INFO[f] ? ` · ${esc(FONT_INFO[f])}` : ''}</span></button>`).join('')}</div>`;
     const seg = (k, opts) => `<div class="seg" role="radiogroup">${opts.map(([v, l]) => `<label><input type="radio" name="${k}" value="${v}" ${d[k] === v ? 'checked' : ''} data-seg="${k}">${l}</label>`).join('')}</div>`;
     body.innerHTML = `
       <div class="card stack"><h2>Fonts</h2>
-        <div class="grid3"><div class="field"><label for="f-script">Title font</label>${sel('script', [...new Set([d.fonts.script, ...IXT.FONT_CHOICES.script])])}</div>
-        <div class="field"><label for="f-head">Heading font</label>${sel('head', [...new Set([d.fonts.head, ...IXT.FONT_CHOICES.head])])}</div>
-        <div class="field"><label for="f-body">Body font</label>${sel('body', [...new Set([d.fonts.body, ...IXT.FONT_CHOICES.body])])}</div></div>
+        <p class="tiny muted" style="margin:0">Each box shows your own text in that font, exactly as guests will see it.</p>
+        <div class="field"><span class="lbl" id="fl-script">Names / title font</span>${sel('script', [...new Set([d.fonts.script, ...IXT.FONT_CHOICES.script])])}</div>
+        <div class="field"><span class="lbl" id="fl-head">Heading font</span>${sel('head', [...new Set([d.fonts.head, ...IXT.FONT_CHOICES.head])])}</div>
+        <div class="field"><span class="lbl" id="fl-body">Text font</span>${sel('body', [...new Set([d.fonts.body, ...IXT.FONT_CHOICES.body])])}</div>
         <div class="field"><label for="fs">Text size <span class="muted" id="fsv">${Math.round(d.fontScale * 100)}%</span></label><input type="range" id="fs" min="0.85" max="1.3" step="0.05" data-k="design.fontScale" data-type="float"></div>
         <p class="tiny muted">Hindi and Punjabi text automatically use Noto Devanagari / Gurmukhi fonts for correct rendering.</p>
       </div>
@@ -565,6 +641,11 @@
         <ul class="sec-list" id="secList"></ul>
       </div>`;
     bind(body);
+    body.querySelectorAll('[data-font]').forEach((b) => (b.onclick = () => {
+      d.fonts[b.dataset.font] = b.dataset.f;
+      b.parentElement.querySelectorAll('.font-opt').forEach((x) => { const on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-checked', on); });
+      changed();
+    }));
     const fs = body.querySelector('#fs');
     fs.addEventListener('input', () => (body.querySelector('#fsv').textContent = Math.round(fs.value * 100) + '%'));
     body.querySelectorAll('[data-seg]').forEach((r) => (r.onchange = () => { d[r.dataset.seg] = r.value; changed(); }));
