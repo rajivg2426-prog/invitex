@@ -15,7 +15,12 @@ const ok = (t, c, n = '') => { if (!c) fails++; console.log((c ? 'PASS ' : 'FAIL
   const p = await ctx.newPage();
   p.on('pageerror', (e) => errs.push(e.message));
   await p.goto(BASE + 'index.html');
-  await p.click('text=Create invitation');
+  await p.click('text=Create new invitation');
+  await p.waitForSelector('#designCard');
+  ok('step 1 offers three ways: ready designs, your own design, AI', (await p.locator('[data-way]').count()) === 3);
+  await p.click('.gal-tab >> text=All');
+  ok('ready designs show as a gallery of small cards', (await p.locator('.design-pick .mini').count()) >= 14);
+  await p.click('[data-way=ai]');
   await p.waitForSelector('#aiCard');
   ok('demo copy explains AI needs the online version', /online version/.test(await p.locator('#aiCard').innerText()));
 
@@ -34,7 +39,10 @@ const ok = (t, c, n = '') => { if (!c) fails++; console.log((c ? 'PASS ' : 'FAIL
       left--; return { images: [0, 1, 2, 3].map(art), used: 3 - left, limit: 3, left }; };
   });
   await p.click('[data-cat=housewarming]');
-  await p.evaluate(() => { const b = document.querySelector('[data-theme-pick="royal-maroon"]'); b && b.click(); }); // dark design first, to test the switch to light
+  await p.click('[data-way=ready]');
+  await p.click('.gal-tab >> text=All');
+  await p.click('.design-pick[data-theme-pick="royal-maroon"]'); // dark design first, to test the switch to light
+  await p.click('[data-way=ai]');
   await p.waitForSelector('.ai-style');
   ok('AI card shows 8 ready styles', (await p.locator('.ai-style').count()) === 8);
   ok('style is suggested from the event type (Housewarming → Pichwai)', (await p.locator('.ai-style.on').innerText()).includes('Pichwai'));
@@ -58,7 +66,9 @@ const ok = (t, c, n = '') => { if (!c) fails++; console.log((c ? 'PASS ' : 'FAIL
   const inv = await p.evaluate(() => H.store.getInvitation(location.hash.split('/')[2]));
   ok('picked design becomes the card background', /^idb:/.test(inv.media.background) && inv.design.bgMode === 'full', inv.media.background);
   ok('picked design is marked “On your card”', /On your card/.test(await p.locator('.ai-pick.on').innerText()));
-  ok('artwork section shows it as the current background', await p.locator('#artCard .art-prev').count() === 1);
+  await p.click('[data-way=own]');
+  ok('“Your own design” shows it as the current picture', await p.locator('.own-prev').count() === 1);
+  await p.click('[data-way=ai]'); await p.waitForSelector('#aiGo');
   const lightBg = await p.evaluate((i) => { const h = IXT.THEMES[i.theme].palettes[i.paletteIndex].bg.slice(1); const n = parseInt(h, 16); return ((n >> 16) * .2126 + ((n >> 8) & 255) * .7152 + (n & 255) * .0722) / 255 > .55; }, inv);
   ok('light painting gets a light colour theme', lightBg, `${inv.theme} palette ${palBefore} → ${inv.paletteIndex}`);
   const fr = p.frameLocator('#pvIframe');
