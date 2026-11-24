@@ -349,6 +349,7 @@
       for (const x of data.guests || []) await this.put('guests', x);
       for (const x of data.rsvps || []) await this.put('rsvps', x);
     }
+    get aiAvailable() { return false; } // AI designs need the online (Supabase) version
     async wipe() { const db = await this.dbp; db.close(); await reqP(indexedDB.deleteDatabase(DB_NAME)); }
   }
   const blobToDataURL = (b) => new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(b); });
@@ -476,6 +477,34 @@
       return { ok: true, msg: 'Connected. The database is set up correctly.' };
     }
     async exportAll() { throw new Error('Use the Supabase dashboard (Database > Backups) to back up production data.'); }
+
+    /* AI card designs (server step: supabase/functions/generate-card-art) */
+    get aiAvailable() { return true; }
+    async aiCredits() { return this._check(await this.sb.rpc('my_ai_credits')); }
+    async aiGenerate({ style, colors, category, words }) {
+      const { data } = await this.sb.auth.getSession();
+      const token = data.session && data.session.access_token;
+      if (!token) throw Object.assign(new Error('Please sign in again to use AI designs.'), { code: 'auth' });
+      let res;
+      try {
+        res = await fetch(`${CFG.SUPABASE_URL.replace(/\/$/, '')}/functions/v1/generate-card-art`, {
+          method: 'POST', headers: { 'content-type': 'application/json', apikey: CFG.SUPABASE_ANON_KEY, authorization: `Bearer ${token}` },
+          body: JSON.stringify({ style, colors, category, words }),
+        });
+      } catch (e) { throw Object.assign(new Error('Could not reach the AI designer. Check your internet connection and try again.'), { code: 'network' }); }
+      const j = await res.json().catch(() => ({}));
+      if (res.status === 404) throw Object.assign(new Error('The AI designer is not switched on yet (the server step has not been deployed).'), { code: 'not_configured' });
+      if (!res.ok) throw Object.assign(new Error(j.error || 'The AI designer had a problem. Please try again.'), { code: j.code || 'error', used: j.used, limit: j.limit });
+      return j;
+    }
+    // the user's earlier AI designs (newest first), so paid-for paintings are never lost
+    async aiRecent(limit = 12) {
+      const user = await this.getUser();
+      const { data, error } = await this.sb.storage.from(this.bucket).list(`${user.id}/ai`, { limit: 100, sortBy: { column: 'name', order: 'desc' } });
+      if (error || !data) return [];
+      return data.filter((f) => /\.(png|jpe?g|webp)$/i.test(f.name)).slice(0, limit)
+        .map((f) => this.sb.storage.from(this.bucket).getPublicUrl(`${user.id}/ai/${f.name}`).data.publicUrl);
+    }
   }
 
   /* ======================= Bootstrap ======================= */

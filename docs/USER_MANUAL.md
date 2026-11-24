@@ -16,6 +16,8 @@ Your work saves automatically ("All changes saved" under the title). On a comput
 3. Choose a colour theme.
 4. Choose a layout. **Portrait** is best for WhatsApp.
 
+**✨ Or let AI paint your card**: pick a style (Royal, Floral, Temple, Minimal, Mehndi, Pichwai, Birthday or Corporate; the best one for your event is marked *Suggested*), pick colours, and optionally type a few words such as "elephants and lotus flowers". Tap **Paint 4 designs** and wait about half a minute. Tap the design you like and it becomes your card background, with your names and details on top. You get 3 free tries; a try that fails is not counted. Designs you painted earlier stay under **Your earlier AI designs**.
+
 ### Step 2 – Photos & media
 - **Cover photo**: tap **Upload**, then drag to reposition, use the slider to zoom, ⟳ to rotate, and choose a shape. Tap **Apply**.
 - **Hosts, couple & family**: drag several photos in at once and type a name and role under each, for example "Diya – Bride".
