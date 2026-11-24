@@ -146,8 +146,18 @@
   IX.fmtDate = (date, tz, lang = 'en', opts) => {
     if (!date) return '';
     const d = date instanceof Date ? date : IX.zonedToUtc(date, '12:00', tz);
-    return new Intl.DateTimeFormat(IX.locale(lang), opts || { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: tz }).format(d);
+    const o = opts || { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: tz };
+    const out = new Intl.DateTimeFormat(IX.locale(lang), o).format(d);
+    // Some browsers ship without Punjabi date names and print "2027 M01 21, Thu". Spell it out ourselves.
+    if (lang === 'pa' && /M\d\d|[A-Za-z]{3}/.test(out) && o.month === 'long') {
+      const pt = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: o.timeZone || tz, weekday: 'short', day: 'numeric', month: 'numeric', year: 'numeric' }).formatToParts(d).map((x) => [x.type, x.value]));
+      const wd = PA_DAYS[['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(pt.weekday)];
+      return (o.weekday ? wd + ', ' : '') + pt.day + ' ' + PA_MONTHS[+pt.month - 1] + (o.year ? ' ' + pt.year : '');
+    }
+    return out;
   };
+  const PA_MONTHS = ['ਜਨਵਰੀ', 'ਫ਼ਰਵਰੀ', 'ਮਾਰਚ', 'ਅਪ੍ਰੈਲ', 'ਮਈ', 'ਜੂਨ', 'ਜੁਲਾਈ', 'ਅਗਸਤ', 'ਸਤੰਬਰ', 'ਅਕਤੂਬਰ', 'ਨਵੰਬਰ', 'ਦਸੰਬਰ'];
+  const PA_DAYS = ['ਐਤਵਾਰ', 'ਸੋਮਵਾਰ', 'ਮੰਗਲਵਾਰ', 'ਬੁੱਧਵਾਰ', 'ਵੀਰਵਾਰ', 'ਸ਼ੁੱਕਰਵਾਰ', 'ਸ਼ਨਿੱਚਰਵਾਰ'];
   IX.fmtTime = (date, time, tz, lang = 'en') => {
     if (!date || !time) return '';
     const d = IX.zonedToUtc(date, time, tz);

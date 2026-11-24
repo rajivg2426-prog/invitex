@@ -20,6 +20,13 @@
       friend: 'ਦੋਸਤ',
     },
   };
+  // Short message that goes with the card image (the WhatsApp format): a greeting line used only in
+  // personal invites, then one classy line, the event and date, and the RSVP link.
+  const CARD_TPL = {
+    en: { hello: 'Dear {name},', body: "You're warmly invited to celebrate with us.\n{event} · {date}\nRSVP here: {link}", scan: 'Scan to RSVP' },
+    hi: { hello: 'प्रिय {name},', body: 'आप सादर आमंत्रित हैं।\n{event} · {date}\nयहाँ जवाब दें: {link}', scan: 'जवाब देने के लिए स्कैन करें' },
+    pa: { hello: 'ਪਿਆਰੇ {name},', body: 'ਤੁਹਾਨੂੰ ਨਿੱਘਾ ਸੱਦਾ ਹੈ।\n{event} · {date}\nਇੱਥੇ ਜਵਾਬ ਦਿਓ: {link}', scan: 'ਜਵਾਬ ਦੇਣ ਲਈ ਸਕੈਨ ਕਰੋ' },
+  };
   let D = null;
 
   H.routes.dash = async (v, id, tab) => {
@@ -78,13 +85,21 @@
       .replace(/\{date\}/g, ev.date ? IX.fmtDate(ev.date, tz, l) : '')
       .replace(/\{time\}/g, ev.start ? IX.fmtTime(ev.date, ev.start, tz, l) + (ev.end ? ' – ' + IX.fmtTime(ev.date, ev.end, tz, l) : '') : '')
       .replace(/\{venue\}/g, IX.venueText(ev))
-      .replace(/\{link\}/g, link);
+      .replace(/\{link\}/g, link)
+      .replace(/ · $/gm, '');
   }
-  const tpl = () => { const l = msgLang(); return l === 'en' ? D.inv.shareTemplate || DEFAULT_TPL : (D.inv.shareTemplates || {})[l] || LANG_TPL[l].invite; };
+  // 'card' = short message sent with the card image; 'full' = the longer message with time and venue.
+  // Hosts who already wrote their own long message keep it until they switch.
+  const msgStyle = () => D.inv.msgStyle || (D.inv.shareTemplate || D.inv.shareTemplates ? 'full' : 'card');
+  const cardTpl = () => { const l = msgLang(), c = CARD_TPL[l] || CARD_TPL.en; return (D.inv.cardTemplates || {})[l] || c.hello + '\n' + c.body; };
+  const tpl = () => { if (msgStyle() === 'card') return cardTpl(); const l = msgLang(); return l === 'en' ? D.inv.shareTemplate || DEFAULT_TPL : (D.inv.shareTemplates || {})[l] || LANG_TPL[l].invite; };
+  // The general (not personal) message: the short format drops its greeting line, which needs a name.
+  const generalMsg = () => { const t = tpl(); return fill(msgStyle() === 'card' ? t.split('\n').filter((x) => !/\{name\}/.test(x)).join('\n') : t, null); };
   const remTpl = () => { const l = msgLang(); return l === 'en' ? D.inv.reminderTemplate || DEFAULT_REM : (D.inv.reminderTemplates || {})[l] || LANG_TPL[l].remind; };
   async function setTpl(kind, value) {
     const l = msgLang(), inv = D.inv;
-    if (l === 'en') inv[kind === 'remind' ? 'reminderTemplate' : 'shareTemplate'] = value;
+    if (kind !== 'remind' && msgStyle() === 'card') inv.cardTemplates = Object.assign({}, inv.cardTemplates, { [l]: value });
+    else if (l === 'en') inv[kind === 'remind' ? 'reminderTemplate' : 'shareTemplate'] = value;
     else { const k = kind === 'remind' ? 'reminderTemplates' : 'shareTemplates'; inv[k] = Object.assign({}, inv[k], { [l]: value }); }
     await saveInv();
   }
@@ -94,8 +109,14 @@
     return `<div class="field"><span class="lbl">Message language</span><div class="seg" role="group" aria-label="Message language">${ls.map((l) => `<label><input type="radio" name="msgLang" value="${l}" ${l === msgLang() ? 'checked' : ''}>${esc(window.IX_LANGS[l] || l)}</label>`).join('')}</div>
       <span class="hint">Guests open the invitation in this language.</span></div>`;
   }
+  function stylePicker() {
+    const st = msgStyle(), o = (v, l) => `<label><input type="radio" name="msgStyle" value="${v}" ${v === st ? 'checked' : ''}>${l}</label>`;
+    return `<div class="field"><span class="lbl">Message style</span><div class="seg" role="group" aria-label="Message style">${o('card', 'Short, with card image')}${o('full', 'Full details')}</div>
+      <span class="hint">${st === 'card' ? 'The card shows the date and venue, so the message stays short: one line, the event and the RSVP link.' : 'A longer message with date, time and venue, for sending without the card.'}</span></div>`;
+  }
   function wireLangPicker(body, redraw) {
     body.querySelectorAll('[name=msgLang]').forEach((r) => (r.onchange = async () => { D.inv.shareLang = r.value; await saveInv(); redraw(); }));
+    body.querySelectorAll('[name=msgStyle]').forEach((r) => (r.onchange = async () => { D.inv.msgStyle = r.value; await saveInv(); redraw(); }));
   }
   async function saveInv() { await H.store.saveInvitation(D.inv); }
 
@@ -308,7 +329,7 @@
           <div class="grid2" style="margin-top:.6rem"><div class="field"><label for="tpl">Invitation message</label><textarea class="input" id="tpl" rows="8">${esc(tpl())}</textarea></div>
           <div class="field"><label for="rtpl">Reminder message</label><textarea class="input" id="rtpl" rows="8">${esc(remTpl())}</textarea></div></div>
           <p class="tiny muted">Placeholders: {name} {event} {date} {time} {venue} {link}</p></details>
-        <p class="tiny muted">WhatsApp buttons open WhatsApp with your message ready – you press Send. We record that WhatsApp was opened, not that the message was delivered.</p>
+        <p class="tiny muted">${msgStyle() === 'card' ? 'Personal messages use the short style. The card image cannot ride along in a personal WhatsApp link, so send the card from <b>Share</b> or attach the saved image. ' : ''}WhatsApp buttons open WhatsApp with your message ready – you press Send. We record that WhatsApp was opened, not that the message was delivered.</p>
         ${D.guests.length ? guestFilters() : ''}
         ${D.guests.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Guest</th><th>Status</th><th>Max</th><th>Personal link & sending</th><th></th></tr></thead><tbody>
           ${D.guests.map((g) => { const [st, kind] = guestState(g); const link = IX.inviteUrl(D.inv.slug, { g: g.token }); return `<tr data-kind="${kind}" data-s="${esc([g.name, g.phone, IX.normPhone(g.phone), g.email].join(' ').toLowerCase())}">
@@ -448,20 +469,25 @@
     if (inv.status !== 'published') { body.innerHTML = `<div class="card"><p>Publish the invitation to share it.</p><a class="btn primary" href="#/edit/${esc(inv.id)}/6">Go to Publish</a></div>`; return; }
     const l = msgLang();
     const link = IX.inviteUrl(inv.slug, l === (inv.defaultLang || 'en') ? {} : { lang: l });
-    const msg = fill(tpl(), null);
+    const msg = generalMsg();
     body.innerHTML = `
       ${IX.isProduction ? '' : '<div class="notice warn" style="margin-bottom:1rem"><b>Demo/Local mode:</b> this link opens only in this browser. Guests on other phones will see “Invitation not found” until Production mode is set up. Use it to test the full guest journey here.</div>'}
       ${shareStatus()}
       <div class="share-grid">
         <div class="card stack"><h2>Share the invitation</h2>
           ${langPicker()}
+          ${stylePicker()}
           <div class="copyrow"><input class="input" readonly value="${esc(link)}" aria-label="Invitation link" id="lnk"><button class="btn" id="cpy">Copy link</button></div>
+          <div class="wa-prev" aria-label="How it looks in WhatsApp">
+            <div class="wa-bubble"><img id="waImg" alt="Your invitation card" width="1080" height="1350"><div id="waText" class="wa-text"></div><span class="wa-time">now</span></div>
+          </div>
           <div class="sx-actions">
-            <a class="btn wa" target="_blank" rel="noopener" id="waAll" href="${esc(IX.whatsappUrl(msg))}">WhatsApp</a>
+            <button class="btn wa" id="waCard">Send card on WhatsApp</button>
+            <a class="btn" target="_blank" rel="noopener" id="waAll" href="${esc(IX.whatsappUrl(msg))}">WhatsApp, text only</a>
             <a class="btn" id="mailAll" href="${esc(IX.mailtoUrl('', 'Invitation: ' + H.title(inv), msg))}">Email</a>
             ${navigator.share ? '<button class="btn" id="nshare">More apps…</button>' : ''}
             <a class="btn ghost" target="_blank" rel="noopener" href="${esc(link)}">Open as a guest</a></div>
-          <div class="field"><label for="msgPrev">Message</label><textarea class="input" id="msgPrev" rows="9">${esc(msg)}</textarea><span class="hint">Edit before sharing. This general message greets everyone the same way; for a message with each guest's name and their own link, use <b>Personal invites</b>.</span></div>
+          <div class="field"><label for="msgPrev">Message</label><textarea class="input" id="msgPrev" rows="${msgStyle() === 'card' ? 4 : 9}">${esc(msg)}</textarea><span class="hint">Edit before sharing. This general message greets everyone the same way; for a message with each guest's name and their own link, use <b>Personal invites</b>.</span></div>
         </div>
         <div class="card stack" style="text-align:center"><h2>QR code</h2>
           <div class="qr-box" id="qr">${IX.qrSVG(link, { size: 220 })}</div>
@@ -480,16 +506,39 @@
     wireLangPicker(body, () => share(body));
     body.querySelector('#cpy').onclick = async () => { await IX.copy(link); IX.toast('Link copied', 'ok'); };
     const mp = body.querySelector('#msgPrev');
-    mp.oninput = () => { body.querySelector('#waAll').href = IX.whatsappUrl(mp.value); body.querySelector('#mailAll').href = IX.mailtoUrl('', 'Invitation: ' + H.title(inv), mp.value); };
+    const waText = body.querySelector('#waText');
+    const showText = () => { waText.innerHTML = esc(mp.value).replace(/https?:\/\/\S+/g, (u) => `<span class="wa-link">${u}</span>`).replace(/\n/g, '<br>'); };
+    mp.oninput = () => { body.querySelector('#waAll').href = IX.whatsappUrl(mp.value); body.querySelector('#mailAll').href = IX.mailtoUrl('', 'Invitation: ' + H.title(inv), mp.value); showText(); };
+    showText();
     const ns = body.querySelector('#nshare');
     if (ns) ns.onclick = () => navigator.share({ title: H.title(inv), text: mp.value.replace(link, '').trim(), url: link }).catch(() => {});
     body.querySelector('#qrPng').onclick = async () => IX.download((inv.slug || 'invite') + '-qr.png', await IX.qrPNG(link, 800));
     const cv = body.querySelector('#cardCanvas');
-    drawCard(cv, inv, link).catch((e) => console.warn(e));
+    drawCard(cv, inv, link).then(() => { body.querySelector('#waImg').src = cv.toDataURL('image/jpeg', 0.85); }).catch((e) => console.warn(e));
+    // Card image + message. Phones: the share sheet sends both together (pick WhatsApp, then the chat).
+    // Computers can't attach a file through a link, so the image is saved and WhatsApp opens with the message ready.
+    body.querySelector('#waCard').onclick = async () => {
+      const name = (inv.slug || 'invitation') + '.png';
+      const blob = dataUrlBlob(cv.toDataURL('image/png'));
+      const file = typeof File === 'function' ? new File([blob], name, { type: 'image/png' }) : null;
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], text: mp.value }); } catch (e) { /* closed the share sheet */ }
+        return;
+      }
+      window.open(IX.whatsappUrl(mp.value), '_blank', 'noopener');
+      IX.download(name, blob);
+      IX.toast('Card image saved. In WhatsApp, attach it with the clip button. The message is already typed.', 'ok', 7000);
+    };
     body.querySelector('#dlImg').onclick = async () => {
       await drawCard(cv, inv, link);
       cv.toBlob((b) => IX.download((inv.slug || 'invitation') + '.png', b), 'image/png');
     };
+  }
+
+  function dataUrlBlob(u) {
+    const [head, b64] = u.split(','), bin = atob(b64), a = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i);
+    return new Blob([a], { type: head.slice(5).split(';')[0] });
   }
 
   async function drawCard(cv, inv, link) {
@@ -553,7 +602,7 @@
       const q = await IX.loadImage('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(IX.qrSVG(link, { size: 180 })));
       const qs = 150, qx = W - 320, qy = Hh - 330;
       c.fillStyle = '#fff'; c.fillRect(qx - 10, qy - 10, qs + 20, qs + 20); c.drawImage(q, qx, qy, qs, qs);
-      c.fillStyle = p.text; c.font = '500 22px system-ui, sans-serif'; c.fillText('Scan to RSVP', qx + qs / 2, qy + qs + 38);
+      c.fillStyle = p.text; c.font = '500 22px system-ui, sans-serif'; c.font = '500 22px system-ui, "Noto Sans Devanagari", "Noto Sans Gurmukhi", sans-serif'; c.fillText((CARD_TPL[L] || CARD_TPL.en).scan, qx + qs / 2, qy + qs + 38);
     } catch (e) { /* skip */ }
   }
 

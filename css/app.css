@@ -619,3 +619,11 @@ tr[hidden] { display: none; }
 .sx-step small { font-size: 11px; color: var(--muted); }
 .sx-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
 @media (max-width: 640px) { .sx-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sx-actions .btn { flex: 1 1 40%; justify-content: center; } }
+
+/* WhatsApp preview: the card image with the short message under it, as the guest will see it. */
+.wa-prev { background: #efe7dd; border-radius: 14px; padding: .8rem; }
+.wa-bubble { position: relative; background: #fff; border-radius: 10px; padding: 4px 4px 1.3rem; max-width: 300px; margin-left: auto; box-shadow: 0 1px 1px rgba(0,0,0,.12); }
+.wa-bubble img { display: block; width: 100%; height: auto; border-radius: 7px; background: #f4efe8; aspect-ratio: 1080 / 1350; }
+.wa-text { font: 14px/1.4 system-ui, -apple-system, "Segoe UI", "Noto Sans Devanagari", "Noto Sans Gurmukhi", sans-serif; color: #111b21; padding: .4rem .45rem 0; overflow-wrap: anywhere; }
+.wa-link { color: #027eb5; }
+.wa-time { position: absolute; right: .55rem; bottom: .3rem; font-size: 11px; color: #667781; }
