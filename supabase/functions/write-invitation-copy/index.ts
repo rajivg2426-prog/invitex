@@ -83,6 +83,23 @@ export const OVERUSED = [
   'आपकी उपस्थिति प्रार्थनीय है', 'दो दिल, दो परिवार', 'आपके बिना पार्टी अधूरी है', 'ਤੁਹਾਡੇ ਬਿਨਾਂ ਪਾਰਟੀ ਅਧੂਰੀ ਹੈ', 'ਦੋ ਦਿਲ, ਦੋ ਪਰਿਵਾਰ',
 ];
 
+// One-tap changes to a single line (the browser falls back to its built-in writer
+// when an older version of this function does not echo "tweak" back).
+export const TWEAKS: Record<string, string> = {
+  shorter: 'Make it clearly shorter (fewer words), keeping its meaning.',
+  longer: 'Make it a little fuller (one more thought or detail from the facts), never padding.',
+  emotional: 'Make it warmer and more heartfelt, without clichés or exaggeration.',
+  formal: 'Make it more formal and dignified, as a printed card would be.',
+  personal: 'Make it more personal using ONLY the names, hosts, memory or key message in the facts.',
+};
+
+// Words that sound generic when repeated. Each at most once per version.
+export const CAPPED: Record<string, string> = {
+  en: 'special, beautiful, joy (joyful, joyous), presence, celebration (celebrate)',
+  hi: 'ख़ास/विशेष, सुंदर, ख़ुशी/हर्ष, उपस्थिति, उत्सव/समारोह',
+  pa: 'ਖ਼ਾਸ/ਵਿਸ਼ੇਸ਼, ਸੁੰਦਰ, ਖ਼ੁਸ਼ੀ, ਹਾਜ਼ਰੀ, ਜਸ਼ਨ/ਸਮਾਰੋਹ',
+};
+
 const SECTION_NAME: Record<string, string> = { familyName: 'headline', subtitle: 'subtitle', welcome: 'welcome', message: 'message', thankyou: 'thankyou' };
 
 // Keep only plain text from the user (no links, no markup, no prompt tricks), limited length.
@@ -90,7 +107,7 @@ export function clean(s: unknown, max = 120): string {
   return String(s ?? '').replace(/https?:\/\/\S+/gi, ' ').replace(/[<>{}\[\]`\\]/g, ' ').replace(/[\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
-export type Facts = { names: string; title: string; host: string; relation: string; tradition: string; note: string; events: { name: string; date: string; time: string; venue: string; city: string }[] };
+export type Facts = { names: string; title: string; host: string; relation: string; tradition: string; note: string; key: string; events: { name: string; date: string; time: string; venue: string; city: string }[] };
 
 /** Only the fields writing needs; anything else the browser sends is dropped. */
 export function cleanRequest(b: any) {
@@ -100,6 +117,7 @@ export function cleanRequest(b: any) {
     relation: ['family', 'friends', 'colleagues', 'community', 'mixed'].includes(f.relation) ? f.relation : '',
     tradition: ['hindu', 'sikh', 'jain', 'muslim', 'christian'].includes(f.tradition) ? f.tradition : '',
     note: clean(f.note, 220),
+    key: clean(f.key, 160),
     events: (Array.isArray(f.events) ? f.events : []).slice(0, 8).map((e: any) => ({
       name: clean(e?.name, 60), date: /^\d{4}-\d{2}-\d{2}$/.test(e?.date || '') ? e.date : '', time: /^\d{2}:\d{2}$/.test(e?.time || '') ? e.time : '',
       venue: clean(e?.venue, 70), city: clean(e?.city, 40),
@@ -108,7 +126,9 @@ export function cleanRequest(b: any) {
   const section = Object.keys(SECTION_NAME).includes(b?.section) ? b.section : '';
   const current: Record<string, string> = {};
   if (section && b?.current && typeof b.current === 'object') for (const k of Object.keys(SECTION_NAME)) if (k !== section && b.current[k]) current[k] = clean(b.current[k], 900);
+  const tweak = section && TWEAKS[b?.tweak] ? String(b.tweak) : '';
   return {
+    tweak, currentText: tweak ? clean(b?.currentText, 900) : '',
     category: OCCASIONS[b?.category] ? b.category : 'custom',
     lang: ['en', 'hi', 'pa'].includes(b?.lang) ? b.lang : 'en',
     style: STYLES[b?.style] ? b.style : 'elegant',
@@ -127,7 +147,8 @@ export function buildPrompt(r: ReturnType<typeof cleanRequest>): { system: strin
     r.facts.host && `Hosts (who invite): ${r.facts.host}`,
     r.facts.relation && `Guests are mostly: ${r.facts.relation}`,
     r.facts.tradition ? `Religious/cultural tradition: ${r.facts.tradition}` : 'Religious/cultural tradition: none given — do not use deity names, scripture or religion-specific rituals',
-    r.facts.note && `Host's note (use its meaning, do not add to it): ${r.facts.note}`,
+    r.facts.note && `A memory or personal detail from the host (use its meaning, do not add to it): ${r.facts.note}`,
+    r.facts.key && `The one thing the host wants every guest to know (include its meaning once, in the message): ${r.facts.key}`,
     ...r.facts.events.map((e, i) => `Event ${i + 1}: ${[e.name, e.date && 'date ' + e.date, e.time && 'time ' + e.time, e.venue, e.city].filter(Boolean).join(', ')}`),
   ].filter(Boolean).join('\n');
   const system = [
@@ -147,13 +168,16 @@ export function buildPrompt(r: ReturnType<typeof cleanRequest>): { system: strin
     '6. Avoid these overused phrases: ' + OVERUSED.map((x) => `"${x}"`).join(', ') + '.',
     '7. ' + LANG[r.lang],
     '8. Plain text only: no markdown, no emojis, no hashtags, no links.',
+    '9. Use each of these words at most once in a whole version, and only where it is the best word: ' + (CAPPED[r.lang] || CAPPED.en) + '. Each slot must add something new, not restate another slot.',
     'Reply with JSON only.',
   ].join('\n');
   const avoid = r.avoid.length ? `\nThe host rejected or has already seen these sentences. Do not reuse them or close paraphrases:\n${r.avoid.map((x) => '- ' + x).join('\n')}` : '';
   let task: string;
   if (r.section) {
     const cur = Object.entries(r.current).map(([k, v]) => `${SECTION_NAME[k]}: ${v}`).join('\n');
-    task = `Write ${r.count} alternative ${SECTION_NAME[r.section]} texts for this version. They must fit with the other slots below and must not repeat their ideas or phrases.\nOther slots of this version:\n${cur}\nReturn {"lines": [${r.section === 'message' ? 'array of paragraphs per alternative' : 'strings'}]}.`;
+    task = r.tweak
+      ? `Rewrite this ${SECTION_NAME[r.section]}: "${r.currentText}". ${TWEAKS[r.tweak]} Give ${r.count} alternatives. They must fit with the other slots below and must not repeat their ideas or phrases.\nOther slots of this version:\n${cur}\nReturn {"lines": [${r.section === 'message' ? 'array of paragraphs per alternative' : 'strings'}]}.`
+      : `Write ${r.count} alternative ${SECTION_NAME[r.section]} texts for this version. They must fit with the other slots below and must not repeat their ideas or phrases.\nOther slots of this version:\n${cur}\nReturn {"lines": [${r.section === 'message' ? 'array of paragraphs per alternative' : 'strings'}]}.`;
   } else {
     task = `Write ${r.count} distinct versions. For each, also give "approach": a 2–4 word English label of its angle (e.g. "Opens with memory").`;
   }
@@ -345,7 +369,7 @@ export async function handle(req: Request, env: Env, f: Fetch = fetch): Promise<
       const enough = r.section ? (checked.lines || []).length >= 1 : (checked.versions || []).length >= Math.min(2, r.count);
       if (!enough) { failures.push(`${name}: answer failed checks`); await log(`${name}:${out.model}`, false); continue; }
       await log(`${name}:${out.model}`, true);
-      return reply(200, { ...checked, provider: name, model: out.model, used: used + 1, limit, left: Math.max(0, limit - used - 1) });
+      return reply(200, { ...checked, ...(r.tweak ? { tweak: r.tweak } : {}), provider: name, model: out.model, used: used + 1, limit, left: Math.max(0, limit - used - 1) });
     } catch (e) {
       failures.push(`${name}: ${(e as Error).message}`);
       console.error('provider failed', name, (e as Error).message);

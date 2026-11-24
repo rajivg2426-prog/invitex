@@ -132,6 +132,28 @@
   }
   const normSentence = (s) => words(s).join(' ');
 
+  /* Words that make invitations sound generic when used more than once on a card.
+   * Each may appear at most once per version (in any form); the built-in writer avoids
+   * a second use, and the AI is told the same. */
+  const CAPPED = {
+    en: [['special', /\bspecial(ly)?\b/gi], ['beautiful', /\bbeautiful(ly)?\b/gi], ['joy', /\bjoy(s|ful|fully|ous)?\b/gi], ['presence', /\bpresence\b/gi], ['celebration', /\bcelebrat(e|es|ed|ing|ion|ions)\b/gi]],
+    hi: [['ख़ास', /ख़ास|खास|विशेष/g], ['सुंदर', /सुंदर|सुन्दर/g], ['ख़ुशी', /ख़ुशी|खुशी|ख़ुशियों|खुशियों|हर्ष/g], ['उपस्थिति', /उपस्थिति/g], ['उत्सव', /उत्सव/g]],
+    pa: [['ਖ਼ਾਸ', /ਖ਼ਾਸ|ਖਾਸ|ਵਿਸ਼ੇਸ਼/g], ['ਸੁੰਦਰ', /ਸੁੰਦਰ|ਸੋਹਣ/g], ['ਖ਼ੁਸ਼ੀ', /ਖ਼ੁਸ਼ੀ|ਖੁਸ਼ੀ|ਖ਼ੁਸ਼ੀਆਂ|ਖੁਸ਼ੀਆਂ/g], ['ਹਾਜ਼ਰੀ', /ਹਾਜ਼ਰੀ/g], ['ਜਸ਼ਨ', /ਜਸ਼ਨ/g]],
+  };
+  /** Capped words in a text: { word: count } */
+  function capCount(text, lang) {
+    const out = {};
+    (CAPPED[lang] || CAPPED.en).forEach(([w, re]) => { const n = (String(text || '').match(re) || []).length; if (n) out[w] = n; });
+    return out;
+  }
+  /** Capped words used more than once across all lines of a version (names, title and occasion words not counted). */
+  function capRepeats(fields, lang, ignore = []) {
+    let all = FIELDS.map((k) => (k === 'message' ? htmlToText(fields[k]) : fields[k] || '')).join('\n');
+    ignore.filter(Boolean).forEach((x) => { all = all.split(x).join(' '); });
+    const c = capCount(all, lang);
+    return Object.keys(c).filter((w) => c[w] > 1).map((w) => ({ word: w, count: c[w] }));
+  }
+
   /* ------------------------------------------------------------------ */
   /* Facts: only what the host actually entered                          */
   /* ------------------------------------------------------------------ */
@@ -155,13 +177,14 @@
       relation: RELATIONS.includes(extra.relation) ? extra.relation : '',
       tradition: TRADITIONS.includes(extra.tradition) ? extra.tradition : '',
       note: clean(extra.note, 220),
+      key: clean(extra.key, 160),
       events, main,
       hasInstructions: !!String(txt('instructions') || '').trim(),
     };
   }
   /** The facts as one string – used to check that AI text does not invent numbers. */
   function factsText(f) {
-    return [f.names, f.title, f.host, f.note, ...(f.events || []).flatMap((e) => [e.name, e.date, e.time, e.venue, e.city, e.date && +e.date.slice(8, 10), e.date && +e.date.slice(5, 7), e.time && +e.time.slice(0, 2), e.time && (+e.time.slice(0, 2) % 12 || 12)])].join(' ');
+    return [f.names, f.title, f.host, f.note, f.key, ...(f.events || []).flatMap((e) => [e.name, e.date, e.time, e.venue, e.city, e.date && +e.date.slice(8, 10), e.date && +e.date.slice(5, 7), e.time && +e.time.slice(0, 2), e.time && (+e.time.slice(0, 2) % 12 || 12)])].join(' ');
   }
 
   /* ------------------------------------------------------------------ */
@@ -289,6 +312,10 @@
       list = own.length ? own : next;
       if (!list.length) return '';
     }
+    // generic words (special, joy, presence…) at most once per version – a preference, below freshness
+    const capBefore = new Set(ctx.v.cap || []);
+    if (ctx.sofar) Object.entries(ctx.sofar).forEach(([k, v]) => { if (!k.startsWith('__')) Object.keys(capCount(k === 'message' ? htmlToText(v) : v, ctx.lang)).forEach((w) => capBefore.add(w)); });
+    const capOk = (e) => { const c = capCount(e.text.replace(/\{\w+\}/g, ' '), ctx.lang); return Object.keys(c).every((w) => !capBefore.has(w) && c[w] < 2); };
     // a short line should not echo a phrase the other lines already use
     if (ctx.sofar && Object.keys(ctx.sofar).length) {
       const ign = ignoreFor(ctx.facts, ctx.lang);
@@ -300,10 +327,13 @@
     // then wording the host has not turned down before; after many rounds a pool can run dry,
     // and then repeating an older line beats giving every version the same one
     const rej = (e) => ctx.rejected.has(normSentence(render(ctx, e, false)));
-    const tiers = [(e) => !rej(e) && !ctx.batch.has(e.id) && !ctx.avoid.has(e.id), (e) => !rej(e) && !ctx.batch.has(e.id), (e) => !ctx.batch.has(e.id) && !ctx.avoid.has(e.id), (e) => !ctx.batch.has(e.id), (e) => !rej(e)];
+    const t0 = (e) => !rej(e) && !ctx.batch.has(e.id) && !ctx.avoid.has(e.id);
+    // short lines: never let the word rule cost freshness (pools are small); long text: prefer it among fresh wording
+    const tiers = [(e) => t0(e) && capOk(e)].concat([t0, (e) => !rej(e) && !ctx.batch.has(e.id), (e) => !ctx.batch.has(e.id) && !ctx.avoid.has(e.id), (e) => !ctx.batch.has(e.id), (e) => !rej(e)]);
     let best = list;
     for (const t of tiers) { const x = list.filter(t); if (x.length) { best = x; break; } }
     const choice = shuffle(best, ctx.rng)[0];
+    Object.keys(capCount(choice.text.replace(/\{\w+\}/g, ' '), ctx.lang)).forEach((w) => (ctx.v.cap || (ctx.v.cap = new Set())).add(w));
     ctx.v.ids.add(choice.id); ctx.batch.add(choice.id);
     choice.ideas.forEach((k) => ctx.v.ideas.add(k));
     ctx.v.used.push(choice.id);
@@ -347,7 +377,7 @@
       case 'invite': return pick(ctx, SP('invite', ctx), { html: true, max });
       case 'close': return pick(ctx, SP('close', ctx), { html: true, max });
       case 'relation': return ctx.facts.relation ? pick(ctx, `relation.${ctx.facts.relation}`, { html: true, social: false }) : '';
-      case 'note': return ctx.facts.note && ctx.length === 'detailed' ? esc(ctx.facts.note.replace(/([^.!?।])$/, '$1' + (ctx.lang === 'en' ? '.' : '।'))) : '';
+      case 'note': return ''; // the host's own words are placed by personalLine()
       case 'details': {
         if (!ctx.B.details) return '';
         // each version words the date and place differently where it can
@@ -360,14 +390,23 @@
     }
   }
 
+  const endStop = (t, lang) => String(t).replace(/([^.!?।…”"'])\s*$/, '$1' + (lang === 'en' ? '.' : '।'));
+  /** The host's own memory and key message, word for word (standard and detailed). */
+  function personalLine(ctx) {
+    if (ctx.length === 'short') return '';
+    const f = ctx.facts;
+    return [f.note, f.key].filter(Boolean).map((t) => endStop(esc(t), ctx.lang)).join(' ');
+  }
   function composeMessage(ctx, approach) {
     const plan = PLAN[approach] || PLAN.heart;
     if (ctx.length === 'short') {
       // WhatsApp: one short paragraph, 2–3 sentences
       const order = approach === 'moment' ? ['details', 'invite'] : approach === 'heart' || approach === 'story' ? ['heart', 'invite', 'details'] : ['invite', 'details'];
       const s = order.map((x) => sentence(ctx, x)).filter(Boolean);
+      if (ctx.facts.key && ctx.facts.key.length <= 140) s.push(endStop(esc(ctx.facts.key), ctx.lang));
       return s.length ? `<p>${s.join(' ')}</p>` : '';
     }
+    const own = personalLine(ctx);
     const paras = plan.map((p) => p.map((slot) => {
       const opt = slot.endsWith('?');
       const name = slot.replace('?', '');
@@ -375,6 +414,7 @@
       if (opt && name === 'open' && ctx.length !== 'detailed' && ctx.rng() < 0.5) return '';
       return sentence(ctx, name);
     }).filter(Boolean).join(' ')).filter(Boolean);
+    if (own) paras.splice(Math.max(1, paras.length - 1), 0, own);
     if (ctx.length === 'detailed' && ctx.facts.hasInstructions) {
       const tip = pick(ctx, 'practical', { html: true, social: false });
       if (tip) paras.splice(paras.length - 1, 0, tip);
@@ -409,7 +449,7 @@
   function plainOf(fields) { return FIELDS.map((k) => (k === 'message' ? htmlToText(fields[k]) : fields[k] || '')).join('\n'); }
   function masked(text, facts) {
     let t = text;
-    [facts.names, facts.title, facts.host, facts.main && facts.main.city, facts.main && facts.main.name].filter(Boolean).forEach((v) => { t = t.split(v).join(' '); });
+    [facts.names, facts.title, facts.host, facts.note, facts.key, facts.main && facts.main.city, facts.main && facts.main.name].filter(Boolean).forEach((v) => { t = t.split(v).join(' '); });
     return t;
   }
 
@@ -445,9 +485,11 @@
         const text = masked(plainOf(v.fields), facts);
         const sim = Math.max(0, ...versions.map((x) => similarity(text, masked(plainOf(x.fields), facts))));
         const reps = repeatsAcross(v.fields, { ignore: ignoreFor(facts, o.lang) }).length;
-        const score = sim + reps * 0.5;
+        const caps = capRepeats(v.fields, o.lang, ignoreFor(facts, o.lang)).length;
+        const dup = ['familyName', 'subtitle', 'welcome', 'thankyou'].filter((k) => v.fields[k] && versions.some((x) => x.fields[k] === v.fields[k])).length;
+        const score = sim + reps * 0.5 + caps * 0.4 + dup;
         if (!best || score < best.score) best = { ...v, score, sim, reps };
-        if (sim < 0.2 && !reps) break;
+        if (sim < 0.2 && !reps && !dup && !caps) break;
         // undo this attempt's claims on the shared pool before retrying
         batch.clear(); snapshot.forEach((x) => batch.add(x));
       }
@@ -474,12 +516,99 @@
       if (!text) continue;
       const plain = section === 'message' ? htmlToText(text) : text;
       if (normSentence(plain) === normSentence(cur)) continue;
-      const reps = repeatsAcross({ ...others, [section]: text }, { ignore: ignoreFor(o.facts, o.lang) });
+      const reps = repeatsAcross({ ...others, [section]: text }, { ignore: ignoreFor(o.facts, o.lang) }).concat(capRepeats({ ...others, [section]: text }, o.lang, ignoreFor(o.facts, o.lang)));
       best = text;
       bestUsed = ctx.v.used.slice(n);
       if (!reps.length) return { text, used: bestUsed };
     }
     return best ? { text: best, used: bestUsed } : null;
+  }
+  /* ------------------------------------------------------------------ */
+  /* One-tap changes to a single line                                     */
+  /* ------------------------------------------------------------------ */
+  const TWEAKS = {
+    shorter: { label: 'Shorter' }, longer: { label: 'Longer' }, emotional: { label: 'More emotional', style: 'heartfelt' },
+    formal: { label: 'More formal', style: 'formal' }, personal: { label: 'More personal' }, proofread: { label: 'Proofread' },
+  };
+  const plainLen = (section, t) => (section === 'message' ? htmlToText(t) : String(t || '')).replace(/\s+/g, ' ').trim().length;
+  /**
+   * Rewrite one line of a version in a direction. o = regenerateSection's options + { mode }.
+   * Returns { text, used, note? } or { text: '', note } when nothing better is possible.
+   * Only the host's facts are used; nothing is invented.
+   */
+  function tweakSection(o) {
+    const { version, section, mode } = o;
+    const cur = version.fields[section] || '';
+    if (mode === 'proofread') {
+      const r = proofread(cur, o.lang, section === 'message');
+      return r.changes ? { text: r.text, used: [], note: `Fixed ${r.changes} small ${r.changes === 1 ? 'thing' : 'things'} (spacing, punctuation or capitals).` } : { text: '', note: 'This line already reads cleanly. Nothing to fix.' };
+    }
+    const f = o.facts;
+    if (mode === 'personal' && !(f.names || f.host || f.note || f.key || f.relation)) return { text: '', note: 'Add a few personal touches (names, a memory or one key message) first, then try again.' };
+    const t = TWEAKS[mode] || {};
+    const style = t.style && stylesFor(f.category).some((x) => x.id === t.style) ? t.style : o.style;
+    if (t.style && style === o.style && o.style === t.style) { /* already in that style: still give fresh wording */ }
+    let length = o.length;
+    if (section === 'message' && mode === 'shorter') length = o.length === 'detailed' ? 'standard' : 'short';
+    if (section === 'message' && (mode === 'longer' || mode === 'personal')) length = o.length === 'short' ? 'standard' : 'detailed';
+    const curLen = plainLen(section, cur);
+    const personalScore = (txt) => { const p = section === 'message' ? htmlToText(txt) : txt; return [f.names, f.host, f.note, f.key].filter((x) => x && p.includes(x)).length; };
+    const cands = [];
+    const draw = (len, tag) => {
+      for (let i = 0; i < 6; i++) {
+        const r = regenerateSection({ ...o, style, length: len, seed: `${o.seed}|${mode}|${tag}${i}`, avoidIds: [...(o.avoidIds || []), ...cands.flatMap((c) => c.used)] });
+        if (!r) continue;
+        if (cands.some((c) => normSentence(plainOf2(section, c.text)) === normSentence(plainOf2(section, r.text)))) continue;
+        cands.push(r);
+      }
+    };
+    draw(length, '');
+    // "Shorter" should really be shorter: if nothing at this length is, try the short length too
+    if (mode === 'shorter' && section === 'message' && length !== 'short' && !cands.some((c) => plainLen(section, c.text) < curLen - 3)) draw('short', 's');
+    let pickd = null;
+    if (mode === 'shorter') pickd = cands.filter((c) => plainLen(section, c.text) < curLen - 3).sort((a, b) => plainLen(section, a.text) - plainLen(section, b.text))[0];
+    else if (mode === 'longer') pickd = cands.filter((c) => plainLen(section, c.text) > curLen + 3).sort((a, b) => plainLen(section, b.text) - plainLen(section, a.text))[0];
+    else if (mode === 'personal') pickd = cands.filter((c) => personalScore(c.text) > personalScore(cur)).sort((a, b) => personalScore(b.text) - personalScore(a.text))[0];
+    else {
+      // the wording whose phrases carry the wanted tone (warm for emotional, refined for formal)
+      const want = (STYLE[t.style] || {}).tones || [];
+      const toneScore = (c) => (c.used || []).map(findEntry).filter(Boolean).reduce((n, e) => n + (e.tones.some((x) => x === want[0]) ? 2 : e.tones.some((x) => want.includes(x)) ? 1 : e.tones.length ? -1 : 0), 0);
+      pickd = cands.slice().sort((a, b) => toneScore(b) - toneScore(a))[0];
+    }
+    if (!pickd) {
+      const why = { shorter: 'This line is already as short as this style allows.', longer: 'There is no longer wording for this line in this style. Try the Detailed length, or add your own words.', personal: 'No more personal wording is available for this line. Your names, memory and key message are used in the main message.' };
+      return { text: '', note: why[mode] || 'No fresh wording is left for this line in this style.' };
+    }
+    return pickd;
+  }
+  const plainOf2 = (section, t) => (section === 'message' ? htmlToText(t) : String(t || ''));
+
+  /** Small, safe corrections only: spacing, punctuation, capitals, doubled words, quotes. Never changes words. */
+  function proofread(text, lang, html) {
+    let n = 0;
+    const fix = (t) => {
+      const rules = [
+        [/[ \t ]{2,}/g, ' '],
+        [/\s+([,.;:!?।])/g, '$1'],
+        [/([,;:])(?=[^\s\d"”’)\]])/g, '$1 '],
+        [/([.!?])(?=[A-Za-zऀ-੿])/g, '$1 '],
+        [/।(?=\S)/g, '। '],
+        [/([.!?,।]){2,}/g, (m) => (m.startsWith('.') && m === '...' ? m : m[0])],
+        [/\b(\p{L}+)\s+\1\b/giu, '$1'],
+      ];
+      if (lang === 'en') rules.push([/(^|[.!?]\s+)([a-z])/g, (m, a, b) => a + b.toUpperCase()], [/\bi\b(?=[\s,'’])/g, 'I'], [/(\w)'(\w)/g, '$1’$2'], [/(^|\s)"(\S)/g, '$1“$2'], [/(\S)"(?=\s|$|[.,!?])/g, '$1”']);
+      if (lang !== 'en') rules.push([/(\S)\s*\.(\s|$)/g, (m, a, b) => (/[ऀ-੿]/.test(a) ? a + '।' + b : m)]);
+      let out = t;
+      rules.forEach(([re, to]) => { const nx = out.replace(re, to); if (nx !== out) { n += (out.match(re) || []).length; out = nx; } });
+      return out.trim();
+    };
+    if (!html) return { text: fix(String(text || '')), changes: n };
+    // keep the markup: fix the text of each paragraph only
+    const out = String(text || '').replace(/(<p[^>]*>)([\s\S]*?)(<\/p>)/g, (m, a, body, c) => {
+      const parts = body.split(/(<[^>]+>)/);
+      return a + parts.map((p) => (p.startsWith('<') ? p : fix(p.replace(/^\s+|\s+$/g, (x) => (x ? ' ' : '')))).replace(/^ /, '')).join('') + c;
+    });
+    return { text: out, changes: n };
   }
   function findEntry(id) {
     const m = /^(\w+):(.+):(\d+)$/.exec(id || ''); if (!m) return null;
@@ -591,7 +720,7 @@
   root.IXCopy = {
     STYLES, STYLE, LENGTHS, GROUP, CATEGORIES, FIELDS, TRADITIONS, RELATIONS, OVERUSED,
     groupOf, stylesFor, defaultStyle, styleFromTone, factsFrom, factsText,
-    generate, regenerateSection, defaultWording, validateAi, checkLine,
-    similarity, repeatsAcross, ignoreFor, htmlToText, rng, hash,
+    generate, regenerateSection, tweakSection, TWEAKS, proofread, defaultWording, validateAi, checkLine,
+    similarity, repeatsAcross, capRepeats, capCount, CAPPED, ignoreFor, htmlToText, rng, hash,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

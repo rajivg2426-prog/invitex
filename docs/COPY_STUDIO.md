@@ -8,18 +8,22 @@ In step 2 of the editor ("Fill your card"), hosts tap **✦ Write my wording** t
 - a length (Short for WhatsApp, Standard for the card, Detailed),
 - 3–5 versions.
 
-They can also add a few optional personal touches: who is being celebrated, who the guests mostly are, a religious tradition, and one special thing to mention.
+They can also add a few optional personal touches: who is being celebrated, who is inviting, who the guests mostly are, a religious tradition, **a memory or personal detail**, and **one thing every guest should know** (for example "Please arrive by 6 pm for the baraat"). The memory and the key message are placed in the main message **word for word**; the writer never rewrites them.
 
 Each version fills every text line on the card: the top line, the line under the names, the welcome, the main message and the thank-you. Hosts can do the following:
 
 - compare versions line by line,
 - get new wording for a single line (↻),
+- adjust a single line with the **Aa** menu: *Shorter*, *Longer*, *More emotional*, *More formal*, *More personal* or *Proofread* (Proofread fixes only spacing, punctuation, capitals and doubled words; it never changes words),
+- undo a line change with ↶,
 - edit a line,
 - mix lines from different versions,
 - preview a version on the live card,
 - apply it, undo it, and restore any earlier wording.
 
 **Nothing on the card changes until the host chooses "Use".** If they had typed a line themselves, the studio asks first ("Keep my lines" or "Replace everything").
+
+The studio also warns when a generic word (such as *special*, *beautiful*, *joy* or their Hindi and Punjabi equivalents) is used more than once in a version, and the built-in writer avoids it where it can.
 
 ## Two writers, honestly labelled
 
@@ -78,6 +82,12 @@ The line under the button should say **"AI writer on"**. Tap **Write 4 versions*
 
 ---
 
+### Updating an existing AI writer (needed once for the Aa menu)
+
+If you switched the AI writer on before this release, redeploy the server step once so it understands the **Aa** line changes and the new memory / key message fields: in Supabase open **Edge Functions → write-invitation-copy**, replace its code with the new `supabase/functions/write-invitation-copy/index.ts`, and press **Deploy**. Nothing else changes (same secrets, same tables).
+
+Until you do, everything still works: on AI-written versions the **Aa** changes are made by the built-in writer instead, and the line is labelled "Built-in writer" so it is always clear who wrote it.
+
 ## Optional settings (Edge Function secrets)
 
 | Secret | What it does | Default |
@@ -103,7 +113,7 @@ The AI receives only what writing needs:
 - the occasion, style, length and language,
 - the names being celebrated, the event title and the host name,
 - event names, dates, times, venue and city,
-- the optional guest type, tradition and note that the host typed in the studio,
+- the optional guest type, tradition, memory and key message that the host typed in the studio,
 - earlier wording to avoid repeating.
 
 Phone numbers, addresses, map links, guest lists, RSVPs and email addresses are never sent. The server step also drops any other field. The usage log stores only the occasion, language, length and style, not names or places.
@@ -129,4 +139,5 @@ Tests (no network, fixed seeds):
 node tests/copy-engine-test.mjs     # built-in writer: every occasion × style × language × length, repeats, safety
 node tests/copy-function-test.mjs   # server step with fake Supabase and fake AI providers
 python3 -m http.server 8765 &  node tests/copy-studio-e2e.js   # the studio in the browser (demo mode, fake AI)
+node tests/copy-v2-e2e.js           # Aa line changes, proofread, memory / key message, repeated-word warning
 ```

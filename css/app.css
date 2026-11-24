@@ -591,3 +591,10 @@ details.more-details[open]>summary,details.more-options[open]>summary{margin-bot
 .pair-n { margin-top: .35rem; font: 600 11px var(--font); letter-spacing: .05em; text-transform: uppercase; color: var(--gold2); }
 .hist { display: inline-flex; gap: 2px; border: 1px solid var(--line); border-radius: 10px; background: #fff; padding: 2px; }
 .hist .iconbtn { width: 34px; height: 34px; } .hist .ic { width: 17px; height: 17px; margin: 0; }
+/* writing studio: one-tap line changes */
+.cs-adj { position: relative; display: inline-flex; }
+.cs-adj-b { font-family: 'Cormorant Garamond', Georgia, serif !important; font-size: 15px !important; }
+.cs-adj-menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; min-width: 170px; display: grid; padding: .3rem; background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 14px 36px rgba(43,16,34,.16); }
+.cs-adj-menu button { border: 0; background: none; text-align: left; padding: .55rem .7rem; border-radius: 8px; font: 500 14px var(--font); color: var(--ink); cursor: pointer; text-transform: none; letter-spacing: 0; }
+.cs-adj-menu button:hover, .cs-adj-menu button:focus-visible { background: var(--plum-tint); }
+.cs-line.busy { opacity: .55; }

@@ -28,7 +28,7 @@
     if (!c.style) c.style = inv.tone ? C().styleFromTone(inv.tone, inv.category) : C().defaultStyle(inv.category);
     if (!c.length) c.length = 'standard';
     if (c.count == null) c.count = 4;
-    ['relation', 'tradition', 'note'].forEach((k) => { if (c[k] == null) c[k] = ''; });
+    ['relation', 'tradition', 'note', 'key', 'host'].forEach((k) => { if (c[k] == null) c[k] = ''; });
     return c;
   }
   const txt = (inv, l, k) => (inv.text[l] && inv.text[l][k]) || '';
@@ -75,14 +75,14 @@
   /* ---------- writing (AI first when available, built-in otherwise) ---------- */
   function studioFacts(inv, l) {
     const c = notes(inv);
-    return C().factsFrom(inv, l, { names: c.names != null && c.names !== '' ? c.names : undefined, relation: c.relation, tradition: c.tradition, note: c.note });
+    return C().factsFrom(inv, l, { names: c.names != null && c.names !== '' ? c.names : undefined, host: c.host ? c.host : undefined, relation: c.relation, tradition: c.tradition, note: c.note, key: c.key });
   }
   // what the AI writer receives: only what writing needs (no phone, address, map link, guests or RSVPs)
   function aiPayload(inv, l, facts, extra = {}) {
     const c = notes(inv);
     return Object.assign({
       category: inv.category, lang: l, style: c.style, length: c.length, count: c.count,
-      facts: { names: facts.names, title: facts.title, host: facts.host, relation: facts.relation, tradition: facts.tradition, note: facts.note,
+      facts: { names: facts.names, title: facts.title, host: facts.host, relation: facts.relation, tradition: facts.tradition, note: facts.note, key: facts.key,
         events: facts.events.map((e) => ({ name: e.name, date: e.date, time: e.time, venue: e.venue, city: e.city })) },
       avoid: c.rejected.slice(-40),
     }, extra);
@@ -150,6 +150,38 @@
     v.fields[k] = text; v.lineSource[k] = src;
   }
 
+  /** Shorter, longer, more emotional / formal / personal, or proofread – one line of one version. */
+  async function tweakLine(ctx, v, k, mode) {
+    const { inv, store } = ctx, S = ctx.S, c = notes(inv), l = S.lang;
+    const facts = studioFacts(inv, l);
+    const label = (C().TWEAKS[mode] || {}).label || mode;
+    let text = '', src = 'builtin', note = '';
+    // the AI writer when this version came from it and the server step knows how (it answers with the same "tweak")
+    if (mode !== 'proofread' && v.source === 'ai' && aiOn(store)) {
+      try {
+        const others = Object.fromEntries(C().FIELDS.filter((x) => x !== k).map((x) => [x, C().htmlToText(v.fields[x])]));
+        const r = await store.aiWrite(aiPayload(inv, l, facts, { section: k, current: others, count: 2, tweak: mode, currentText: C().htmlToText(v.fields[k]) }));
+        if (r.left != null) S.usage = { left: r.left, limit: r.limit };
+        if (r.tweak === mode) {
+          const got = (r.lines || []).map((t) => C().checkLine(t, k, v, facts, l)).filter((t) => t && norm(t) !== norm(v.fields[k]));
+          if (got.length) { text = got[0]; src = 'ai'; }
+        }
+      } catch (e) { /* fall back to the built-in writer below */ }
+    }
+    if (!text) {
+      const r = C().tweakSection({ facts, lang: l, style: v.style, length: v.length, version: v, section: k, mode, seed: `${inv.id}|${c.round}|${v.id}|${k}|${mode}|${(v.history || []).length}`, avoidIds: c.seen, rejected: c.rejected, approach: v.approach });
+      note = r.note || '';
+      if (!r.text) { S.lineNotice = note; return false; }
+      text = r.text; if (r.used && r.used.length) { seen(inv, r.used); v.usedBy = Object.assign({}, v.usedBy, { [k]: r.used }); }
+      if (mode === 'proofread') src = v.lineSource[k] || v.source;
+    }
+    v.history = v.history || [];
+    v.history.push({ k, text: v.fields[k], source: v.lineSource[k] || v.source });
+    v.fields[k] = text; v.lineSource[k] = src;
+    S.lineNotice = mode === 'proofread' ? note : `${label}: new wording for the ${FIELD_LABEL[k].toLowerCase()} of version ${v.letter}. Tap ↶ to go back.`;
+    return true;
+  }
+
   /* ---------- apply ---------- */
   async function apply(ctx, fields, label, source) {
     const { inv, H, S } = ctx, l = S.lang;
@@ -200,6 +232,8 @@
         <span class="cs-tools">
           <button type="button" class="cs-ic" data-act="regen" title="New wording for this line" aria-label="New wording for the ${FIELD_LABEL[k]} in version ${v.letter}">↻</button>
           <button type="button" class="cs-ic" data-act="edit" title="Edit this line" aria-label="Edit the ${FIELD_LABEL[k]} in version ${v.letter}">✎</button>
+          <span class="cs-adj"><button type="button" class="cs-ic cs-adj-b" data-act="adj" aria-haspopup="true" aria-expanded="false" title="Change this line: shorter, longer, warmer…" aria-label="Change the ${FIELD_LABEL[k]} in version ${v.letter}">Aa</button>
+            <span class="cs-adj-menu" role="menu" hidden>${Object.entries(C().TWEAKS).map(([m, t]) => `<button type="button" role="menuitem" data-act="tweak" data-mode="${m}">${t.label}</button>`).join('')}</span></span>
           ${(v.history || []).some((h) => h.k === k) ? `<button type="button" class="cs-ic" data-act="back" title="Bring back the previous wording" aria-label="Previous wording for the ${FIELD_LABEL[k]}">↶</button>` : ''}
           <button type="button" class="cs-pick" data-act="pick" aria-pressed="${picked}" title="Use this line in your mix">${picked ? '✓ In mix' : '+ Mix'}</button>
         </span></div>
@@ -218,7 +252,9 @@
     const busy = S.busy;
     const repeatWarn = (v) => {
       const r = C().repeatsAcross(v.fields, { ignore: C().ignoreFor(studioFacts(inv, l), l) });
-      return r.length ? `<p class="cs-warn">Says “${esc(r[0].phrase)}” in two lines. Try ↻ on one of them.</p>` : '';
+      if (r.length) return `<p class="cs-warn">Says “${esc(r[0].phrase)}” in two lines. Try ↻ on one of them.</p>`;
+      const cap = C().capRepeats(v.fields, l, C().ignoreFor(studioFacts(inv, l), l));
+      return cap.length ? `<p class="cs-warn">Uses “${esc(cap[0].word)}” ${cap[0].count} times. Try ↻ or Aa on one of those lines.</p>` : '';
     };
     const mixKeys = Object.keys(S.mix).filter((k) => S.mix[k]);
     const histItems = c.history.map((h, i) => `<li><div><b>${esc(h.label)}</b><span class="tiny muted"> · ${esc(langs[h.lang] || h.lang)} · ${new Date(h.at).toLocaleString()}</span>
@@ -248,7 +284,9 @@
             <div class="field"><label for="csNames">Who is being celebrated</label><input class="input" id="csNames" maxlength="90" value="${esc(c.names != null && c.names !== '' ? c.names : studioFacts(inv, l).names)}" placeholder="e.g. Aarav & Diya, Riya, Mr. Verma"></div>
             <div class="field"><label for="csRel">Your guests are mostly</label><select class="input" id="csRel">${Object.entries(RELATION_LABEL).map(([k, v]) => `<option value="${k}" ${k === c.relation ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
             <div class="field"><label for="csTrad">Religious or cultural tradition</label><select class="input" id="csTrad">${Object.entries(TRADITION_LABEL).map(([k, v]) => `<option value="${k}" ${k === c.tradition ? 'selected' : ''}>${v}</option>`).join('')}</select><span class="hint">Prayers and blessings are only mentioned for the tradition you choose.</span></div>
-            <div class="field cs-span"><label for="csNote">Anything special to mention</label><textarea class="input" id="csNote" rows="2" maxlength="220" placeholder="e.g. Dadi turns 90 the same week · our first home in Pune · 25 years at the company">${esc(c.note)}</textarea></div>
+            <div class="field"><label for="csHost">Who is inviting</label><input class="input" id="csHost" maxlength="80" value="${esc(c.host || studioFacts(inv, l).host)}" placeholder="e.g. The Sharma & Kapoor families"></div>
+            <div class="field cs-span"><label for="csNote">A memory or personal detail</label><textarea class="input" id="csNote" rows="2" maxlength="220" placeholder="e.g. Dadi turns 90 the same week · our first home in Pune · 25 years at the company">${esc(c.note)}</textarea><span class="hint">Used word for word in the main message. Nothing is added to it.</span></div>
+            <div class="field cs-span"><label for="csKey">One thing you want every guest to know</label><input class="input" id="csKey" maxlength="160" value="${esc(c.key)}" placeholder="e.g. Your blessings are the only gift we ask for · Kids are very welcome"></div>
           </div>
           <p class="tiny muted">The writer uses only these details plus your card’s names, host, event names, dates, times, venue and city. Phone numbers, addresses, guest lists and replies are never sent.</p>
         </details>
@@ -295,7 +333,7 @@
     $('#csCount').onchange = (e) => { c.count = +e.target.value; ctx.changed(); rerender(); };
     const md = $('.cs-more'); if (md) md.addEventListener('toggle', () => (S.moreOpen = md.open));
     const keep = (id, key) => { const i = $(id); if (i) i.oninput = () => { c[key] = i.value; ctx.changed(); }; };
-    keep('#csNames', 'names'); keep('#csNote', 'note');
+    keep('#csNames', 'names'); keep('#csNote', 'note'); keep('#csHost', 'host'); keep('#csKey', 'key');
     $('#csRel').onchange = (e) => { c.relation = e.target.value; ctx.changed(); };
     $('#csTrad').onchange = (e) => { c.tradition = e.target.value; ctx.changed(); };
     $('#csGen').onclick = async () => {
@@ -335,6 +373,19 @@
       line.querySelectorAll('[data-act]').forEach((b) => (b.onclick = async () => {
         const act = b.dataset.act;
         if (act === 'pick') { S.mix[k] = S.mix[k] === vid ? '' : vid; rerender(); return; }
+        if (act === 'adj') {
+          const m = b.nextElementSibling, open = m.hidden;
+          el.querySelectorAll('.cs-adj-menu').forEach((x) => { x.hidden = true; x.previousElementSibling.setAttribute('aria-expanded', 'false'); });
+          m.hidden = !open; b.setAttribute('aria-expanded', String(open));
+          if (open) m.querySelector('button').focus();
+          return;
+        }
+        if (act === 'tweak') {
+          S.lineNotice = ''; const all = line.querySelectorAll('button'); all.forEach((x) => (x.disabled = true)); line.classList.add('busy');
+          try { await tweakLine(ctx, v, k, b.dataset.mode); } finally { line.classList.remove('busy'); }
+          if (S.previewing === v.id) ctx.preview(v.fields, S.lang);
+          ctx.changed(); rerender(); return;
+        }
         if (act === 'regen') {
           S.lineNotice = ''; b.disabled = true; b.classList.add('spin');
           try { await regenerateLine(ctx, v, k); } finally { b.disabled = false; }
@@ -365,6 +416,10 @@
         }
       }));
     });
+    if (!el.dataset.adjWired) { el.dataset.adjWired = '1';
+    el.addEventListener('keydown', (e) => { if (e.key === 'Escape') el.querySelectorAll('.cs-adj-menu:not([hidden])').forEach((x) => { x.hidden = true; x.previousElementSibling.focus(); }); });
+    el.addEventListener('click', (e) => { if (!e.target.closest('.cs-adj')) el.querySelectorAll('.cs-adj-menu:not([hidden])').forEach((x) => { x.hidden = true; x.previousElementSibling.setAttribute('aria-expanded', 'false'); }); });
+    }
     const mixFields = () => {
       const f = fieldsOf(inv, S.lang);
       C().FIELDS.forEach((k) => { if (S.mix[k]) f[k] = S.versions.find((v) => v.id === S.mix[k]).fields[k]; });
