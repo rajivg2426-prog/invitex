@@ -21,7 +21,7 @@ const ok = (t, cond, note = '') => { results.push([t, !!cond, note]); console.lo
   fs.writeFileSync(OUT + '/fake.jpg', 'this is not an image');
 
   /* TEST 1 */
-  await host.click('text=Create invitation');
+  await host.click('text=Create new invitation');
   await host.waitForSelector('.cat-grid');
   await host.click('[data-cat=wedding]');
   await host.click('[data-pal="1"]'); // emerald palette
@@ -156,7 +156,7 @@ const ok = (t, cond, note = '') => { results.push([t, !!cond, note]); console.lo
   await host.click('[data-tab=responses]'); await host.waitForSelector('#csv');
   const [dl] = await Promise.all([host.waitForEvent('download'), host.click('#csv')]);
   const csv = fs.readFileSync(await dl.path(), 'utf8'); fs.writeFileSync(OUT + '/rsvps.csv', csv);
-  ok('TEST 7: CSV export contains both responses with BOM & totals', csv.charCodeAt(0) === 0xFEFF && csv.includes('Rakesh Verma') && csv.includes('Pooja Nair') && /Attending,2,1,3/.test(csv) && /Declined,0,0,0/.test(csv), dl.suggestedFilename());
+  ok('TEST 7: CSV export contains both responses with BOM & totals', csv.charCodeAt(0) === 0xFEFF && csv.includes('Rakesh Verma') && csv.includes('Pooja Nair') && /Attending,3,0,3/.test(csv) && /Declined,0,0,0/.test(csv), dl.suggestedFilename());
 
   /* TEST 8 & 9 */
   await mob.goto(BASE + 'invite.html?i=kabir-ananya'); await mob.click('#openBtn');

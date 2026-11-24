@@ -15,7 +15,7 @@ const ok = (t, c, n = '') => { if (!c) fails++; console.log((c ? 'PASS ' : 'FAIL
   const p = await ctx.newPage();
   p.on('pageerror', (e) => errs.push(e.message));
   await p.goto(BASE + 'index.html');
-  await p.click('text=Create invitation');
+  await p.click('text=Create new invitation');
   await p.waitForSelector('#aiCard');
   ok('demo copy explains AI needs the online version', /online version/.test(await p.locator('#aiCard').innerText()));
 

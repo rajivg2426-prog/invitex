@@ -23,7 +23,7 @@ const ok = (t, c, n = '') => { if (!c) fails++; console.log((c ? 'PASS ' : 'FAIL
 
   /* --- 1. a new invitation gets complete, natural wording straight away --- */
   await p.goto(BASE + 'index.html');
-  await p.click('text=Create invitation');
+  await p.click('text=Create new invitation');
   await p.waitForSelector('[data-cat=wedding]');
   await p.click('#nextBtn'); await p.waitForSelector('#openStudio');
   ok('new invitation starts with wording in every line', (await Promise.all(['familyName', 'subtitle', 'welcome'].map(field))).every((x) => x.trim().length > 3));

@@ -59,6 +59,7 @@
     }
     view.focus({ preventScroll: true });
   }
+  H.route = () => route();
   H.render = (html) => { view.innerHTML = html; window.scrollTo(0, 0); };
 
   /* ---------- shared bits ---------- */
@@ -68,64 +69,6 @@
   };
   H.title = (inv) => M.txt(inv, inv.defaultLang, 'title') || 'Untitled invitation';
 
-  /* ---------- home ---------- */
-  H.routes.home = async (v) => {
-    const list = await H.store.listInvitations();
-    const stats = await Promise.all(list.map(async (inv) => M.stats(await H.store.listRsvps(inv.id), await H.store.listGuests(inv.id), inv.events)));
-    H.render(`
-      <section class="hero-home">
-        <div>
-          <h1>Create an invitation in minutes, <em>share it in seconds.</em></h1>
-          <p>Design a beautiful digital invitation for any occasion, send personal links on WhatsApp, and track every RSVP from one dashboard.</p>
-          <div class="row" style="margin-top:1rem">
-            <a class="btn gold lg" href="#/new">✨ Create invitation</a>
-            ${list.length ? '' : '<button class="btn lg" id="loadSamples" style="background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.3)">Load 4 sample invitations</button>'}
-          </div>
-        </div>
-        <div class="hero-art" aria-hidden="true">
-          <div class="mini-phone" style="background:linear-gradient(#3b0a16,#22050c);color:#d4a557"><div>TOGETHER WITH<br>THEIR FAMILIES<b style="font-family:'Cormorant Garamond'">Aarav &amp; Diya</b>25 · NOV</div></div>
-          <div class="mini-phone" style="background:linear-gradient(#f4e4dc,#e9cfc4);color:#7a1f2e"><div>हिमाचली<b style="font-family:'Noto Sans Devanagari'">धाम</b>Family Dham</div></div>
-          <div class="mini-phone" style="background:linear-gradient(#0b1530,#050a19);color:#4cc9f0"><div>INNOVATE<b>SUMMIT 2026</b>Bengaluru</div></div>
-        </div>
-      </section>
-      <div class="row between" style="margin-bottom:.8rem"><h2 style="margin:0">My invitations <span class="muted small">(${list.length})</span></h2>
-        <div class="row">${list.length ? '<button class="btn sm" id="loadSamples">+ Sample invitations</button>' : ''}<a class="btn primary sm" href="#/new">+ New invitation</a></div></div>
-      ${list.length ? `<div class="inv-grid">${list.map((inv, i) => invCard(inv, stats[i])).join('')}</div>` : `<div class="empty card"><div class="big">💌</div><p>No invitations yet. Create your first one, or load the samples to explore.</p></div>`}
-    `);
-    v.querySelectorAll('#loadSamples').forEach((b) => (b.onclick = async () => {
-      b.disabled = true;
-      try { await window.IXSamples.create(H.store); IX.toast('Sample invitations created', 'ok'); } catch (e) { IX.toast(e.message, 'bad'); }
-      route();
-    }));
-    v.querySelectorAll('[data-act]').forEach((b) => (b.onclick = () => invAction(b.dataset.act, b.dataset.id)));
-  };
-  function invCard(inv, st) {
-    const cat = IXT.CATEGORIES.find((c) => c.id === inv.category) || {};
-    const ev = (inv.events || []).find((e) => e.date);
-    const dirty = inv.status === 'published' && H.hasUnpublished(inv);
-    return `<article class="inv-card">
-      <div class="inv-thumb" style="${H.thumbStyle(inv)}"><span class="pill ${inv.status}">${inv.status === 'published' ? '● Published' : 'Draft'}</span><div class="t-title">${esc(H.title(inv))}</div></div>
-      <div class="inv-body">
-        <div class="small muted">${esc(cat.icon || '')} ${esc(cat.name || '')}${ev ? ' · ' + esc(IX.fmtDate(ev.date, inv.timezone, 'en', { day: 'numeric', month: 'short', year: 'numeric', timeZone: inv.timezone })) : ''}</div>
-        ${dirty ? '<div class="pill maybe">Unpublished changes</div>' : ''}
-        <div class="inv-stats"><span><b>${st.attendees}</b> attending</span><span><b>${st.yes}</b> yes</span><span><b>${st.no}</b> no</span><span><b>${st.responses}</b> replies</span></div>
-        <div class="inv-actions">
-          <a class="btn sm primary" href="#/edit/${esc(inv.id)}/1">✏️ Edit</a>
-          <a class="btn sm" href="#/dash/${esc(inv.id)}">📊 RSVPs</a>
-          ${inv.status === 'published' ? `<a class="btn sm" href="#/dash/${esc(inv.id)}/share">📤 Share</a><a class="btn sm ghost" target="_blank" rel="noopener" href="${esc(IX.inviteUrl(inv.slug))}">👁 View</a>` : ''}
-          <button class="btn sm ghost" data-act="dup" data-id="${esc(inv.id)}" title="Duplicate">⧉ Duplicate</button>
-          <button class="btn sm ghost danger" data-act="del" data-id="${esc(inv.id)}" title="Delete">🗑</button>
-        </div>
-      </div></article>`;
-  }
-  async function invAction(act, id) {
-    if (act === 'dup') {
-      const c = await H.store.duplicateInvitation(id);
-      IX.toast('Duplicated as a new draft', 'ok');
-      return H.go('#/edit/' + c.id + '/1');
-    }
-    if (act === 'del') return H.deleteInvitation(id);
-  }
   H.deleteInvitation = async (id) => {
     const inv = await H.store.getInvitation(id);
     const ok = await H.confirm('Delete invitation?', `This permanently deletes <b>${esc(H.title(inv))}</b>, its guest list, all RSVP responses and uploaded media. The guest link will stop working. This cannot be undone.`, 'Delete permanently', true);
@@ -141,19 +84,7 @@
     return JSON.stringify(a) !== JSON.stringify(b);
   };
 
-  /* ---------- new ---------- */
-  H.routes.new = async () => {
-    const inv = M.newInvitation('wedding');
-    // start with complete, matching wording so the card is never blank
-    // (written for this invitation, so two new cards do not read the same)
-    if (window.IXStudio) IXStudio.fillDefault(inv, 'en');
-    else if (window.IXWording) {
-      inv.tone = IXWording.tones('wedding')[0].id;
-      Object.assign(inv.text.en, IXWording.build('wedding', 'en', inv.tone));
-    }
-    await H.store.saveInvitation(inv);
-    H.go('#/edit/' + inv.id + '/1');
-  };
+  // Home dashboard and #/new live in js/home.js
 
   /* ---------- settings ---------- */
   H.routes.settings = async (v) => {
@@ -232,7 +163,7 @@
     H.render(`<div class="card help" style="max-width:820px">
       <h1>Quick guide</h1>
       <ol>
-        <li><b>1 · Design</b> – tap <i>Create invitation</i>, choose the occasion, a design and colours – or upload your own artwork as the card.</li>
+        <li><b>1 · Design</b> – tap <i>Create new invitation</i>, choose the occasion, a design and colours – or upload your own artwork as the card.</li>
         <li><b>2 · Fill your card</b> – pick a message style (every line is written to match), then add the names, date and place. You can also click any line on the card preview and type right there. Photos, music, the full message and fonts are in the folded panels below.</li>
         <li><b>3 · Share</b> – choose your link name and press <i>Publish</i>. RSVP questions, password and expiry are under <i>More options</i>. Edits after publishing stay a draft until you press <i>Update published invitation</i>.</li>
         <li><b>Share</b> – in the RSVP dashboard add guests and send each a personal WhatsApp link, or share one general link / QR code.</li>
