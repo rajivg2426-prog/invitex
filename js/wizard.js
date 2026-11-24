@@ -2,15 +2,13 @@
 (function () {
   'use strict';
   const IX = window.IX, M = IX.model, esc = IX.esc, H = window.H;
-  const STEPS = ['Template', 'Photos & media', 'Details & events', 'Message', 'Design', 'Publish'];
+  const STEPS = ['Design', 'Fill your card', 'Share'];
+  const NSTEPS = STEPS.length;
   // One line per step telling the host what to do here and what comes next.
   const STEP_HELP = [
-    'Pick what you are celebrating and a design. You can change these any time.',
-    'Add a cover photo and any family or gallery photos. All optional – you can skip this step.',
-    'Choose the kind of message you want, then fill in names, date and venue. The preview updates as you type.',
-    'Check the main invitation message. It was already written for you in the style you picked – edit it freely.',
-    'Optional: change fonts, colours and which sections appear.',
-    'Choose your link name and publish. Then share it on WhatsApp.',
+    'Pick what you are celebrating and a design – or upload your own artwork as the card. You can change this later.',
+    'Choose a message style, then fill in the names, date and place. Tip: you can also click any line on the card preview and type right there.',
+    'Pick your link name, publish, and send it on WhatsApp.',
   ];
   // Friendly list of event locations for the time zone (the full world list was confusing).
   const TZ_CHOICES = [
@@ -37,7 +35,7 @@
     const inv = await H.store.getInvitation(id);
     if (!inv) { H.render('<div class="card"><h2>Invitation not found</h2><a class="btn" href="#/">Back</a></div>'); return; }
     normalise(inv);
-    W = { inv, step: IX.clamp(IX.int(step, 1), 1, 6), lang: inv.defaultLang, pv: 'mobile', pvLang: null, saving: false, ready: false };
+    W = { inv, step: IX.clamp(IX.int(step, 1), 1, NSTEPS), lang: inv.defaultLang, pv: 'mobile', pvLang: null, saving: false, ready: false };
     H.render(`
       <div class="wiz-head">
         <div><h1 id="wTitle">${esc(H.title(inv))}</h1><span class="save-state" id="saveState" aria-live="polite">All changes saved</span></div>
@@ -67,6 +65,16 @@
       if (e.origin !== location.origin) return;
       if (e.data?.type === 'ix-preview-ready') { W.ready = true; pushPreview(); }
       if (e.data?.type === 'ix-preview-lang') W.pvLang = e.data.lang;
+      // typing directly on the card in the preview
+      if (e.data?.type === 'ix-edit') {
+        const { key, lang, value } = e.data;
+        if (!W.inv.text[lang] || typeof value !== 'string' || !TEXT_KEYS.includes(key)) return;
+        W.inv.text[lang][key] = value;
+        const f = document.getElementById('tf-' + key);
+        if (f && W.lang === lang && document.activeElement !== f) f.value = value;
+        changed(true, false);
+      }
+      if (e.data?.type === 'ix-edit-focus') focusField(e.data.key, e.data.lang, e.data.inline);
     };
     window.addEventListener('message', onMsg);
     const onLeave = (e) => { if (W && W.dirty) { e.preventDefault(); e.returnValue = ''; } };
@@ -74,7 +82,7 @@
     H.cleanup.push(() => { window.removeEventListener('message', onMsg); window.removeEventListener('beforeunload', onLeave); if (W && W.dirty) save(); });
     v.querySelectorAll('[data-step]').forEach((b) => (b.onclick = () => goStep(+b.dataset.step)));
     v.querySelector('#prevBtn').onclick = () => goStep(W.step - 1);
-    v.querySelector('#nextBtn').onclick = () => (W.step < 6 ? goStep(W.step + 1) : publish());
+    v.querySelector('#nextBtn').onclick = () => (W.step < NSTEPS ? goStep(W.step + 1) : publish());
     v.querySelector('#draftBtn').onclick = async () => { await save(); IX.toast('Draft saved', 'ok'); };
     v.querySelectorAll('[data-pv]').forEach((b) => (b.onclick = () => {
       W.pv = b.dataset.pv;
@@ -130,13 +138,34 @@
     updateStatus();
     if (W.pendingSave) { W.pendingSave = false; save(); }
   }
-  function changed(rerenderTitle = true) {
+  function changed(rerenderTitle = true, preview = true) {
     W.dirty = true;
     const st = document.getElementById('saveState');
     if (st) st.textContent = 'Unsaved changes…';
     if (rerenderTitle) { const t = document.getElementById('wTitle'); if (t) t.textContent = H.title(W.inv); }
     debouncedSave();
-    debouncedPreview();
+    if (preview) debouncedPreview();
+  }
+  const TEXT_KEYS = ['title', 'subtitle', 'hostName', 'familyName', 'welcome', 'message', 'instructions', 'extraInfo', 'thankyou'];
+  // Show (and for the main message, open) the form field matching a line clicked on the card.
+  function focusField(key, lang, inline) {
+    if (!TEXT_KEYS.includes(key)) return;
+    if (!inline) {
+      if (W.step !== 2) goStep(2);
+      if (lang && lang !== W.lang && W.inv.languages.includes(lang)) { W.lang = lang; goStep(2); }
+    }
+    if (key === 'message') {
+      const d = document.getElementById('fpMessage');
+      if (d) { d.open = true; d.dispatchEvent(new Event('toggle')); setTimeout(() => { d.scrollIntoView({ block: 'start', behavior: 'smooth' }); if (!inline) document.getElementById('rte')?.focus(); }, 60); }
+      return;
+    }
+    if ((key === 'instructions' || key === 'extraInfo')) { const m = document.querySelector('details.more-text'); if (m) m.open = true; }
+    const f = document.getElementById('tf-' + key);
+    if (!f) return;
+    const box = f.closest('.field');
+    box.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    box.classList.remove('flash'); void box.offsetWidth; box.classList.add('flash');
+    if (!inline) f.focus({ preventScroll: true });
   }
   function updateStatus() {
     const s = document.getElementById('wStatus');
@@ -147,19 +176,19 @@
   }
 
   function goStep(n) {
-    if (n < 1 || n > 6) return;
+    if (n < 1 || n > NSTEPS) return;
     W.step = n;
     history.replaceState(null, '', `#/edit/${W.inv.id}/${n}`);
     document.querySelectorAll('.step-tab').forEach((b) => { const s = +b.dataset.step; b.classList.toggle('on', s === n); b.classList.toggle('done', s < n); b.setAttribute('aria-current', s === n ? 'step' : 'false'); });
     document.getElementById('prevBtn').disabled = n === 1;
     const nb = document.getElementById('nextBtn');
-    nb.textContent = n === 6 ? (W.inv.status === 'published' ? '🚀 Update published invitation' : '🚀 Publish invitation') : 'Next →';
-    nb.className = 'btn ' + (n === 6 ? 'gold' : 'primary');
+    nb.textContent = n === NSTEPS ? (W.inv.status === 'published' ? '🚀 Update published invitation' : '🚀 Publish invitation') : 'Next →';
+    nb.className = 'btn ' + (n === NSTEPS ? 'gold' : 'primary');
     updateStatus();
-    if (n < 6) nb.textContent = `Next: ${STEPS[n]} →`;
+    if (n < NSTEPS) nb.textContent = `Next: ${STEPS[n]} →`;
     const body = document.getElementById('stepBody');
-    [null, step1, step2, step3, step4, step5, step6][n](body);
-    body.insertAdjacentHTML('afterbegin', `<div class="step-guide"><span class="sg-n">Step ${n} of 6</span><span>${esc(STEP_HELP[n - 1])}</span></div>`);
+    [null, step1, stepFill, step6][n](body);
+    body.insertAdjacentHTML('afterbegin', `<div class="step-guide"><span class="sg-n">Step ${n} of ${NSTEPS}</span><span>${esc(STEP_HELP[n - 1])}</span></div>`);
     document.querySelector('.step-tab.on')?.scrollIntoView({ block: 'nearest', inline: 'center' });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -184,6 +213,7 @@
   /* ---------- Step 1: template ---------- */
   function step1(body) {
     const inv = W.inv;
+    if (W.bgUrl === undefined) { W.bgUrl = ''; if (inv.media.background) H.store.resolveMedia(inv.media.background).then((u) => { W.bgUrl = u || ''; if (W.step === 1 && u) step1(body); }); }
     const cat = IXT.CATEGORIES.find((c) => c.id === inv.category);
     const themeIds = Object.keys(IXT.THEMES).sort((a, b) => (a === cat.theme ? -1 : b === cat.theme ? 1 : 0));
     const th = IXT.THEMES[inv.theme];
@@ -203,13 +233,31 @@
     <div class="card stack">
       <h2>3. Colour theme</h2>
       <div class="swatches" role="radiogroup" aria-label="Colour theme">${th.palettes.map((p, i) => `<button type="button" class="swatch ${i === inv.paletteIndex ? 'on' : ''}" role="radio" aria-checked="${i === inv.paletteIndex}" data-pal="${i}"><i style="background:linear-gradient(135deg,${p.bg} 50%,${p.accent} 50%)"></i>${esc(p.name)}</button>`).join('')}</div>
-      <p class="tiny muted">You can fine-tune any colour later in step 5 (Design).</p>
+      <p class="tiny muted">You can fine-tune any colour later in step 2, under “Fonts, colours &amp; sections”.</p>
     </div>
     <div class="card stack">
       <h2>4. Layout</h2>
       <div class="seg" role="radiogroup" aria-label="Layout">${['portrait', 'landscape', 'square'].map((l) => `<label><input type="radio" name="layout" value="${l}" ${inv.layout === l ? 'checked' : ''}>${l[0].toUpperCase() + l.slice(1)}</label>`).join('')}</div>
       <p class="tiny muted">Portrait is best for WhatsApp on phones. Landscape suits desktop screens and corporate events.</p>
+    </div>
+    <div class="card stack" id="artCard"><h2>5. Have your own artwork? <span class="tiny muted">(optional)</span></h2>
+      <p class="small muted" style="margin:0">Upload a designed card background, a painting or a photo. It becomes the background of the whole card and your words are placed on top.</p>
+      <div class="row">${W.bgUrl ? `<div class="art-prev" style="background-image:url('${esc(W.bgUrl)}')"></div>` : ''}
+        <label class="btn ${W.bgUrl ? '' : 'primary'}">${W.bgUrl ? '⇄ Replace artwork' : '⬆ Upload artwork'}<input type="file" hidden accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" id="artIn"></label>
+        ${W.bgUrl ? '<button class="btn danger" id="artDel">✕ Remove</button>' : ''}</div>
+      ${W.bgUrl ? `<div class="field"><span class="lbl">How should it be used?</span><div class="seg" role="radiogroup"><label><input type="radio" name="bgMode" value="full" data-bgmode ${inv.design.bgMode !== 'soft' ? 'checked' : ''}>As the card background</label><label><input type="radio" name="bgMode" value="soft" data-bgmode ${inv.design.bgMode === 'soft' ? 'checked' : ''}>Faint texture only</label></div></div>` : ''}
     </div>`;
+    body.querySelector('#artIn').onchange = async (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      const ref = await IXMedia.addImage(f, { invId: inv.id, askCrop: true, aspect: '3:4', maxDim: 1800 });
+      if (!ref) return;
+      if (inv.media.background) await H.store.deleteMedia(inv.media.background).catch(() => {});
+      inv.media.background = ref; inv.design.bgMode = 'full'; W.bgUrl = await H.store.resolveMedia(ref);
+      changed(); step1(body);
+    };
+    const del = body.querySelector('#artDel');
+    if (del) del.onclick = async () => { await H.store.deleteMedia(inv.media.background).catch(() => {}); inv.media.background = ''; W.bgUrl = ''; changed(); step1(body); };
+    body.querySelectorAll('[data-bgmode]').forEach((r) => (r.onchange = () => { inv.design.bgMode = r.value; changed(); }));
     body.querySelectorAll('[data-cat]').forEach((b) => (b.onclick = () => {
       const c = IXT.CATEGORIES.find((x) => x.id === b.dataset.cat);
       inv.category = c.id;
@@ -247,7 +295,26 @@
     Object.assign(W.inv.design, { textColor: '', bgColor: '', accentColor: '' });
   }
 
-  /* ---------- Step 2: media ---------- */
+  /* ---------- Step 2: fill your card (one page) ----------
+   * Words, date & place are always open. Photos, the full message editor and the
+   * look-and-feel options are folded panels, drawn the first time they are opened. */
+  function stepFill(body) {
+    const panel = (id, n, title, hint, open = false) => `<details class="fill-panel" id="${id}" ${open ? 'open' : ''}>
+        <summary><span class="fp-n">${n}</span><span><b>${title}</b><small>${hint}</small></span></summary><div class="fp-body"></div></details>`;
+    const g = window.IXWording ? IXWording.groupOf(W.inv.category) : '';
+    body.innerHTML = `
+      <div id="fpWords"></div>
+      ${panel('fpPhotos', '＋', 'Photos, logo &amp; music', g === 'corp' ? 'Optional: speaker or company photos, logo, background music' : 'Optional: couple or family photos, gallery, logo, music, voice message')}
+      ${panel('fpMessage', '✎', 'Main invitation message', 'Already written in your chosen style – open to read or change it')}
+      ${panel('fpLook', '◐', 'Fonts, colours &amp; sections', 'Optional: fine-tune the look and choose which parts appear')}`;
+    step3(body.querySelector('#fpWords'));
+    const renderers = { fpPhotos: step2, fpMessage: step4, fpLook: step5 };
+    body.querySelectorAll('.fill-panel').forEach((d) => {
+      d.addEventListener('toggle', () => { if (d.open && !d.dataset.drawn) { d.dataset.drawn = '1'; renderers[d.id](d.querySelector('.fp-body')); } });
+    });
+  }
+
+  /* ---------- photos & media ---------- */
   async function step2(body) {
     const inv = W.inv, m = inv.media;
     const refs = M.mediaRefs(inv);
@@ -286,9 +353,7 @@
         <p class="upl-progress" id="uplProg" aria-live="polite"></p>
         ${listBlock(m.gallery, 'gallery')}
       </div>
-      <div class="card stack"><h2>Background, logo &amp; decoration</h2>
-        ${slot('background', 'Background image or artwork', 'Becomes the background of your card. Text is placed on soft panels so it stays easy to read.')}
-        ${m.background ? `<div class="field"><span class="lbl">How should the background be used?</span><div class="seg" role="radiogroup"><label><input type="radio" name="bgMode" value="full" data-bgmode ${inv.design.bgMode !== 'soft' ? 'checked' : ''}>As the card background</label><label><input type="radio" name="bgMode" value="soft" data-bgmode ${inv.design.bgMode === 'soft' ? 'checked' : ''}>Faint texture only</label></div></div>` : ''}
+      <div class="card stack"><h2>Logo</h2>
         ${slot('logo', 'Company / family logo', 'Shown small, in a round frame at the top of the card. A PNG with a transparent background works best.')}
       </div>
       <div class="card stack"><h2>Audio &amp; video</h2>
@@ -298,7 +363,6 @@
         <p class="tiny muted">Audio and video files are stored as uploaded (browsers cannot compress them). Use short clips for fast loading. Only upload music you have the right to use.</p>
       </div>`;
     const rerender = () => step2(body);
-    body.querySelectorAll('[data-bgmode]').forEach((r) => (r.onchange = () => { inv.design.bgMode = r.value; changed(); }));
     const aspectOf = (key) => ({ cover: '4:5', background: '3:4', logo: 'free' }[key] || '4:5');
     body.querySelectorAll('input[data-slot]').forEach((inp) => (inp.onchange = async () => {
       const f = inp.files[0]; if (!f) return;
@@ -384,12 +448,7 @@
           return `<button type="button" class="tone ${inv.tone === t.id ? 'on' : ''}" role="radio" aria-checked="${inv.tone === t.id}" data-tone="${t.id}"><b>${esc(t.label)}</b><span lang="${L}">${esc(w.familyName)} · ${esc(w.subtitle)}</span><i lang="${L}">“${esc(w.welcome)}”</i></button>`;
         }).join('')}</div></div>` : '';
     body.innerHTML = `
-      <div class="card stack"><h2>Languages</h2>
-        <div class="row">${Object.entries(LANGS).map(([l, n]) => `<label class="check"><input type="checkbox" data-langtoggle="${l}" ${inv.languages.includes(l) ? 'checked' : ''}> <span lang="${l}">${esc(n)}</span></label>`).join('')}</div>
-        <div class="field" style="max-width:260px"><label for="defLang">Default language (shown first)</label><select class="input" id="defLang">${inv.languages.map((l) => `<option value="${l}" ${l === inv.defaultLang ? 'selected' : ''}>${esc(LANGS[l])}</option>`).join('')}</select></div>
-        <p class="tiny muted">Guests see a language switch at the top of the invitation. Write the text for each language yourself — nothing is machine-translated. Empty fields fall back to the default language.</p>
-      </div>
-      <div class="card stack"><h2>Invitation text</h2>
+      <div class="card stack"><h2>Words on your card</h2>
         ${langTabs(L)}
         ${tonePicker}
         <p class="tiny muted" style="margin:0">The fields are in the same order as they appear on the card, top to bottom.</p>
@@ -399,12 +458,23 @@
         ${tf('welcome', 'Welcome message', 'A warm line to greet your guests', true)}
         ${tf('hostName', 'Invited by (host names)', 'e.g. The Sharma Family')}
         ${tf('thankyou', 'Thank-you at the end', 'Your presence and blessings mean the world to us.', true)}
-        <details class="more"><summary>More text (optional): special instructions, extra information</summary>
+        <details class="more more-text"><summary>More text (optional): special instructions, extra information</summary>
           ${tf('instructions', 'Special instructions', 'Parking, gifts, timings, children…', true)}
           ${tf('extraInfo', 'Additional event information', 'Accommodation, travel, live stream…', true)}
         </details>
       </div>
-      <div class="card stack"><h2>General details</h2>
+      <div class="card stack"><div class="row between"><h2 style="margin:0">Date &amp; place</h2><span class="tiny muted">Add one event, or several (e.g. Mehendi, Wedding, Reception)</span></div>
+        <div id="evList">${inv.events.map((e, i) => eventCard(e, i)).join('')}</div>
+        <div class="row"><button class="btn" id="addEv">+ Add event</button>${cat.events.filter((n) => !inv.events.some((e) => e.name === n)).map((n) => `<button class="btn sm ghost" data-addev="${esc(n)}">+ ${esc(n)}</button>`).join('')}
+          ${inv.category === 'wedding' ? ['Mehendi', 'Haldi', 'Sangeet', 'Wedding Ceremony', 'Reception'].filter((n) => !inv.events.some((e) => e.name === n) && !cat.events.includes(n)).map((n) => `<button class="btn sm ghost" data-addev="${n}">+ ${n}</button>`).join('') : ''}</div>
+      </div>
+      <details class="card more-details" ${W.moreOpen ? 'open' : ''}><summary><b>More details</b> <span class="tiny muted">– languages (हिन्दी / ਪੰਜਾਬੀ), country, contact person, dress code, menu or agenda</span></summary>
+      <div class="stack sub"><h2>Languages</h2>
+        <div class="row">${Object.entries(LANGS).map(([l, n]) => `<label class="check"><input type="checkbox" data-langtoggle="${l}" ${inv.languages.includes(l) ? 'checked' : ''}> <span lang="${l}">${esc(n)}</span></label>`).join('')}</div>
+        <div class="field" style="max-width:260px"><label for="defLang">Default language (shown first)</label><select class="input" id="defLang">${inv.languages.map((l) => `<option value="${l}" ${l === inv.defaultLang ? 'selected' : ''}>${esc(LANGS[l])}</option>`).join('')}</select></div>
+        <p class="tiny muted">Guests see a language switch at the top of the invitation. Write the text for each language yourself — nothing is machine-translated. Empty fields fall back to the default language.</p>
+      </div>
+      <div class="stack sub"><h2>General details</h2>
         <div class="grid2">
           <div class="field"><label for="tz">Country where the event takes place</label><select class="input" id="tz" data-k="timezone">${tzs.map(([z, n]) => `<option value="${esc(z)}" ${z === inv.timezone ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select><span class="hint">Sets the event's clock. Guests abroad also see the time in their own zone.</span></div>
           <div class="field"><label for="dc">Dress code</label><input class="input" id="dc" data-k="dressCode" placeholder="e.g. Traditional / Formal"></div>
@@ -412,17 +482,14 @@
           <div class="field"><label for="cp">Contact mobile number</label><input class="input" id="cp" type="tel" data-k="contact.phone" placeholder="+91 98765 43210"><span class="hint">Shown to guests with Call and WhatsApp buttons.</span></div>
         </div>
       </div>
-      <div class="card stack"><div class="row between"><h2 style="margin:0">Events &amp; schedule</h2><span class="tiny muted">Each event has its own date, time and venue</span></div>
-        <div id="evList">${inv.events.map((e, i) => eventCard(e, i)).join('')}</div>
-        <div class="row"><button class="btn" id="addEv">+ Add event</button>${cat.events.filter((n) => !inv.events.some((e) => e.name === n)).map((n) => `<button class="btn sm ghost" data-addev="${esc(n)}">+ ${esc(n)}</button>`).join('')}
-          ${inv.category === 'wedding' ? ['Mehendi', 'Haldi', 'Sangeet', 'Wedding Ceremony', 'Reception'].filter((n) => !inv.events.some((e) => e.name === n) && !cat.events.includes(n)).map((n) => `<button class="btn sm ghost" data-addev="${n}">+ ${n}</button>`).join('') : ''}</div>
-      </div>
-      <div class="card stack"><h2>Highlights <span class="tiny muted">(optional – menu, agenda, speakers, activities)</span></h2>
+      <div class="stack sub"><h2>Highlights <span class="tiny muted">(optional – menu, agenda, speakers, activities)</span></h2>
         <div class="field" style="max-width:360px"><label for="hlT">Section heading</label><input class="input" id="hlT" data-k="highlightsTitle" placeholder="e.g. Traditional Dham Menu / Agenda"></div>
         <div id="hlList" class="stack">${inv.highlights.map((h, i) => `<div class="row"><input class="input" style="width:64px" aria-label="Icon" value="${esc(h.icon || '')}" data-hl="${i}.icon" maxlength="4"><input class="input grow" aria-label="Title" placeholder="Title" value="${esc(h.title || '')}" data-hl="${i}.title"><input class="input grow" aria-label="Description" placeholder="Short description" value="${esc(h.desc || '')}" data-hl="${i}.desc"><button class="btn sm danger" data-hldel="${i}" aria-label="Remove highlight">✕</button></div>`).join('')}</div>
         <button class="btn sm" id="addHl">+ Add highlight</button>
-      </div>`;
+      </div>
+      </details>`;
     bind(body);
+    const md = body.querySelector('.more-details'); if (md) md.addEventListener('toggle', () => (W.moreOpen = md.open));
     // "type of message": rewrite every wording field at once, in one tone, in every language
     body.querySelectorAll('[data-tone]').forEach((b) => (b.onclick = async () => {
       const tone = b.dataset.tone;
@@ -671,11 +738,11 @@
   /* ---------- Step 6: settings & publish ---------- */
   function readiness(inv) {
     const issues = [];
-    if (!M.txt(inv, inv.defaultLang, 'title')) issues.push(['bad', 'Add an event title (step 3).']);
-    if (!inv.events.some((e) => e.date)) issues.push(['bad', 'Add a date to at least one event (step 3).']);
-    if (!inv.slug) issues.push(['bad', 'Choose a link name below.']);
+    if (!M.txt(inv, inv.defaultLang, 'title')) issues.push(['bad', 'Add an event title (step 2).']);
+    if (!inv.events.some((e) => e.date)) issues.push(['bad', 'Add a date to at least one event (step 2).']);
+    if (!inv.slug) issues.push(['bad', 'Choose a link name above.']);
     if (!inv.events.some((e) => e.venue || e.address)) issues.push(['warn', 'No venue yet – guests will not see a location or directions.']);
-    if (!M.txt(inv, inv.defaultLang, 'message')) issues.push(['warn', 'No invitation message yet (step 4).']);
+    if (!M.txt(inv, inv.defaultLang, 'message')) issues.push(['warn', 'No invitation message yet (step 2, “Main invitation message”).']);
     if (inv.events.some((e) => e.date && e.end && e.start && e.end <= e.start)) issues.push(['warn', 'An event ends before it starts – it will be treated as ending after midnight.']);
     return issues;
   }
@@ -690,7 +757,16 @@
           <div class="copyrow"><span class="small muted" style="align-self:center;white-space:nowrap;max-width:45%;overflow:hidden;text-overflow:ellipsis" title="${esc(base)}">…invite.html?i=</span><input class="input" id="slug" value="${esc(inv.slug)}" placeholder="${esc(IX.slugify(M.txt(inv, 'en', 'title')) || 'my-event')}" autocapitalize="off" spellcheck="false" maxlength="48"></div>
           <span class="hint" id="slugMsg">Lowercase letters, numbers and hyphens, 3–48 characters.</span></div>
       </div>
-      <div class="card stack"><h2>RSVP settings</h2>
+      <div class="card stack"><h2>${inv.status === 'published' ? 'Your invitation is live' : 'Ready to publish?'}</h2>
+        ${issues.length ? issues.map(([k, m]) => `<div class="notice ${k}">${k === 'bad' ? '✕' : '⚠'} ${esc(m)}</div>`).join('') : '<div class="notice ok">✔ Everything looks good.</div>'}
+        ${inv.status !== 'published' || H.hasUnpublished(inv) ? `<button class="btn gold lg" id="pubBig">🚀 ${inv.status === 'published' ? 'Update published invitation' : 'Publish invitation'}</button>` : ''}
+        ${inv.status === 'published' ? `<div class="notice ${H.hasUnpublished(inv) ? 'warn' : 'ok'}">${H.hasUnpublished(inv) ? 'You have edits that guests cannot see yet. Press <b>Update published invitation</b> to make them live.' : 'Guests are seeing the latest version.'}</div>
+          <div class="copyrow"><input class="input" readonly value="${esc(link)}" aria-label="Invitation link"><button class="btn" data-copy="${esc(link)}">Copy</button></div>
+          <div class="row"><a class="btn" target="_blank" rel="noopener" href="${esc(link)}">👁 Open invitation</a><a class="btn wa" href="#/dash/${esc(inv.id)}/share">💬 Share on WhatsApp</a><a class="btn" href="#/dash/${esc(inv.id)}">📊 RSVP dashboard</a><button class="btn danger" id="unpub">Unpublish</button></div>` : ''}
+        ${IX.isProduction ? '' : '<div class="notice warn"><b>Demo/Local mode:</b> the published link works in this browser only. To let guests open it on their own phones and RSVP, set up Production mode (Supabase).</div>'}
+      </div>
+      <details class="card more-options"><summary><b>More options</b> <span class="tiny muted">– RSVP questions and limits, password, expiry date, map</span></summary><div class="stack" style="margin-top:.8rem">
+      <div class="stack"><h2>RSVP settings</h2>
         <label class="check"><input type="checkbox" data-k="settings.rsvpEnabled"> Collect RSVPs on this invitation</label>
         <div class="grid3">
           <div class="field"><label for="dl">RSVP deadline</label><input class="input" type="date" id="dl" data-k="settings.rsvpDeadline"></div>
@@ -702,20 +778,14 @@
         <label class="check"><input type="checkbox" data-k="settings.askEvents"> Let guests choose which events they will attend</label>
         <label class="check"><input type="checkbox" data-k="settings.whatsappToHost"> After RSVP, offer guests a button to also send their reply to the contact number on WhatsApp</label>
       </div>
-      <div class="card stack"><h2>Privacy &amp; expiry</h2>
+      <div class="stack"><h2>Privacy &amp; expiry</h2>
         <div class="row"><label class="check"><input type="checkbox" id="pwOn" ${s.passwordProtected ? 'checked' : ''}> Password-protect this invitation</label><span class="pill ${s.passwordProtected ? 'ok' : ''}">${s.passwordProtected ? 'Password set' : 'Public link'}</span></div>
         <div class="row" id="pwRow" ${s.passwordProtected ? '' : 'hidden'}><input class="input" style="max-width:260px" id="pw" type="text" autocomplete="off" placeholder="${s.passwordProtected ? 'Enter a new password to change it' : 'Choose a password'}"><button class="btn sm" id="pwSet">Set password</button></div>
         <div class="field" style="max-width:260px"><label for="exp">Invitation expires on</label><input class="input" type="date" id="exp" data-k="settings.expiresAt"><span class="hint">After this date guests see “This invitation has expired”. Leave empty to never expire.</span></div>
         <label class="check"><input type="checkbox" data-k="settings.mapEmbed"> Show an embedded Google Map of the venue</label>
         <p class="tiny muted">Guest mobile numbers are never shown on the invitation. Only you can see RSVP details in your dashboard.</p>
-      </div>
-      <div class="card stack"><h2>Ready to publish?</h2>
-        ${issues.length ? issues.map(([k, m]) => `<div class="notice ${k}">${k === 'bad' ? '✕' : '⚠'} ${esc(m)}</div>`).join('') : '<div class="notice ok">✔ Everything looks good.</div>'}
-        ${inv.status === 'published' ? `<div class="notice ${H.hasUnpublished(inv) ? 'warn' : 'ok'}">${H.hasUnpublished(inv) ? 'You have edits that guests cannot see yet. Press <b>Update published invitation</b> to make them live.' : 'Guests are seeing the latest version.'}</div>
-          <div class="copyrow"><input class="input" readonly value="${esc(link)}" aria-label="Invitation link"><button class="btn" data-copy="${esc(link)}">Copy</button></div>
-          <div class="row"><a class="btn" target="_blank" rel="noopener" href="${esc(link)}">👁 Open invitation</a><a class="btn wa" href="#/dash/${esc(inv.id)}/share">💬 Share on WhatsApp</a><a class="btn" href="#/dash/${esc(inv.id)}">📊 RSVP dashboard</a><button class="btn danger" id="unpub">Unpublish</button></div>` : ''}
-        ${IX.isProduction ? '' : '<div class="notice warn"><b>Demo/Local mode:</b> the published link works in this browser only. To let guests open it on their own phones and RSVP, set up Production mode (Supabase).</div>'}
-      </div>`;
+      </div></div></details>
+`;
     bind(body);
     const slugIn = body.querySelector('#slug'), msg = body.querySelector('#slugMsg');
     const checkSlug = IX.debounce(async () => {
@@ -726,6 +796,7 @@
       slugIn.removeAttribute('aria-invalid');
       msg.innerHTML = '✔ Available: <b>' + esc(IX.inviteUrl(v)) + '</b>';
       if (inv.slug !== v) { inv.slug = v; changed(); }
+      body.querySelectorAll('.notice.bad').forEach((n) => { if (/link name/.test(n.textContent)) n.remove(); });
     }, 350);
     slugIn.addEventListener('input', () => { slugIn.value = slugIn.value.toLowerCase().replace(/\s+/g, '-'); checkSlug(); });
     if (!inv.slug) { slugIn.value = IX.slugify(M.txt(inv, 'en', 'title') || M.txt(inv, inv.defaultLang, 'title')) || ''; if (slugIn.value) checkSlug(); }
@@ -741,24 +812,25 @@
       changed(); IX.toast('Password set. Share it with your guests separately.', 'ok'); step6(body);
     };
     body.querySelectorAll('[data-copy]').forEach((b) => (b.onclick = async () => { await IX.copy(b.dataset.copy); IX.toast('Link copied', 'ok'); }));
+    const pb = body.querySelector('#pubBig'); if (pb) pb.onclick = () => publish();
     const up = body.querySelector('#unpub');
     if (up) up.onclick = async () => {
       if (!(await H.confirm('Unpublish?', 'Guests will no longer be able to open the invitation. Your design and RSVPs are kept.', 'Unpublish', true))) return;
-      await H.store.unpublish(inv); IX.toast('Invitation unpublished'); goStep(6);
+      await H.store.unpublish(inv); IX.toast('Invitation unpublished'); goStep(NSTEPS);
     };
   }
 
   async function publish() {
     const inv = W.inv;
     const hard = readiness(inv).filter(([k]) => k === 'bad');
-    if (hard.length) { goStep(6); return IX.toast(hard[0][1], 'bad', 5000); }
+    if (hard.length) { goStep(NSTEPS); return IX.toast(hard[0][1], 'bad', 5000); }
     try {
       await save();
       const saved = await H.store.publish(inv);
       W.inv.published = saved.published; W.inv.status = 'published'; W.inv.publishedAt = saved.publishedAt;
       W.dirty = false;
       IX.toast('🎉 Invitation published! Guests now see this version.', 'ok', 4500);
-      goStep(6);
+      goStep(NSTEPS);
     } catch (e) { IX.toast(e.message, 'bad', 5000); }
   }
 })();
