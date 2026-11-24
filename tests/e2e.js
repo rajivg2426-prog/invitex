@@ -235,6 +235,7 @@ await mob.reload(); await mob.waitForSelector('.ix-title'); const after = await 
   ok('Extra: QR/ref check-in works', true);
   // phone device emulation of host wizard
   const ph = await browser.newContext({ ...devices['iPhone 13'], ignoreHTTPSErrors: true });
+  await ph.route(/js\/config\.js/, (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: "window.INVITEX_CONFIG={SUPABASE_URL:'',SUPABASE_ANON_KEY:'',DEFAULT_TIMEZONE:'Asia/Kolkata'};" }));
   const pp = await ph.newPage(); watch(pp, 'hostmobile'); await pp.goto(BASE + 'index.html#/new'); await pp.waitForSelector('.cat-grid');
   const ov = await pp.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   await pp.screenshot({ path: OUT + '/host-mobile.png' });
