@@ -33,7 +33,8 @@ Click **Load 4 sample invitations** (Himachali Dham, Wedding, Birthday, Corporat
 - **Guest microsite**: animated opening (doors, curtain, envelope or fade), personalised greeting, welcome, hosts, message, countdown, schedule, venue with embedded map and directions, highlights (menu, agenda, speakers), gallery with lightbox, audio/video, RSVP, instructions and a thank-you section. The host can switch each section on or off and reorder them. Guests control the music.
 - **RSVP**: yes/no/maybe, adults and children counted separately, which events they will attend, additional names, food preference, special requirements, a message to the host and a consent checkbox. After replying, guests get a confirmation reference, a check-in QR code and a private edit link. Duplicate replies are blocked by personal invite and by mobile number, and double-tapping submit cannot send twice. There are per-guest and total capacity limits and an RSVP deadline.
 - **Home dashboard**: welcome with your next event, one Create button, occasion shortcuts, invitation cards with a design thumbnail, status, date and countdown, invited / confirmed / pending counts, All / Published / Drafts / Upcoming filters, search, sort, Edit / Preview (phone or desktop) / Share / Duplicate / Delete, and recent guest activity. All numbers come from your real guest lists and replies.
-- **Host dashboard**: KPIs (confirmed attendees, adults, children, yes/no/maybe, pending, response and attendance rate, places left), a donut chart, event-wise attendance, food preferences, search and filter, editing responses, CSV/Excel export (UTF-8 with BOM so Hindi and Punjabi display correctly), print and a guest-list download.
+- **Home dashboard**: a welcome that names your next event, one Create button, occasion shortcuts, invitation cards with a design thumbnail, status, date and countdown, invited / confirmed / pending counts, All / Published / Drafts / Upcoming filters, search, sort, Edit / Preview (phone or desktop) / Share / Duplicate / Delete, and recent guest activity. Every number comes from your real guest lists and replies.
+- **RSVP dashboard**: KPIs (confirmed attendees, adults, children, yes/no/maybe, pending, response and attendance rate, places left), a donut chart, event-wise attendance, food preferences, search and filter, editing responses, CSV/Excel export (UTF-8 with BOM so Hindi and Punjabi display correctly), print and a guest-list download.
 - **Sharing**: personalised WhatsApp click-to-chat links per guest, a general WhatsApp share, email, copy link, native share sheet, a QR code (PNG), a 1080×1350 image card and print/PDF. The app records "WhatsApp opened", never "delivered".
 - **Reminders** for pending guests (editable template), **check-in** by QR scan (where the browser supports `BarcodeDetector`) or by reference, **duplicate invitation**, **edit after publishing** (changes stay as a draft until you press *Update published invitation*), **expiry date**, **password protection**, **custom link name**, **delete invitation and all its data**, and JSON backup/restore in local mode.
 
@@ -50,7 +51,8 @@ js/i18n.js            Guest UI labels in English / Hindi / Punjabi
 js/themes.js          Categories, themes, SVG illustration motifs, message assistant, sample art
 js/store.js           Data model + LocalStore (IndexedDB) + SupabaseStore (production) with one shared API
 js/media.js           Upload validation, compression, crop/reposition/rotate tool
-js/app.js             Router, modals, home, settings, login, help
+js/app.js             Router, modals, settings, login, help
+js/home.js            Home dashboard (#/) and quick-create (#/new/<occasion>)
 js/wizard.js          6-step creation wizard with live preview
 js/dashboard.js       RSVP dashboard, guests & reminders, sharing, image card, check-in
 js/invite.js          Guest microsite renderer and RSVP form
