@@ -598,3 +598,24 @@ details.more-details[open]>summary,details.more-options[open]>summary{margin-bot
 .cs-adj-menu button { border: 0; background: none; text-align: left; padding: .55rem .7rem; border-radius: 8px; font: 500 14px var(--font); color: var(--ink); cursor: pointer; text-transform: none; letter-spacing: 0; }
 .cs-adj-menu button:hover, .cs-adj-menu button:focus-visible { background: var(--plum-tint); }
 .cs-line.busy { opacity: .55; }
+
+/* V2: guest list search and filters */
+.gfilters { align-items: center; margin-top: .4rem; }
+.gfilters .chips { display: flex; flex-wrap: wrap; gap: .35rem; }
+.gfilters .chip { border: 1px solid var(--line); background: #fff; color: var(--ink2); font: 500 13px var(--font); padding: .35rem .75rem; border-radius: 999px; min-height: 34px; cursor: pointer; }
+.gfilters .chip b { font-weight: 600; color: var(--muted); margin-left: .15rem; }
+.gfilters .chip.on { background: var(--plum); border-color: var(--plum); color: #fff; }
+.gfilters .chip.on b { color: var(--champagne); }
+.gfilters .chip:focus-visible { outline: 2px solid var(--plum2); outline-offset: 2px; }
+.gfilters #gCount { width: 100%; margin: 0; }
+tr[hidden] { display: none; }
+
+/* V2: sharing centre */
+.sx-status { margin-bottom: 1rem; }
+.sx-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .6rem; margin-top: .8rem; }
+.sx-step { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: .7rem .8rem; display: grid; gap: .1rem; }
+.sx-step b { font: 600 1.5rem/1.1 var(--font); color: var(--plum); }
+.sx-step span { font-size: 13px; color: var(--ink2); }
+.sx-step small { font-size: 11px; color: var(--muted); }
+.sx-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+@media (max-width: 640px) { .sx-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sx-actions .btn { flex: 1 1 40%; justify-content: center; } }
