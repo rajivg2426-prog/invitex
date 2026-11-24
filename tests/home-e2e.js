@@ -20,12 +20,14 @@ const stub = r => r.fulfill({ status: 200, contentType: 'text/javascript', body:
   const info = await p.evaluate(async () => {
     const list = await H.store.listInvitations();
     const inv = list.find(i => i.category === 'wedding');
-    const d = new Date(Date.now() + 12 * 864e5).toISOString().slice(0, 10);
+    const d = new Intl.DateTimeFormat('en-CA', { timeZone: inv.timezone || 'Asia/Kolkata' }).format(new Date(Date.now() + 12 * 864e5)); // 12 days ahead in the invitation's own time zone
     inv.events[0].date = d; if (!inv.slug) inv.slug = 'home-test-wedding'; await H.store.publish(inv);
     for (const [n, ph] of [['Rakesh Verma', '9876543210'], ['Pooja Nair', '9811122233'], ['Imran Khan', '9822233344']]) await H.store.saveGuest({ invitationId: inv.id, name: n, phone: ph, allowed: 3 });
     const gs = await H.store.listGuests(inv.id);
     await H.store.hostSaveRsvp({ invitationId: inv.id, guestId: gs.find(g => g.name === 'Rakesh Verma').id, name: 'Rakesh Verma', phone: '9876543210', status: 'yes', adults: 3, children: 0, consent: true });
     await H.store.hostSaveRsvp({ invitationId: inv.id, guestId: gs.find(g => g.name === 'Pooja Nair').id, name: 'Pooja Nair', phone: '9811122233', status: 'no', adults: 0, children: 0, consent: true });
+    const im = gs.find(g => g.name === 'Imran Khan'); const t0 = new Date(Date.now() - 3600e3).toISOString();
+    await H.store.saveGuest({ ...im, sentAt: t0, openedAt: new Date(Date.now() - 600e3).toISOString() }); // Imran was sent the link and opened it, no reply yet
     const st = IX.model.stats(await H.store.listRsvps(inv.id), await H.store.listGuests(inv.id), inv.events);
     const all = await H.store.listInvitations(); const today = new Date().toISOString().slice(0, 10);
     return { st: [st.invited, st.yes, st.pending], id: inv.id, title: inv.text.en.title, total: all.length, pub: all.filter(i => i.status === 'published').length, up: all.filter(i => (i.events || []).some(e => e.date && e.date >= today)).length };
@@ -41,6 +43,23 @@ const stub = r => r.fulfill({ status: 200, contentType: 'text/javascript', body:
   const kpi = await p.locator('.hx-kpis dd').allInnerTexts();
   ok('summary numbers add up', kpi[0] === String(info.total) && kpi[1] === '3', JSON.stringify(kpi));
   ok('welcome names the next event', (await p.locator('.hx-lead').innerText()).includes('in 12 days'));
+  const nx = await p.locator('.hx-next').innerText();
+  ok('next event card: name, countdown, venue, replies', /Aarav/.test(nx) && /12\s*days to go/.test(nx) && /Mehra Residence/.test(nx) && /2 of 6 invited replied · 3 coming/.test(nx), nx.replace(/\s+/g, ' ').slice(0, 160));
+  ok('next event card: Share, Guests and Preview', (await p.locator('.hx-next-act').innerText()).replace(/\s+/g, ' ').trim() === 'Share Guests Preview');
+  const todo = p.locator('.hx-todo li', { hasText: 'Aarav' }).first();
+  ok('needs attention: pending replies with a reminder action', /4 guests have not replied to Aarav & Diya · in 12 days/.test(await todo.innerText()) && (await todo.locator('a').getAttribute('href')) === `#/dash/${info.id}/guests`, await todo.innerText());
+  const rs = await p.locator('.hx-rsvp dd').allInnerTexts();
+  ok('guests and replies: confirmed, maybe, declined, pending, expected', rs.join(',') === '1,0,1,4,3', rs.join(','));
+  const ev0 = await p.locator('.hx-evs li').first().innerText();
+  ok('event-wise tracking: soonest event first with people coming', /Mehendi/.test(ev0) && /\b3\b/.test(ev0) && /In 12 days/.test(ev0), ev0.replace(/\s+/g, ' '));
+  const go = await p.locator('.hx-act li', { hasText: 'Rakesh Verma' }).locator('.hx-act-go').getAttribute('href');
+  ok('activity: each item has an action (reply → responses)', go === `#/dash/${info.id}/responses`);
+  await p.click('[data-actf=open]');
+  const op = await p.locator('#hxAct li').allInnerTexts();
+  ok('activity filter "Opened": who opened but has not replied, with Remind', op.length === 1 && /Imran Khan opened the invitation but has not replied/.test(op[0]) && /Remind/.test(op[0]), op.join(' | '));
+  await p.click('[data-actf=invite]');
+  ok('activity filter "Invites": sends are shown honestly', /You invited Imran Khan on WhatsApp or email/.test(await p.locator('#hxAct').innerText()));
+  await p.click('[data-actf=all]');
   await p.screenshot({ path: OUT + '/1-desktop.png', fullPage: true });
   // filters
   await p.click('[data-filter=published]');
@@ -63,7 +82,8 @@ const stub = r => r.fulfill({ status: 200, contentType: 'text/javascript', body:
   ok('sort by event date puts the soonest first', /^(Today|Tomorrow|In \d+ days)$/.test(firstDays), firstDays);
   // menu: duplicate
   await card.locator('[data-act=menu]').click();
-  ok('More menu opens with Duplicate and Delete', await card.locator('.hx-menu-list:not([hidden]) >> text=Duplicate').count() === 1 && await card.locator('.hx-menu-list >> text=Delete').count() === 1);
+  ok('six quick actions on the card: Edit, Preview, Share, Guests, Analytics, Duplicate', (await card.locator('.hx-actions > .hx-qa').allInnerTexts()).join(',') === 'Edit,Preview,Share,Guests,Analytics,Duplicate');
+  ok('More menu opens with Responses and Delete', await card.locator('.hx-menu-list:not([hidden]) >> text=Responses').count() === 1 && await card.locator('.hx-menu-list >> text=Delete').count() === 1);
   await p.screenshot({ path: OUT + '/2-menu.png' });
   await p.keyboard.press('Escape');
   ok('Esc closes the menu', await card.locator('.hx-menu-list[hidden]').count() === 1);
@@ -77,7 +97,7 @@ const stub = r => r.fulfill({ status: 200, contentType: 'text/javascript', body:
   ok('Preview switches to desktop', await p.locator('.hx-pv-frame.desktop').count() === 1);
   await p.keyboard.press('Escape');
   // duplicate
-  await card.locator('[data-act=menu]').click(); await card.locator('[data-act=dup]').click();
+  await card.locator('.hx-actions > [data-act=dup]').click();
   await p.waitForURL(/#\/edit\//);
   const n2 = await p.evaluate(async () => (await H.store.listInvitations()).length);
   ok('Duplicate makes a new draft and opens it', n2 === info.total + 1);
@@ -102,8 +122,8 @@ const stub = r => r.fulfill({ status: 200, contentType: 'text/javascript', body:
   await m.evaluate(() => IXSamples.create(H.store)); await m.evaluate(() => H.route()); await m.waitForSelector('.hx-card');
   const ov = await m.evaluate(() => document.documentElement.scrollWidth - innerWidth);
   ok('phone: no sideways scroll', ov <= 0, 'overflow=' + ov);
-  const small = await m.evaluate(() => [...document.querySelectorAll('.hx-actions .btn, .hx-filters button, .hx-occ')].filter(e => e.getBoundingClientRect().height < 34).length);
-  ok('phone: buttons are big enough to tap', small === 0, 'small=' + small);
+  const small = await m.evaluate(() => [...document.querySelectorAll('.hx-actions .btn, .hx-qa, .hx-filters button, .hx-occ, .hx-act-go, .hx-todo .btn, .hx-next .btn')].filter(e => e.getBoundingClientRect().height < 34).map(e => e.className + ':' + e.textContent.trim().slice(0, 12) + ':' + Math.round(e.getBoundingClientRect().height)));
+  ok('phone: buttons are big enough to tap', small.length === 0, small.join(' | '));
   await m.screenshot({ path: OUT + '/4-phone.png', fullPage: true });
   ok('no page errors', errs.length === 0, errs.join(' | '));
   await b.close();

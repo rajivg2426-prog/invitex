@@ -25,6 +25,11 @@
     close: '<path d="M6 6l12 12M18 6 6 18"/>',
     undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
     redo: '<path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>',
+    pin: '<path d="M12 21s-6.5-6.2-6.5-11.2a6.5 6.5 0 0 1 13 0C18.5 14.8 12 21 12 21z"/><circle cx="12" cy="9.8" r="2.4"/>',
+    alert: '<path d="M12 4 2.5 20h19L12 4z"/><path d="M12 10v4.5M12 17.2v.1"/>',
+    bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15L6 16z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
+    open: '<path d="M3 9.5 12 4l9 5.5v9.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/><path d="m3 9.5 9 6 9-6"/>',
+    arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
   };
   const icon = (n, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${P[n] || ''}</svg>`;
   H.icon = icon;
@@ -119,16 +124,19 @@
           <div><dt>Confirmed</dt><dd>${st.yes}${st.attendees > st.yes ? `<small> · ${st.attendees} people</small>` : ''}</dd></div>
           <div><dt>Pending</dt><dd>${st.pending}</dd></div>
         </dl>
+        ${replyBar(st, true)}
         <div class="hx-actions">
-          <a class="btn sm primary" href="#/edit/${esc(inv.id)}/1">${icon('edit')}Edit</a>
-          <button class="btn sm" type="button" data-act="preview" data-id="${esc(inv.id)}">Preview</button>
-          ${pub ? `<a class="btn sm" href="#/dash/${esc(inv.id)}/share">Share</a>` : `<a class="btn sm" href="#/edit/${esc(inv.id)}/3">Publish</a>`}
+          <a class="hx-qa primary" href="#/edit/${esc(inv.id)}/1">${icon('edit')}<span>Edit</span></a>
+          <button class="hx-qa" type="button" data-act="preview" data-id="${esc(inv.id)}">${icon('eye')}<span>Preview</span></button>
+          ${pub ? `<a class="hx-qa" href="#/dash/${esc(inv.id)}/share">${icon('share')}<span>Share</span></a>` : `<a class="hx-qa" href="#/edit/${esc(inv.id)}/3">${icon('send')}<span>Publish</span></a>`}
+          <a class="hx-qa" href="#/dash/${esc(inv.id)}/guests">${icon('users')}<span>Guests</span></a>
+          <a class="hx-qa" href="#/dash/${esc(inv.id)}/overview">${icon('chart')}<span>Analytics</span></a>
+          <button class="hx-qa" type="button" data-act="dup" data-id="${esc(inv.id)}">${icon('copy')}<span>Duplicate</span></button>
           <div class="hx-menu">
-            <button class="btn sm ghost iconbtn" type="button" data-act="menu" aria-haspopup="true" aria-expanded="false" aria-label="More actions for ${esc(H.title(inv))}">${icon('more')}</button>
+            <button class="hx-qa iconbtn" type="button" data-act="menu" aria-haspopup="true" aria-expanded="false" aria-label="More actions for ${esc(H.title(inv))}">${icon('more')}</button>
             <div class="hx-menu-list" role="menu" hidden>
-              <a role="menuitem" href="#/dash/${esc(inv.id)}">${icon('chart')}Guests &amp; RSVPs</a>
-              ${pub ? `<a role="menuitem" target="_blank" rel="noopener" href="${esc(IX.inviteUrl(inv.slug))}">${icon('eye')}Open guest link</a>` : ''}
-              <button role="menuitem" type="button" data-act="dup" data-id="${esc(inv.id)}">${icon('copy')}Duplicate</button>
+              <a role="menuitem" href="#/dash/${esc(inv.id)}/responses">${icon('check')}Responses</a>
+              ${pub ? `<a role="menuitem" target="_blank" rel="noopener" href="${esc(IX.inviteUrl(inv.slug))}">${icon('open')}Open guest link</a>` : ''}
               <button role="menuitem" type="button" class="danger" data-act="del" data-id="${esc(inv.id)}">${icon('trash')}Delete</button>
             </div>
           </div>
@@ -137,22 +145,83 @@
     </article>`;
   }
 
-  /* ---------- recent activity from real records ---------- */
+  /* ---------- replies at a glance: yes / maybe / no / not replied ---------- */
+  function replyBar(st, small) {
+    const seg = [['yes', st.yes, 'Confirmed'], ['maybe', st.maybe, 'Maybe'], ['no', st.no, 'Declined'], ['pend', st.pending, 'Not replied']];
+    const sum = seg.reduce((n, x) => n + x[1], 0);
+    if (!sum) return small ? '' : '<div class="hx-bar empty" aria-hidden="true"></div>';
+    const label = seg.filter((x) => x[1]).map((x) => `${x[1]} ${x[2].toLowerCase()}`).join(', ');
+    return `<div class="hx-bar ${small ? 'sm' : ''}" role="img" aria-label="Replies: ${esc(label)}">${seg.filter((x) => x[1]).map(([k, n, l]) => `<i class="${k}" style="flex:${n}" title="${esc(l)}: ${n}"></i>`).join('')}</div>`;
+  }
+
+  /* ---------- recent activity from real records ----------
+   * Replies, link opens and sends come from the stored RSVPs and guest list.
+   * "Sent" means the host opened WhatsApp or email for that guest, never "delivered". */
   function buildActivity(items) {
     const out = [];
-    items.forEach(({ inv, rsvps }) => {
-      const t = H.title(inv);
+    items.forEach(({ inv, rsvps, guests }) => {
+      const t = H.title(inv), id = inv.id;
       rsvps.forEach((r) => {
         const n = (r.adults || 0) + (r.children || 0);
-        const what = r.status === 'yes' ? `is coming${n > 1 ? ` (${n} people)` : ''}` : r.status === 'no' ? 'can’t make it' : 'might come';
-        out.push({ at: r.updatedAt || r.createdAt, kind: r.status, html: `<b>${esc(r.name || 'A guest')}</b> ${esc(what)}`, inv: t, href: '#/dash/' + inv.id });
+        const what = r.status === 'yes' ? `is coming${n > 1 ? ` (${n} people)` : ''}` : r.status === 'no' ? 'can’t make it' : `might come${n > 1 ? ` (${n} people)` : ''}`;
+        out.push({ at: r.updatedAt || r.createdAt, kind: r.status, type: 'reply', html: `<b>${esc(r.name || 'A guest')}</b> ${esc(what)}`, inv: t, href: `#/dash/${id}/responses`, cta: 'View reply' });
       });
-      if (inv.publishedAt) out.push({ at: inv.publishedAt, kind: 'pub', html: 'You published the invitation', inv: t, href: '#/dash/' + inv.id + '/share' });
-      if (inv.updatedAt && (!inv.publishedAt || Date.parse(inv.updatedAt) - Date.parse(inv.publishedAt) > 60000)) out.push({ at: inv.updatedAt, kind: 'edit', html: 'You edited the invitation', inv: t, href: '#/edit/' + inv.id + '/1' });
+      const replied = new Set(rsvps.map((r) => r.guestId).filter(Boolean));
+      guests.forEach((g) => {
+        if (g.openedAt && !replied.has(g.id)) out.push({ at: g.openedAt, kind: 'open', type: 'open', html: `<b>${esc(g.name)}</b> opened the invitation but has not replied`, inv: t, href: `#/dash/${id}/guests`, cta: 'Remind' });
+      });
+      // sends are grouped per invitation and day, so a batch of 50 is one line
+      const sends = {};
+      guests.forEach((g) => { if (g.sentAt) { const day = g.sentAt.slice(0, 10); (sends[day] = sends[day] || []).push(g); } });
+      Object.values(sends).forEach((gs) => {
+        const last = gs.map((g) => g.sentAt).sort().pop();
+        const who = gs.length === 1 ? `<b>${esc(gs[0].name)}</b>` : `<b>${gs.length} guests</b>`;
+        out.push({ at: last, kind: 'sent', type: 'invite', html: `You invited ${who} on WhatsApp or email`, inv: t, href: `#/dash/${id}/guests`, cta: 'Guest list' });
+      });
+      if (inv.publishedAt) out.push({ at: inv.publishedAt, kind: 'pub', type: 'invite', html: 'You published the invitation', inv: t, href: `#/dash/${id}/share`, cta: 'Share' });
+      if (inv.updatedAt && (!inv.publishedAt || Date.parse(inv.updatedAt) - Date.parse(inv.publishedAt) > 60000)) out.push({ at: inv.updatedAt, kind: 'edit', type: 'edit', html: 'You edited the invitation', inv: t, href: `#/edit/${id}/1`, cta: 'Open' });
     });
-    return out.filter((a) => a.at).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 8);
+    return out.filter((a) => a.at).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 30);
   }
-  const ACT_ICON = { yes: 'check', no: 'close', maybe: 'clock', pub: 'send', edit: 'edit' };
+  const ACT_ICON = { yes: 'check', no: 'close', maybe: 'clock', pub: 'send', edit: 'edit', open: 'open', sent: 'send' };
+  const ACT_TABS = [['all', 'All'], ['reply', 'Replies'], ['invite', 'Invites'], ['open', 'Opened']];
+
+  /* ---------- what needs the host's attention, most urgent first ---------- */
+  function attention(items) {
+    const out = [];
+    items.forEach((it) => {
+      const { inv, st, info, guests, rsvps } = it, t = H.title(inv), id = inv.id;
+      const pub = inv.status === 'published';
+      const soon = info && info.upcoming ? info.days : null;
+      const when = soon == null ? '' : ` · ${countdown(soon).toLowerCase()}`;
+      if (!pub && soon != null && soon <= 30) out.push({ w: 100 - soon, tone: 'bad', text: `<b>${esc(t)}</b> is still a draft${esc(when)}. Guests cannot open it yet.`, cta: 'Publish', href: `#/edit/${id}/3` });
+      if (!pub) return;
+      if (info && !info.upcoming) return; // event over: nothing to chase
+      const notSent = guests.filter((g) => !g.sentAt && !rsvps.some((r) => r.guestId === g.id)).length;
+      if (st.pending && soon != null && soon <= 21) out.push({ w: 80 - soon, tone: 'warn', text: `<b>${st.pending}</b> ${st.pending === 1 ? 'guest has' : 'guests have'} not replied to <b>${esc(t)}</b>${esc(when)}.`, cta: 'Send reminders', href: `#/dash/${id}/guests` });
+      if (notSent) out.push({ w: 40, tone: 'info', text: `<b>${notSent}</b> ${notSent === 1 ? 'guest on' : 'guests on'} <b>${esc(t)}</b> ${notSent === 1 ? 'has' : 'have'} not been sent the invitation.`, cta: 'Send invites', href: `#/dash/${id}/guests` });
+      if (st.maybe && soon != null && soon <= 14) out.push({ w: 50 - soon, tone: 'warn', text: `<b>${st.maybe}</b> ${st.maybe === 1 ? 'guest is' : 'guests are'} not sure yet about <b>${esc(t)}</b>.`, cta: 'See who', href: `#/dash/${id}/responses` });
+      const cap = inv.settings && inv.settings.maxGuestsTotal;
+      if (cap && st.attendees >= cap * 0.9) out.push({ w: 90, tone: 'bad', text: `<b>${esc(t)}</b> has ${st.attendees} of ${cap} places taken.`, cta: 'Review', href: `#/dash/${id}/overview` });
+      if (H.hasUnpublished(inv)) out.push({ w: 30, tone: 'info', text: `<b>${esc(t)}</b> has changes guests cannot see yet.`, cta: 'Update', href: `#/edit/${id}/3` });
+      if (!guests.length && !rsvps.length) out.push({ w: 20, tone: 'info', text: `<b>${esc(t)}</b> is published but not shared with anyone yet.`, cta: 'Share', href: `#/dash/${id}/share` });
+    });
+    return out.sort((a, b) => b.w - a.w).slice(0, 5);
+  }
+
+  /* ---------- event-wise tracking: every upcoming event, with who is coming ---------- */
+  function eventRows(items) {
+    const rows = [];
+    items.forEach((it) => {
+      const today = todayIn(it.inv.timezone);
+      (it.inv.events || []).forEach((e) => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(e.date || '') || e.date < today) return;
+        const ev = it.st.events[e.id] || { heads: 0, yes: 0 };
+        rows.push({ it, e, days: dayDiff(e.date, today), heads: ev.heads, yes: ev.yes });
+      });
+    });
+    return rows.sort((a, b) => a.days - b.days || (a.e.start || '').localeCompare(b.e.start || ''));
+  }
 
   /* ---------- filtering / sorting ---------- */
   function visible() {
@@ -280,6 +349,32 @@
     });
   }
 
+  /* ---------- the next event, in full ---------- */
+  function nextCard(it) {
+    const { inv, info, st } = it, e = info.ev, tz = inv.timezone, pub = inv.status === 'published';
+    const replied = st.yes + st.no + st.maybe;
+    const big = info.days === 0 ? ['Today', ''] : info.days === 1 ? ['1', 'day to go'] : [String(info.days), 'days to go'];
+    return `<article class="hx-next" aria-label="Next event">
+      <div class="hx-next-top">
+        <div class="hx-next-art">${thumbHtml(it)}</div>
+        <div class="hx-next-cd"><b>${esc(big[0])}</b><span>${esc(big[1])}</span></div>
+      </div>
+      <p class="hx-next-k">Next event</p>
+      <h3>${esc(H.title(inv))}</h3>
+      <ul class="hx-next-facts">
+        <li>${icon('calendar')}<span>${esc(e.name ? e.name + ' · ' : '')}${esc(fmtDay(inv, e.date))}${e.start ? ' · ' + esc(IX.fmtTime(e.date, e.start, tz, 'en')) : ''}</span></li>
+        ${e.venue || e.city ? `<li>${icon('pin')}<span>${esc([e.venue, e.city].filter(Boolean).join(', '))}</span></li>` : ''}
+        <li>${icon('users')}<span>${st.invited ? `<b>${replied}</b> of ${st.invited} invited replied · <b>${st.attendees}</b> coming` : st.responses ? `<b>${st.attendees}</b> coming from ${st.responses} ${st.responses === 1 ? 'reply' : 'replies'}` : pub ? 'No guests added yet' : 'Draft – not shared yet'}</span></li>
+      </ul>
+      ${replyBar(st, true)}
+      <div class="hx-next-act">
+        ${pub ? `<a class="btn sm primary" href="#/dash/${esc(inv.id)}/share">${icon('share')}Share</a>` : `<a class="btn sm primary" href="#/edit/${esc(inv.id)}/3">${icon('send')}Publish</a>`}
+        <a class="btn sm" href="#/dash/${esc(inv.id)}/guests">${icon('users')}Guests</a>
+        <button class="btn sm ghost" type="button" data-act="preview" data-id="${esc(inv.id)}">${icon('eye')}Preview</button>
+      </div>
+    </article>`;
+  }
+
   /* ---------- greeting ---------- */
   function greeting() {
     const h = new Date().getHours();
@@ -304,23 +399,39 @@
       return { inv, rsvps, guests, st: M.stats(rsvps, guests, inv.events), info: eventInfo(inv), art: await thumbArt(inv) };
     }));
     S.activity = buildActivity(S.items);
-    const tot = S.items.reduce((a, it) => ({ inv: a.inv + 1, conf: a.conf + it.st.attendees, pend: a.pend + it.st.pending }), { inv: 0, conf: 0, pend: 0 });
+    const all = S.items.reduce((a, it) => {
+      ['invited', 'yes', 'no', 'maybe', 'pending', 'attendees', 'adults', 'children', 'responses'].forEach((k) => (a[k] += it.st[k] || 0));
+      return a;
+    }, { invited: 0, yes: 0, no: 0, maybe: 0, pending: 0, attendees: 0, adults: 0, children: 0, responses: 0 });
+    const tot = {
+      inv: S.items.length, pub: S.items.filter((i) => i.inv.status === 'published').length,
+      soon: S.items.filter((i) => i.info && i.info.upcoming && i.info.days <= 30).length,
+      rate: Math.max(all.invited, all.responses) ? Math.round((all.responses / Math.max(all.invited, all.responses)) * 100) : 0,
+    };
     const next = S.items.filter((it) => it.info && it.info.upcoming).sort((a, b) => a.info.days - b.info.days)[0];
+    const todo = attention(S.items);
+    const evRows = eventRows(S.items);
+    const maxHeads = Math.max(1, ...evRows.map((r) => Math.max(r.heads, r.it.st.invited ? r.it.st.invited : 0)));
+    const metric = (ic, label, val, sub) => `<div><dt>${icon(ic)}${label}</dt><dd>${val}</dd>${sub ? `<p>${sub}</p>` : ''}</div>`;
 
     H.render(`<div class="hx">
-      <section class="hx-welcome">
+      <section class="hx-welcome ${next ? 'has-next' : ''}">
         <div class="hx-welcome-txt">
           <p class="hx-eyebrow">${esc(greeting())}</p>
           <h1>Every occasion deserves an extraordinary invitation.</h1>
           <p class="hx-lead">${next ? `Your next event, <b>${esc(H.title(next.inv))}</b>, is ${esc(countdown(next.info.days).toLowerCase())}.` : 'Design it, write it, share it on WhatsApp, and see who is coming, all in one place.'}</p>
           <a class="btn primary lg" href="#/new">${icon('plus')}Create new invitation</a>
         </div>
-        ${S.items.length ? `<dl class="hx-kpis">
-          <div><dt>${icon('send')}Invitations</dt><dd>${tot.inv}</dd></div>
-          <div><dt>${icon('users')}People coming</dt><dd>${tot.conf}</dd></div>
-          <div><dt>${icon('clock')}Awaiting reply</dt><dd>${tot.pend}</dd></div>
-        </dl>` : ''}
+        ${next ? nextCard(next) : ''}
       </section>
+
+      ${S.items.length ? `<dl class="hx-kpis" aria-label="Your numbers">
+        ${metric('send', 'Invitations', tot.inv, `${tot.pub} published · ${tot.inv - tot.pub} ${tot.inv - tot.pub === 1 ? 'draft' : 'drafts'}`)}
+        ${metric('users', 'People coming', all.attendees, all.attendees ? `${all.adults} adults · ${all.children} children` : 'From “yes” replies')}
+        ${metric('clock', 'Awaiting reply', all.pending, `of ${all.invited} on your guest lists`)}
+        ${metric('check', 'Response rate', tot.rate + '%', `${all.responses} ${all.responses === 1 ? 'reply' : 'replies'} so far`)}
+        ${metric('calendar', 'Events in 30 days', tot.soon, next ? `Next: ${esc(countdown(next.info.days).toLowerCase())}` : 'Nothing coming up')}
+      </dl>` : ''}
 
       <section class="hx-quick" aria-labelledby="hxQuickH">
         <h2 id="hxQuickH" class="hx-h">Start with an occasion</h2>
@@ -345,14 +456,57 @@
             </div>
           </div>
           <div id="hxList"></div>
+
+          ${S.items.length ? `<section class="hx-intel" aria-labelledby="hxIntelH">
+            <h2 id="hxIntelH" class="hx-h">Guests and replies</h2>
+            <div class="hx-panel">
+              <dl class="hx-rsvp">
+                <div class="yes"><dt>Confirmed</dt><dd>${all.yes}</dd><p>${all.attendees} ${all.attendees === 1 ? 'person' : 'people'}</p></div>
+                <div class="maybe"><dt>Not sure yet</dt><dd>${all.maybe}</dd><p>may come</p></div>
+                <div class="no"><dt>Declined</dt><dd>${all.no}</dd><p>can’t come</p></div>
+                <div class="pend"><dt>Pending</dt><dd>${all.pending}</dd><p>not replied</p></div>
+                <div class="tot"><dt>Expected attendees</dt><dd>${all.attendees}</dd><p>${all.adults} adults · ${all.children} children</p></div>
+              </dl>
+              ${replyBar(all)}
+            </div>
+            <div class="hx-panel">
+              <div class="hx-panel-h"><h3>Event-wise tracking</h3><span class="tiny muted">People coming to each upcoming event</span></div>
+              ${evRows.length ? `<ol class="hx-evs">${evRows.slice(0, 8).map((r) => `<li><a href="#/dash/${esc(r.it.inv.id)}/overview">
+                <span class="hx-day"><b>${esc(IX.fmtDate(r.e.date, r.it.inv.timezone, 'en', { day: 'numeric', timeZone: r.it.inv.timezone }))}</b><small>${esc(IX.fmtDate(r.e.date, r.it.inv.timezone, 'en', { month: 'short', timeZone: r.it.inv.timezone }))}</small></span>
+                <span class="hx-ev-t"><b>${esc(r.e.name || H.title(r.it.inv))}</b><small>${esc(H.title(r.it.inv))}${r.e.start ? ' · ' + esc(IX.fmtTime(r.e.date, r.e.start, r.it.inv.timezone, 'en')) : ''}${r.e.venue ? ' · ' + esc(r.e.venue) : ''}</small></span>
+                <span class="hx-ev-n"><span class="hx-ev-bar"><i style="width:${Math.round((r.heads / maxHeads) * 100)}%"></i></span><b>${r.heads}</b><small>${r.it.inv.status === 'published' ? 'coming' : 'draft'}</small></span>
+                <span class="hx-count ${r.days <= 7 ? 'soon' : ''}">${esc(countdown(r.days))}</span>
+              </a></li>`).join('')}</ol>${evRows.length > 8 ? `<p class="tiny muted" style="margin:.5rem 0 0">${evRows.length - 8} more upcoming ${evRows.length - 8 === 1 ? 'event' : 'events'}.</p>` : ''}` : '<p class="muted small" style="margin:0">No upcoming events. Add a date to an invitation to track it here.</p>'}
+            </div>
+          </section>` : ''}
         </section>
-        ${S.items.length ? `<aside class="hx-side" aria-labelledby="hxActH">
-          <h2 id="hxActH" class="hx-h">Recent activity</h2>
-          ${S.activity.length ? `<ol class="hx-act">${S.activity.map((a) => `<li><a href="${esc(a.href)}"><span class="hx-act-ic ${a.kind}">${icon(ACT_ICON[a.kind] || 'clock')}</span><span class="hx-act-t"><span>${a.html}</span><small>${esc(a.inv)} · ${esc(ago(a.at))}</small></span></a></li>`).join('')}</ol>` : '<p class="muted small">Replies from guests will appear here.</p>'}
+        ${S.items.length ? `<aside class="hx-side" aria-label="Attention and activity">
+          <section aria-labelledby="hxTodoH">
+            <h2 id="hxTodoH" class="hx-h">Needs attention</h2>
+            ${todo.length ? `<ul class="hx-todo">${todo.map((x) => `<li class="${x.tone}"><span class="hx-todo-ic">${icon(x.tone === 'info' ? 'bell' : 'alert')}</span><span class="hx-todo-t">${x.text}</span><a class="btn sm" href="${esc(x.href)}">${esc(x.cta)}</a></li>`).join('')}</ul>` : `<p class="hx-allgood">${icon('check')}Nothing needs you right now.</p>`}
+          </section>
+          <section aria-labelledby="hxActH">
+            <div class="hx-act-head"><h2 id="hxActH" class="hx-h">Recent activity</h2>
+              <div class="hx-filters sm" role="group" aria-label="Show activity">${ACT_TABS.map(([k, l]) => `<button type="button" data-actf="${k}" aria-pressed="${k === 'all'}" class="${k === 'all' ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+            <div id="hxAct"></div>
+          </section>
           <button class="btn sm ghost" type="button" id="loadSamplesSide">Add sample invitations</button>
         </aside>` : ''}
       </div>
     </div>`);
+
+    const drawAct = (f) => {
+      const box = v.querySelector('#hxAct');
+      if (!box) return;
+      const list = S.activity.filter((a) => f === 'all' || a.type === f).slice(0, 8);
+      box.innerHTML = list.length ? `<ol class="hx-act">${list.map((a) => `<li><span class="hx-act-ic ${a.kind}">${icon(ACT_ICON[a.kind] || 'clock')}</span><span class="hx-act-t"><span>${a.html}</span><small>${esc(a.inv)} · ${esc(ago(a.at))}</small></span><a class="hx-act-go" href="${esc(a.href)}">${esc(a.cta)}</a></li>`).join('')}</ol>` : `<p class="muted small">${f === 'reply' ? 'Replies from guests will appear here.' : f === 'open' ? 'When a guest opens their personal link without replying, it shows here.' : f === 'invite' ? 'Invitations you send will appear here.' : 'Replies from guests will appear here.'}</p>`;
+    };
+    drawAct('all');
+    v.querySelectorAll('[data-actf]').forEach((b) => (b.onclick = () => {
+      v.querySelectorAll('[data-actf]').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', x === b); });
+      drawAct(b.dataset.actf);
+    }));
+    v.querySelectorAll('.hx-next [data-act]').forEach((b) => (b.onclick = (e) => act(e, b, v)));
 
     const sr = v.querySelector('#hxSearch'), so = v.querySelector('#hxSort');
     so.value = S.sort;
