@@ -120,9 +120,12 @@
     const ctx = { inv, motif, pal, title };
     const html = order.map((id) => (SECTIONS[id] ? SECTIONS[id](ctx) : '')).filter(Boolean).join('');
     const bg = url(inv.media.background);
+    // "full" (default): the uploaded background IS the card's background; "soft": faint texture.
+    document.body.classList.toggle('bg-full', !!bg && inv.design.bgMode !== 'soft');
+    document.documentElement.style.setProperty('--bgimg', bg ? `url("${bg.replace(/["\\]/g, '')}")` : 'none');
     app.innerHTML = `
       ${topBar(inv)}
-      ${bg ? `<div class="ix-bgimg" style="background-image:url('${esc(bg)}')" aria-hidden="true"></div>` : ''}
+      ${bg ? `<div class="ix-bgimg ${inv.design.bgMode === 'soft' ? '' : 'full'}" style="background-image:url('${esc(bg)}')" aria-hidden="true"></div>` : ''}
       ${motif.top ? `<div class="ix-toran" aria-hidden="true">${motif.top}</div>` : ''}
       <main id="main" class="ix-page ${S.opened ? 'opened' : ''}">${html}
         <footer class="ix-foot">${S.store && S.store.mode === 'local' && !isPreview ? `<p class="ix-demo">${esc(t('demoNote'))}</p>` : ''}<p>Made with InviteX</p></footer>
@@ -157,6 +160,13 @@
       </div></div>`;
   }
 
+  // Fine line icons drawn in the card's accent colour (instead of emoji), so the
+  // calendar and directions links look like part of the invitation.
+  const ICON = {
+    cal: '<svg class="ix-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/><circle cx="12" cy="15" r="1.3" class="f"/></svg>',
+    pin: '<svg class="ix-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-6.2-6.5-11.2a6.5 6.5 0 0 1 13 0C18.5 14.8 12 21 12 21z"/><circle cx="12" cy="9.8" r="2.4"/></svg>',
+    down: '<svg class="ix-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></svg>',
+  };
   const firstEvent = (inv) => (inv.events || []).find((e) => e.id === inv.mainEventId && e.date) || (inv.events || []).filter((e) => e.date).sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start))[0];
   const deco = (ctx) => (ctx.inv.design.decorations && ctx.motif.corner ? `<div class="ix-corner tl" aria-hidden="true">${ctx.motif.corner}</div><div class="ix-corner tr" aria-hidden="true">${ctx.motif.corner}</div>` : '');
   const decoB = (ctx) => (ctx.inv.design.decorations && ctx.motif.corner ? `<div class="ix-corner bl" aria-hidden="true">${ctx.motif.corner}</div><div class="ix-corner br" aria-hidden="true">${ctx.motif.corner}</div>` : '');
@@ -183,7 +193,7 @@
         ${motif.hero && !cover ? `<div class="ix-hero-art" aria-hidden="true">${motif.hero}</div>` : ''}
         ${cover ? `<div class="ix-hero-photo"><img src="${esc(cover)}" alt="" loading="eager" data-fb="parent"></div>` : ''}
         <div class="ix-hero-text">
-          ${logo ? `<img class="ix-logo" src="${esc(logo)}" alt="" data-fb="self">` : ''}
+          ${logo ? `<div class="ix-logo-wrap"><img class="ix-logo" src="${esc(logo)}" alt="" data-fb="self"></div>` : ''}
           ${S.guest ? `<p class="ix-greet">${esc(t('dear'))} ${esc(S.guest.name)},</p>` : ''}
           ${host ? `<p class="ix-kicker">${esc(host)}</p>` : ''}
           <h1 class="ix-title">${esc(ctx.title)}</h1>
@@ -241,16 +251,17 @@
               <h3>${esc(ev.name || t('invitation'))}</h3>
               ${ev.date ? `<p class="ix-when"><b>${esc(IX.fmtDate(ev.date, tz, S.lang, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: tz }))}</b>${ev.start ? ` · ${esc(IX.fmtTime(ev.date, ev.start, tz, S.lang))}${ev.end ? ' – ' + esc(IX.fmtTime(ev.endDate || ev.date, ev.end, tz, S.lang)) : ''}` : ''}</p>` : ''}
               ${local ? `<p class="ix-small">${esc(t('yourTime'))}: ${esc(local)} (${esc(IX.tzLabel(vtz))})</p>` : ''}
-              ${ev.venue || ev.address ? `<p class="ix-where">📍 ${esc(IX.venueText(ev))}</p>` : ''}
+              ${ev.venue || ev.address ? `<p class="ix-where">${ICON.pin}${esc(IX.venueText(ev))}</p>` : ''}
               ${ev.dressCode ? `<p class="ix-small">👗 ${esc(t('dressCode'))}: ${esc(ev.dressCode)}</p>` : ''}
               ${ev.notes ? `<p class="ix-small">${esc(ev.notes)}</p>` : ''}
-              ${isPrint ? '' : `<div class="ix-actions">
-                ${ev.date ? `<a class="ix-chip" target="_blank" rel="noopener" href="${esc(IX.googleCalendarUrl(inv, ev, link))}">📅 ${esc(t('googleCal'))}</a><button type="button" class="ix-chip" data-ics="${esc(ev.id)}">⬇ ${esc(t('icsFile'))}</button>` : ''}
-                ${ev.venue || ev.address || ev.mapUrl ? `<a class="ix-chip" target="_blank" rel="noopener" href="${esc(IX.mapsDirectionsUrl(ev))}">🧭 ${esc(t('directions'))}</a>` : ''}
+              ${isPrint || !(ev.date || ev.venue || ev.address || ev.mapUrl) ? '' : `<div class="ix-evlinks">
+                ${ev.date ? `<a class="ix-link" target="_blank" rel="noopener" href="${esc(IX.googleCalendarUrl(inv, ev, link))}">${ICON.cal}<span>${esc(t('saveDate'))}</span></a>` : ''}
+                ${ev.venue || ev.address || ev.mapUrl ? `<a class="ix-link" target="_blank" rel="noopener" href="${esc(IX.mapsDirectionsUrl(ev))}">${ICON.pin}<span>${esc(t('directions'))}</span></a>` : ''}
+                ${ev.date ? `<button type="button" class="ix-link ix-link-sub" data-ics="${esc(ev.id)}" title="${esc(t('icsFile'))}">${esc(t('otherCal'))}</button>` : ''}
               </div>`}
             </div></li>`;
         }).join('')}</ol>
-        ${evs.length > 1 && !isPrint ? `<button type="button" class="ix-btn ix-btn-ghost" data-ics="all">📅 ${esc(t('addCalendar'))} (${evs.length})</button>` : ''}`);
+        ${evs.length > 1 && !isPrint ? `<div class="ix-actions center"><button type="button" class="ix-btn ix-btn-ghost" data-ics="all">${ICON.down}${esc(t('addCalendar'))} · ${evs.length}</button></div>` : ''}`);
     },
     venue(ctx) {
       const { inv } = ctx;
@@ -261,8 +272,8 @@
         <p class="ix-venue-name">${esc(ev.venue)}</p>
         <p class="ix-muted">${esc([ev.address, [ev.city, ev.pin].filter(Boolean).join(' – ')].filter(Boolean).join(', '))}</p>
         ${embed ? `<div class="ix-map"><iframe title="Map: ${esc(ev.venue)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="${esc(IX.mapsEmbedUrl(ev))}"></iframe></div>` : ''}
-        ${isPrint ? '' : `<div class="ix-actions center"><a class="ix-btn ix-btn-primary" id="directionsBtn" target="_blank" rel="noopener" href="${esc(IX.mapsDirectionsUrl(ev))}">🧭 ${esc(t('directions'))}</a>
-        ${ev.date ? `<a class="ix-btn ix-btn-ghost" target="_blank" rel="noopener" id="gcalBtn" href="${esc(IX.googleCalendarUrl(inv, ev, isPreview ? '' : location.href.split('#')[0]))}">📅 ${esc(t('addCalendar'))}</a>` : ''}</div>`}`, 'ix-card');
+        ${isPrint ? '' : `<div class="ix-actions center"><a class="ix-btn ix-btn-primary" id="directionsBtn" target="_blank" rel="noopener" href="${esc(IX.mapsDirectionsUrl(ev))}">${ICON.pin}${esc(t('directions'))}</a>
+        ${ev.date ? `<a class="ix-btn ix-btn-ghost" target="_blank" rel="noopener" id="gcalBtn" href="${esc(IX.googleCalendarUrl(inv, ev, isPreview ? '' : location.href.split('#')[0]))}">${ICON.cal}${esc(t('saveDate'))}</a>` : ''}</div>`}`, 'ix-card');
     },
     highlights(ctx) {
       const list = (ctx.inv.highlights || []).filter((h) => h.title);

@@ -144,6 +144,11 @@
   /* ---------- new ---------- */
   H.routes.new = async () => {
     const inv = M.newInvitation('wedding');
+    // start with complete, matching wording so the card is never blank
+    if (window.IXWording) {
+      inv.tone = IXWording.tones('wedding')[0].id;
+      Object.assign(inv.text.en, IXWording.build('wedding', 'en', inv.tone));
+    }
     await H.store.saveInvitation(inv);
     H.go('#/edit/' + inv.id + '/1');
   };
@@ -257,6 +262,13 @@
       badge.textContent = 'Production'; badge.className = 'mode-badge prod';
       H.user = await H.store.getUser();
       H.store.sb.auth.onAuthStateChange((_e, session) => { H.user = session ? session.user : null; });
+    }
+    // Load every font the editor offers, so the font and design pickers show the real
+    // typefaces (before, they fell back to the system font and looked fake).
+    if (window.IXT && IXT.FONT_URL && !document.getElementById('ixFonts')) {
+      const l = document.createElement('link');
+      l.id = 'ixFonts'; l.rel = 'stylesheet'; l.href = IXT.FONT_URL;
+      document.head.appendChild(l);
     }
     window.addEventListener('hashchange', route);
     route();

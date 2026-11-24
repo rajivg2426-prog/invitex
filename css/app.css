@@ -277,3 +277,27 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 /* guest import preview */
 #impTbl tr.is-skip td { color: var(--muted); } #impTbl tr.is-skip .nm { text-decoration: line-through; } #impTbl tr.is-skip { background: #fdf1f1; }
 #impTbl .bad { color: #b3261e; font-weight: 600; } #impTbl .good { color: #1b7f4b; font-weight: 700; }
+
+/* ---- step guidance ---- */
+.step-guide{display:flex;gap:.6rem;align-items:baseline;flex-wrap:wrap;background:#fff8ec;border:1px solid #f0dcb4;border-radius:12px;padding:.65rem .9rem;margin-bottom:1rem;font-size:14px;color:var(--ink2)}
+.step-guide .sg-n{font-weight:700;color:var(--plum2);white-space:nowrap}
+
+/* ---- type of message ---- */
+.tone-pick .lbl{font-weight:700}
+.tone-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:.6rem}
+.tone{display:flex;flex-direction:column;gap:.3rem;text-align:left;padding:.75rem .85rem;border:1.5px solid var(--line);border-radius:12px;background:#fff;cursor:pointer;font:inherit;color:var(--ink2)}
+.tone b{font-size:15px;color:var(--ink)}
+.tone span{font-size:12.5px;color:var(--muted,#6b6b6b)}
+.tone i{font-size:13px;line-height:1.4}
+.tone:hover{border-color:var(--gold)}
+.tone.on{border-color:var(--plum2);box-shadow:0 0 0 3px color-mix(in srgb,var(--plum2) 18%,transparent);background:#fffaf5}
+details.more{border-top:1px dashed var(--line);padding-top:.6rem}
+details.more summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--plum2);margin-bottom:.6rem}
+
+/* ---- visual font picker ---- */
+.font-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:.5rem}
+.font-opt{display:flex;flex-direction:column;align-items:flex-start;gap:.2rem;padding:.6rem .75rem;border:1.5px solid var(--line);border-radius:10px;background:#fff;cursor:pointer;text-align:left;color:var(--ink)}
+.font-opt .fs{font-size:22px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.font-opt .fn{font:500 11.5px var(--font);color:#777}
+.font-opt.on{border-color:var(--plum2);box-shadow:0 0 0 3px color-mix(in srgb,var(--plum2) 18%,transparent)}
+.font-opt[data-font=head] .fs,.font-opt[data-font=body] .fs{font-size:18px}
