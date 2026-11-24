@@ -109,7 +109,7 @@ const ok = (t, cond, note = '') => { results.push([t, !!cond, note]); console.lo
   // personal link pre-fills the guest's name and number from the host's guest list
   const pg = await ctx.newPage(); await pg.goto(guestLink); await pg.waitForSelector('#openBtn'); await pg.click('#openBtn');
   await pg.waitForSelector('.ix-who', { state: 'attached' });
-  const pre = await pg.evaluate(() => [document.querySelector('.ix-who-name').innerText, document.querySelector('#rsvpForm [name=phone]').value, !!document.getElementById('r-phone'), document.querySelectorAll('#rsvpForm input:not([type=hidden])').length]);
+  const pre = await pg.evaluate(() => [document.querySelector('.ix-who-name').innerText, document.querySelector('#rsvpForm [name=phone]').value, !!document.getElementById('r-phone'), [...document.querySelectorAll('#rsvpForm input:not([type=hidden])')].filter((x) => !x.closest('details:not([open])')).length]);
   ok('TEST 3c: personal link knows the guest – no name/number to type, only the count + confirm', pre[0].includes('Rakesh Verma') && pre[1].replace(/\D/g, '').endsWith('9876543210') && !pre[2] && pre[3] === 1, JSON.stringify(pre));
   await pg.close();
   await host.waitForSelector('text=WhatsApp/email opened');

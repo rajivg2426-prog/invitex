@@ -20,7 +20,7 @@ const stub = r => r.fulfill({ status: 200, contentType: 'text/javascript', body:
   const info = await p.evaluate(async () => {
     const list = await H.store.listInvitations();
     const inv = list.find(i => i.category === 'wedding');
-    const d = new Date(Date.now() + 12 * 864e5).toISOString().slice(0, 10);
+    const d = new Intl.DateTimeFormat('en-CA', { timeZone: inv.timezone || 'Asia/Kolkata' }).format(new Date(Date.now() + 12 * 864e5)); // 12 days ahead in the invitation's own time zone
     inv.events[0].date = d; if (!inv.slug) inv.slug = 'home-test-wedding'; await H.store.publish(inv);
     for (const [n, ph] of [['Rakesh Verma', '9876543210'], ['Pooja Nair', '9811122233'], ['Imran Khan', '9822233344']]) await H.store.saveGuest({ invitationId: inv.id, name: n, phone: ph, allowed: 3 });
     const gs = await H.store.listGuests(inv.id);

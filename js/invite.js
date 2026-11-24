@@ -156,6 +156,7 @@
       <main id="main" class="ix-page ${S.opened ? 'opened' : ''}">${html}
         <footer class="ix-foot">${S.store && S.store.mode === 'local' && !isPreview ? `<p class="ix-demo">${esc(t('demoNote'))}</p>` : ''}<p>Made with InviteX</p></footer>
       </main>
+      ${rsvpFab(inv)}
       ${S.opened || !inv.design.sections.opening || isPrint ? '' : openerOverlay(inv)}
       <div class="ix-lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Photo viewer"></div>`;
     wire(ctx);
@@ -171,6 +172,24 @@
       ${langs.length > 1 ? `<div class="ix-langs" role="group" aria-label="Language">${langs.map((l) => `<button type="button" class="ix-lang ${l === S.lang ? 'on' : ''}" data-lang="${l}" aria-pressed="${l === S.lang}" lang="${l}">${esc(window.IX_LANGS[l] || l)}</button>`).join('')}</div>` : '<span></span>'}
       ${hasMusic ? `<button type="button" class="ix-music" id="musicBtn" aria-pressed="false" aria-label="${esc(t('music'))}: play"><span class="ix-eq" aria-hidden="true"><i></i><i></i><i></i></span><span class="ix-music-ic" aria-hidden="true">♪</span></button>` : ''}
     </div>`;
+  }
+
+  // A small "Reply" button that floats at the bottom on phones until the guest
+  // reaches the RSVP section or has replied. It is a plain link to the section.
+  function rsvpFab(inv) {
+    if (isPreview || isPrint || !shown(inv, 'rsvp') || !inv.settings.rsvpEnabled) return '';
+    return `<a class="ix-fab" id="rsvpFab" href="#sec-rsvp" hidden>${ICON.check}<span>${esc(t('rsvpNow'))}</span></a>`;
+  }
+  function wireFab() {
+    const fab = document.getElementById('rsvpFab'), hero = document.getElementById('sec-opening'), box = document.getElementById('sec-rsvp');
+    if (!fab || !box || !('IntersectionObserver' in window)) return;
+    const vis = { hero: !!hero, box: false };
+    const sync = () => { fab.hidden = !!(S.existing || S.lastRsvp) || vis.hero || vis.box || !S.opened && !!document.getElementById('opener'); };
+    const io = new IntersectionObserver((ents) => { ents.forEach((en) => { vis[en.target === box ? 'box' : 'hero'] = en.isIntersecting; }); sync(); }, { threshold: 0.05 });
+    if (hero) io.observe(hero);
+    io.observe(box);
+    S.fabSync = sync;
+    fab.onclick = (e) => { e.preventDefault(); box.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }); setTimeout(() => box.querySelector('.ix-yes, #changeBtn')?.focus({ preventScroll: true }), 500); };
   }
 
   function openerOverlay(inv) {
@@ -192,6 +211,13 @@
     cal: '<svg class="ix-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/><circle cx="12" cy="15" r="1.3" class="f"/></svg>',
     pin: '<svg class="ix-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-6.2-6.5-11.2a6.5 6.5 0 0 1 13 0C18.5 14.8 12 21 12 21z"/><circle cx="12" cy="9.8" r="2.4"/></svg>',
     down: '<svg class="ix-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></svg>',
+    phone: '<svg class="ix-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 3.5h2.6l1.3 4.2-1.9 1.4a11 11 0 0 0 6.3 6.3l1.4-1.9 4.2 1.3v2.6a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 4.6 5.7a2 2 0 0 1 2-2.2z"/></svg>',
+    chat: '<svg class="ix-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5l1.3-3.8A8 8 0 1 1 8.6 19z"/></svg>',
+    mobile: '<svg class="ix-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="2.2"/><path d="M11 17.5h2"/></svg>',
+    check: '<svg class="ix-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+    yes: '<svg class="ix-ic ix-ic-lg" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="20"/><path d="M15 24.5l6.5 6.5L34 18"/></svg>',
+    no: '<svg class="ix-ic ix-ic-lg" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="20"/><path d="M17 27c2 2.4 4.4 3.5 7 3.5s5-1.1 7-3.5M18 19.5h.01M30 19.5h.01"/></svg>',
+    maybe: '<svg class="ix-ic ix-ic-lg" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="20"/><path d="M24 13v11l7 4.5"/></svg>',
   };
   // In the editor's preview, lines of text are tagged so the host can click and type on the card itself.
   const ed = (key) => (isPreview ? ` data-edit="${key}"` : '');
@@ -233,7 +259,7 @@
       return `<section class="ix-hero" id="sec-opening" aria-label="${esc(ctx.title)}">
         ${deco(ctx)}
         ${motif.hero && !cover ? `<div class="ix-hero-art" aria-hidden="true">${motif.hero}</div>` : ''}
-        ${cover ? `<div class="ix-hero-photo"><img src="${esc(cover)}" alt="" loading="eager" data-fb="parent"></div>` : ''}
+        ${cover ? `<div class="ix-hero-photo"><img src="${esc(cover)}" alt="" loading="eager" fetchpriority="high" decoding="async" data-fb="parent"></div>` : ''}
         <div class="ix-hero-text">
           ${logo ? `<div class="ix-logo-wrap"><img class="ix-logo" src="${esc(logo)}" alt="" data-fb="self"></div>` : ''}
           ${S.guest ? `<p class="ix-greet">${esc(t('dear'))} ${esc(S.guest.name)},</p>` : ''}
@@ -297,7 +323,7 @@
               ${ev.date ? `<p class="ix-when"><b>${esc(IX.fmtDate(ev.date, tz, S.lang, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: tz }))}</b>${ev.start ? ` · ${esc(IX.fmtTime(ev.date, ev.start, tz, S.lang))}${ev.end ? ' – ' + esc(IX.fmtTime(ev.endDate || ev.date, ev.end, tz, S.lang)) : ''}` : ''}</p>` : ''}
               ${local ? `<p class="ix-small">${esc(t('yourTime'))}: ${esc(local)} (${esc(IX.tzLabel(vtz))})</p>` : ''}
               ${ev.venue || ev.address ? `<p class="ix-where">${ICON.pin}${esc(IX.venueText(ev))}</p>` : ''}
-              ${ev.dressCode ? `<p class="ix-small">👗 ${esc(t('dressCode'))}: ${esc(ev.dressCode)}</p>` : ''}
+              ${ev.dressCode ? `<p class="ix-small">${esc(t('dressCode'))}: ${esc(ev.dressCode)}</p>` : ''}
               ${ev.notes ? `<p class="ix-small">${esc(ev.notes)}</p>` : ''}
               ${noLinks || !(ev.date || ev.venue || ev.address || ev.mapUrl) ? '' : `<div class="ix-evlinks">
                 ${ev.date ? `<a class="ix-link" target="_blank" rel="noopener" href="${esc(IX.googleCalendarUrl(inv, ev, link))}">${ICON.cal}<span>${esc(t('saveDate'))}</span></a>` : ''}
@@ -330,7 +356,7 @@
       const g = (ctx.inv.media.gallery || []).filter((x) => url(x.ref));
       if (!g.length) return '';
       return sec('gallery', `${h2('gallery', t('gallery'))}${divider(ctx)}
-        <div class="ix-gallery">${g.map((x, i) => `<button type="button" class="ix-gitem" data-lb="${i}" aria-label="Open photo ${i + 1}${x.caption ? ': ' + esc(x.caption) : ''}"><img src="${esc(url(x.ref))}" alt="${esc(x.caption || '')}" loading="lazy" data-fb="parent"></button>`).join('')}</div>`);
+        <div class="ix-gallery">${g.map((x, i) => `<button type="button" class="ix-gitem" data-lb="${i}" aria-label="Open photo ${i + 1}${x.caption ? ': ' + esc(x.caption) : ''}"><img src="${esc(url(x.ref))}" alt="${esc(x.caption || '')}" loading="lazy" decoding="async" data-fb="parent"></button>`).join('')}</div>`);
     },
     media(ctx) {
       const v = url(ctx.inv.media.video), a = url(ctx.inv.media.voice);
@@ -353,7 +379,7 @@
       return sec('instructions', `${h2('instructions', t('instructions'))}${divider(ctx)}
         ${dress ? `<p><b>${esc(t('dressCode'))}:</b> ${esc(dress)}</p>` : ''}
         ${ins ? `<p>${IX.nl2br(ins)}</p>` : ''}${extra ? `<p class="ix-muted">${IX.nl2br(extra)}</p>` : ''}
-        ${c.name || c.phone ? `<div class="ix-contact"><span>${esc(t('contact'))}: <b>${esc(c.name || '')}</b></span>${c.phone && !isPrint ? `<a class="ix-chip" href="tel:${esc(IX.normPhone(c.phone) ? '+' + IX.normPhone(c.phone) : '')}">📞 ${esc(t('call'))}</a><a class="ix-chip" target="_blank" rel="noopener" href="${esc(IX.whatsappUrl('', c.phone))}">💬 WhatsApp</a>` : ''}</div>` : ''}`);
+        ${c.name || c.phone ? `<div class="ix-contact"><span>${esc(t('contact'))}: <b>${esc(c.name || '')}</b></span>${c.phone && !isPrint ? `<a class="ix-chip" href="tel:${esc(IX.normPhone(c.phone) ? '+' + IX.normPhone(c.phone) : '')}">${ICON.phone}${esc(t('call'))}</a><a class="ix-chip" target="_blank" rel="noopener" href="${esc(IX.whatsappUrl('', c.phone))}">${ICON.chat}WhatsApp</a>` : ''}</div>` : ''}`);
     },
     thankyou(ctx) {
       const msg = M.txt(ctx.inv, S.lang, 'thankyou') || t('thankyouMsg');
@@ -381,7 +407,7 @@
     const who = knownGuest();
     const known = !S.editWho && who.name.trim().length >= 2 && IX.validPhone(who.phone);
     const limit = (S.guest && S.guest.allowed) || s.maxPerInvite || 0;
-    const heads = ex.status === 'yes' ? (ex.adults || 0) + (ex.children || 0) : (S.guest && S.guest.allowed) || 1;
+    const heads = ex.status && ex.status !== 'no' ? (ex.adults || 0) + (ex.children || 0) || 1 : (S.guest && S.guest.allowed) || 1;
     const c = inv.contact || {};
     const host = String(M.txt(inv, S.lang, 'hostName') || c.name || '').trim().replace(/[.。।]+$/, '');
     const waYes = c.phone && !known && !isPreview
@@ -392,23 +418,48 @@
         ${known ? `
           <div class="ix-who">
             <p class="ix-who-name">${esc(t('dear'))} <b>${esc(who.name)}</b></p>
-            <p class="ix-small">📱 ${esc(IX.maskPhone(who.phone))} · <button type="button" class="ix-link" id="notMe">${esc(t('notYou'))}</button></p>
+            <p class="ix-small">${ICON.mobile}${esc(IX.maskPhone(who.phone))} · <button type="button" class="ix-link" id="notMe">${esc(t('notYou'))}</button></p>
             <input type="hidden" name="name" value="${esc(who.name)}"><input type="hidden" name="phone" value="${esc(who.phone)}">
           </div>` : `
           <div class="ix-field"><label for="r-name">${esc(t('name'))}</label><input class="ix-input" id="r-name" name="name" autocomplete="name" required maxlength="120" enterkeyhint="next" value="${esc(who.name)}"></div>
           <div class="ix-field"><label for="r-phone">${esc(t('mobile'))}</label><input class="ix-input" id="r-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required maxlength="20" placeholder="+91 98765 43210" enterkeyhint="done" value="${esc(who.phone)}"><span class="ix-small">${esc(t('autofillHint'))}</span></div>`}
         <input type="hidden" name="email" value="${esc(who.email)}">
-        ${S.existing ? `<p class="ix-notice">✔ ${esc(t('youReplied'))}: <b>${esc(t(ex.status === 'yes' ? 'yesShort' : ex.status === 'no' ? 'noShort' : 'maybe'))}</b></p>` : ''}
+        ${S.existing ? `<p class="ix-notice">${ICON.check} ${esc(t('youReplied'))}: <b>${esc(t(ex.status === 'yes' ? 'yesShort' : ex.status === 'no' ? 'noShort' : 'maybe'))}</b></p>` : ''}
         ${limit === 1 ? '<input type="hidden" name="adults" value="1">' : `
           <div class="ix-howmany"><span id="lbl-adults">${esc(t('howMany'))}</span>
             <div class="ix-stepper" role="group" aria-labelledby="lbl-adults"><button type="button" data-step="adults" data-d="-1" aria-label="−">−</button><input class="ix-input" type="number" inputmode="numeric" min="1" max="${limit || 50}" name="adults" value="${esc(limit ? Math.min(heads, limit) : heads)}" aria-labelledby="lbl-adults"><button type="button" data-step="adults" data-d="1" aria-label="+">+</button></div></div>`}
+        ${detailsHTML(inv, ex, limit)}
         <p class="ix-error" id="rsvpErr" role="alert" hidden></p>
-        <button class="ix-btn ix-btn-primary ix-submit ix-yes" type="button" data-status="yes" ${isPreview ? 'disabled title="RSVP is disabled in preview"' : ''}>✓ ${esc(t('confirmYes'))}</button>
-        <button class="ix-btn ix-btn-ghost ix-no" type="button" data-status="no" ${isPreview ? 'disabled' : ''}>${esc(t('confirmNo'))}</button>
+        <button class="ix-btn ix-btn-primary ix-submit ix-yes" type="button" data-status="yes" ${isPreview ? 'disabled title="RSVP is disabled in preview"' : ''}>${ICON.check}${esc(t('confirmYes'))}</button>
+        <div class="ix-alt">
+          <button class="ix-btn ix-btn-ghost ix-maybe" type="button" data-status="maybe" ${isPreview ? 'disabled' : ''}>${esc(t('confirmMaybe'))}</button>
+          <button class="ix-btn ix-btn-ghost ix-no" type="button" data-status="no" ${isPreview ? 'disabled' : ''}>${esc(t('confirmNo'))}</button>
+        </div>
         <p class="ix-small center ix-privacy">${esc(t('privacyNote', { host: host || t('theHost') }))}</p>
-        ${waYes ? `<p class="ix-small center ix-wa-alt">${esc(t('orWhatsApp'))} <a target="_blank" rel="noopener" href="${esc(waYes)}">💬 ${esc(t('replyWhatsApp'))}</a></p>` : ''}
+        ${waYes ? `<p class="ix-small center ix-wa-alt">${esc(t('orWhatsApp'))} <a target="_blank" rel="noopener" href="${esc(waYes)}">${esc(t('replyWhatsApp'))}</a></p>` : ''}
         ${isPreview ? '<p class="ix-small center">Preview – RSVP submission is disabled here.</p>' : ''}
       </form>`;
+  }
+
+  /* Optional extras under the one-tap buttons. Closed by default, so replying stays
+   * one tap; opened by itself when the guest already gave details earlier. */
+  const namedEvents = (inv) => (inv.events || []).filter((e) => e.name);
+  function detailsHTML(inv, ex, limit) {
+    const evs = namedEvents(inv);
+    const has = !!(ex.children || ex.food || ex.extraNames || ex.requirements || ex.message);
+    const picked = (id) => !ex.eventIds || !ex.eventIds.length || ex.eventIds.includes(id);
+    const foods = t('foodOpts') || {};
+    return `<details class="ix-more" id="rsvpMore" ${has ? 'open' : ''}>
+      <summary>${esc(t('addDetails'))}</summary>
+      <p class="ix-small">${esc(t('detailsHint'))}</p>
+      ${limit === 1 ? '' : `<div class="ix-howmany ix-kids"><span id="lbl-children">${esc(t('childrenOf'))}</span>
+        <div class="ix-stepper" role="group" aria-labelledby="lbl-children"><button type="button" data-step="children" data-d="-1" aria-label="−">−</button><input class="ix-input" type="number" inputmode="numeric" min="0" max="50" name="children" value="${esc(ex.children || 0)}" aria-labelledby="lbl-children"><button type="button" data-step="children" data-d="1" aria-label="+">+</button></div></div>`}
+      ${evs.length > 1 ? `<fieldset class="ix-field"><legend>${esc(t('whichEvents'))}</legend><div class="ix-evpick">${evs.map((e) => `<label class="ix-check"><input type="checkbox" name="eventIds" value="${esc(e.id)}" ${picked(e.id) ? 'checked' : ''}><span>${esc(e.name)}</span></label>`).join('')}</div></fieldset>` : ''}
+      <div class="ix-field"><label for="r-food">${esc(t('food'))}</label><select class="ix-input" id="r-food" name="food">${Object.entries(foods).map(([k, l]) => `<option value="${esc(k)}" ${(ex.food || '') === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>
+      ${limit === 1 ? '' : `<div class="ix-field"><label for="r-extra">${esc(t('extraNames'))}</label><input class="ix-input" id="r-extra" name="extraNames" maxlength="500" value="${esc(ex.extraNames || '')}"></div>`}
+      <div class="ix-field"><label for="r-req">${esc(t('requirements'))}</label><input class="ix-input" id="r-req" name="requirements" maxlength="500" value="${esc(ex.requirements || '')}"></div>
+      <div class="ix-field"><label for="r-msg">${esc(t('note'))}</label><textarea class="ix-input" id="r-msg" name="message" rows="3" maxlength="1000">${esc(ex.message || '')}</textarea></div>
+    </details>`;
   }
 
   function thanksHTML(r) {
@@ -418,14 +469,25 @@
     const host = S.inv.settings.whatsappToHost && c.phone
       ? `<a class="ix-btn ix-btn-ghost" target="_blank" rel="noopener" href="${esc(IX.whatsappUrl(`RSVP – ${M.txt(S.inv, 'en', 'title')}\nName: ${r.name}\nResponse: ${r.status.toUpperCase()}\nAttendees: ${r.adults + r.children}\nRef: ${r.ref}`, c.phone))}">💬 ${esc(t('sendToHost'))}</a>` : '';
     return `<div class="ix-thanks" tabindex="-1" id="thanks">
-      <div class="ix-thanks-ic" aria-hidden="true">${r.status === 'yes' ? '🎉' : r.status === 'no' ? '🙏' : '⏳'}</div>
+      <div class="ix-thanks-ic">${ICON[r.status] || ICON.yes}</div>
       <p class="ix-lead"><b>${esc(r.name)}</b>, ${esc(msg)}</p>
-      ${r.status === 'yes' ? `<p>${esc(t('total'))}: <b>${r.adults + r.children}</b></p>` : ''}
+      ${r.status !== 'no' ? `<p>${esc(t('total'))}: <b>${r.adults + r.children}</b>${r.children ? ` <span class="ix-small">(${esc(t('adults'))} ${r.adults} · ${esc(t('children'))} ${r.children})</span>` : ''}</p>` : ''}
+      ${r.status === 'yes' ? thanksLinks() : ''}
       <p class="ix-ref">${esc(t('ref'))}<br><b data-ref>${esc(r.ref)}</b></p>
       ${r.status === 'yes' ? `<div class="ix-qr">${IX.qrSVG('IVX:' + slug + ':' + r.ref, { size: 168, dark: '#111', light: '#fff' })}<p class="ix-small">${esc(t('showQR'))}</p></div>` : ''}
       <div class="ix-actions center">${host}<button type="button" class="ix-btn ix-btn-ghost" id="changeBtn">${esc(t('editResponse'))}</button></div>
       ${r.editToken ? `<details class="ix-editlink"><summary class="ix-small">${esc(t('editLinkShort'))}</summary><p class="ix-small">${esc(t('editLink'))}</p><div class="ix-copyrow"><input class="ix-input" readonly value="${esc(editUrl)}" aria-label="Private edit link"><button type="button" class="ix-btn ix-btn-ghost" data-copy="${esc(editUrl)}">${esc(t('copy'))}</button></div></details>` : ''}
     </div>`;
+  }
+
+  // After a "yes": the two things a guest needs next, right where they replied.
+  function thanksLinks() {
+    const inv = S.inv, ev = venueEvent(inv);
+    if (!ev) return '';
+    const link = IX.inviteUrl(slug);
+    const cal = ev.date ? `<a class="ix-link" target="_blank" rel="noopener" href="${esc(IX.googleCalendarUrl(inv, ev, link))}">${ICON.cal}<span>${esc(t('saveDate'))}</span></a>` : '';
+    const dir = ev.venue || ev.address || ev.mapUrl ? `<a class="ix-link" target="_blank" rel="noopener" href="${esc(IX.mapsDirectionsUrl(ev))}">${ICON.pin}<span>${esc(t('directions'))}</span></a>` : '';
+    return cal || dir ? `<div class="ix-evlinks ix-thanks-links">${cal}${dir}</div>` : '';
   }
 
   function wireRsvp() {
@@ -447,7 +509,9 @@
     const limit = (S.guest && S.guest.allowed) || S.inv.settings.maxPerInvite || 0;
     f.querySelectorAll('[data-step]').forEach((b) => (b.onclick = () => {
       const inp = f.elements[b.dataset.step];
-      inp.value = IX.clamp(IX.int(inp.value, 1) + IX.int(b.dataset.d), 1, limit || 50);
+      const min = b.dataset.step === 'children' ? 0 : 1;
+      const max = b.dataset.step === 'children' ? Math.max(0, IX.int(f.elements.adults && f.elements.adults.value, 1) - 1) : limit || 50;
+      inp.value = IX.clamp(IX.int(inp.value, min) + IX.int(b.dataset.d), min, max);
     }));
     let busy = false;
     const send = async (status, btn) => {
@@ -458,17 +522,22 @@
       err.hidden = true;
       const ex = S.existing || {};
       const fd = new FormData(f);
+      // "How many of you" is everyone coming; the optional children count is "of these".
+      const coming = status === 'no' ? 0 : IX.int(fd.get('adults'), 1);
+      const kids = status === 'no' || !fd.has('children') ? 0 : IX.clamp(IX.int(fd.get('children'), 0), 0, Math.max(0, coming - 1));
+      const val = (k, dflt) => (fd.has(k) ? String(fd.get(k) || '').trim() : dflt || '');
+      const evIds = fd.has('eventIds') || f.querySelector('[name=eventIds]') ? fd.getAll('eventIds') : null;
       const p = {
         name: String(fd.get('name') || '').trim(), phone: String(fd.get('phone') || '').trim(), email: String(fd.get('email') || ''), status,
-        adults: status === 'yes' ? IX.int(fd.get('adults'), 1) : 0, children: 0,
-        extraNames: ex.extraNames || '', food: ex.food || '', requirements: ex.requirements || '', message: ex.message || '',
-        eventIds: ex.eventIds && ex.eventIds.length ? ex.eventIds : (S.inv.events || []).filter((e) => e.name).map((e) => e.id),
+        adults: coming - kids, children: kids,
+        extraNames: val('extraNames', ex.extraNames), food: val('food', ex.food), requirements: val('requirements', ex.requirements), message: val('message', ex.message),
+        eventIds: evIds && evIds.length ? evIds : ex.eventIds && ex.eventIds.length ? ex.eventIds : namedEvents(S.inv).map((e) => e.id),
         consent: true, lang: S.lang,
       };
       if (p.name.length < 2) return showErr(t('needName'), f.elements.name.type === 'hidden' ? null : f.elements.name);
       if (!IX.validPhone(p.phone)) return showErr(t('invalidPhone'), f.elements.phone.type === 'hidden' ? null : f.elements.phone);
-      if (status === 'yes' && p.adults < 1) return showErr(t('needPeople'), f.adults);
-      if (status === 'yes' && limit && p.adults > limit) return showErr(t('maxParty', { n: limit }), f.adults);
+      if (status === 'yes' && coming < 1) return showErr(t('needPeople'), f.adults);
+      if (status !== 'no' && limit && coming > limit) return showErr(t('maxParty', { n: limit }), f.adults);
       busy = true;
       const label = btn.textContent;
       f.querySelectorAll('[data-status]').forEach((b) => (b.disabled = true));
@@ -488,6 +557,7 @@
       S.lastRsvp = { ...clean, ref: res.ref, editToken: res.editToken };
       S.existing = { ...clean, ref: res.ref };
       redraw();
+      S.fabSync && S.fabSync();
       document.getElementById('thanks')?.focus();
     };
     f.querySelectorAll('[data-status]').forEach((b) => (b.onclick = () => send(b.dataset.status, b)));
@@ -605,6 +675,7 @@
       els.forEach((e) => io.observe(e));
     }
     wireRsvp();
+    wireFab();
   }
 
   boot();
