@@ -382,6 +382,7 @@
       inv.tone = IXWording.tones(cat)[0].id;
       Object.assign(inv.text.en, IXWording.build(cat, 'en', inv.tone));
     }
+    await H.applyPrefs(inv);
     await H.store.saveInvitation(inv);
     H.go('#/edit/' + inv.id + '/1');
   };

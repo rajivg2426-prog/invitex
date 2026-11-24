@@ -627,3 +627,17 @@ tr[hidden] { display: none; }
 .wa-text { font: 14px/1.4 system-ui, -apple-system, "Segoe UI", "Noto Sans Devanagari", "Noto Sans Gurmukhi", sans-serif; color: #111b21; padding: .4rem .45rem 0; overflow-wrap: anywhere; }
 .wa-link { color: #027eb5; }
 .wa-time { position: absolute; right: .55rem; bottom: .3rem; font-size: 11px; color: #667781; }
+
+/* Settings */
+.st { max-width: 880px; margin: 0 auto; }
+.st-head h1 { margin-bottom: .2rem; }
+.st .tabs a.tab { text-decoration: none; }
+#stBody { display: grid; gap: 1rem; }
+.st-wa { max-width: 380px; }
+.st-wa .wa-bubble { margin-left: 0; padding-top: .2rem; }
+.st-inc { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .4rem 1rem; }
+.st-inc li { padding-left: 1.4rem; position: relative; }
+.st-inc li::before { content: ''; position: absolute; left: .2rem; top: .45em; width: .55rem; height: .3rem; border: solid var(--ok, #1f8a5b); border-width: 0 0 2px 2px; transform: rotate(-45deg); }
+.st-plan { gap: .9rem; }
+.st-plan .lbl, .st .lbl { display: block; font-size: 13px; font-weight: 600; color: var(--muted); }
+#acc > div:last-child { align-self: end; }
