@@ -375,6 +375,73 @@
     </article>`;
   }
 
+  /* ---------- charts from real replies ---------- */
+  const kids = (n) => `${n} ${n === 1 ? 'child' : 'children'}`;
+  const pct = (n, of) => (of ? Math.round((n / of) * 100) + '%' : '0%');
+  function donut(all) {
+    const seg = [['yes', all.yes, '#1f8a5b'], ['maybe', all.maybe, '#e0a000'], ['no', all.no, '#c2373f'], ['pend', all.pending, '#d6ccd9']];
+    const sum = seg.reduce((a, x) => a + x[1], 0);
+    let off = 0;
+    const arcs = sum ? seg.filter((x) => x[1]).map(([, n, c]) => { const p = (n / sum) * 100; const el = `<circle cx="21" cy="21" r="15.9" fill="none" stroke="${c}" stroke-width="5" stroke-dasharray="${p} ${100 - p}" stroke-dashoffset="${25 - off}"/>`; off += p; return el; }).join('') : '';
+    return `<svg class="hx-donut" viewBox="0 0 42 42" role="img" aria-label="RSVP status: ${all.yes} confirmed, ${all.maybe} not sure, ${all.no} declined, ${all.pending} pending">
+      <circle cx="21" cy="21" r="15.9" fill="none" stroke="#f1ebe4" stroke-width="5"/>${arcs}
+      <text x="21" y="20.5" text-anchor="middle" class="hx-donut-n">${all.invited || all.yes + all.no + all.maybe}</text><text x="21" y="25.5" text-anchor="middle" class="hx-donut-l">${all.invited ? 'invited' : 'replies'}</text></svg>`;
+  }
+  // replies per week for the last 8 weeks: "coming" vs other answers
+  function trend(items) {
+    const now = Date.now(), wk = 7 * 864e5;
+    const weeks = Array.from({ length: 8 }, (_, i) => ({ end: now - (7 - i) * wk, yes: 0, other: 0 }));
+    items.forEach((it) => it.rsvps.forEach((r) => {
+      const t = Date.parse(r.createdAt || r.updatedAt);
+      const i = 7 - Math.floor((now - t) / wk);
+      if (i >= 0 && i < 8) weeks[i][r.status === 'yes' ? 'yes' : 'other']++;
+    }));
+    const max = Math.max(1, ...weeks.map((w) => w.yes + w.other));
+    const total = weeks.reduce((a, w) => a + w.yes + w.other, 0);
+    const lbl = (w) => new Date(w.end).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    return `<div class="hx-trend" role="img" aria-label="${total} replies in the last 8 weeks">${weeks.map((w, i) => `<div class="hx-wk ${i === 7 ? 'now' : ''}" title="Week to ${esc(lbl(w))}: ${w.yes} coming, ${w.other} other">
+        <span class="hx-wk-bar"><i class="o" style="height:${(w.other / max) * 100}%"></i><i class="y" style="height:${(w.yes / max) * 100}%"></i></span>
+        ${w.yes + w.other ? `<b>${w.yes + w.other}</b>` : '<b class="z">0</b>'}<small>${i === 7 ? 'This week' : esc(lbl(w))}</small></div>`).join('')}</div>
+      <p class="hx-trend-leg"><span class="y"></span>Coming <span class="o"></span>Other replies · <b>${total}</b> in 8 weeks</p>`;
+  }
+
+  /* ---------- calendar with the host's event dates ---------- */
+  const CAL = { y: 0, m: 0, sel: '' };
+  function calEvents(items) {
+    const map = {};
+    items.forEach((it) => (it.inv.events || []).forEach((e) => { if (/^\d{4}-\d{2}-\d{2}$/.test(e.date || '')) (map[e.date] = map[e.date] || []).push({ e, it }); }));
+    return map;
+  }
+  function calendar(items) {
+    const map = calEvents(items);
+    if (!CAL.y) { const t = new Date(); CAL.y = t.getFullYear(); CAL.m = t.getMonth(); }
+    const first = new Date(Date.UTC(CAL.y, CAL.m, 1)), days = new Date(Date.UTC(CAL.y, CAL.m + 1, 0)).getUTCDate();
+    const lead = (first.getUTCDay() + 6) % 7; // weeks start on Monday
+    const today = todayIn();
+    const key = (d) => `${CAL.y}-${String(CAL.m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const cells = Array.from({ length: lead }, () => '<span></span>').concat(Array.from({ length: days }, (_, i) => {
+      const k = key(i + 1), has = map[k];
+      return `<button type="button" class="hx-cal-d ${k === today ? 'today' : ''} ${has ? 'has' : ''} ${k === CAL.sel ? 'sel' : ''}" data-cal="${k}" ${has ? `aria-label="${i + 1}: ${has.length} ${has.length === 1 ? 'event' : 'events'}"` : `aria-label="${i + 1}"`}>${i + 1}${has ? '<i></i>' : ''}</button>`;
+    }));
+    const month = first.toLocaleDateString('en-IN', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    // the list under the calendar: the selected day, else the next three events from today
+    const pick = CAL.sel && map[CAL.sel] ? map[CAL.sel] : Object.keys(map).filter((k) => k >= today).sort().flatMap((k) => map[k]).slice(0, 3);
+    return `<div class="hx-cal-h"><button type="button" class="hx-cal-nav" data-calm="-1" aria-label="Previous month">‹</button><b>${esc(month)}</b><button type="button" class="hx-cal-nav" data-calm="1" aria-label="Next month">›</button></div>
+      <div class="hx-cal-g" role="grid" aria-label="${esc(month)}">${['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((d) => `<span class="hx-cal-w">${d}</span>`).join('')}${cells.join('')}</div>
+      <ul class="hx-cal-list">${pick.length ? pick.map(({ e, it }) => `<li><a href="#/dash/${esc(it.inv.id)}/overview"><span class="hx-day"><b>${esc(IX.fmtDate(e.date, it.inv.timezone, 'en', { day: 'numeric', timeZone: it.inv.timezone }))}</b><small>${esc(IX.fmtDate(e.date, it.inv.timezone, 'en', { weekday: 'short', timeZone: it.inv.timezone }))}</small></span><span class="hx-ev-t"><b>${esc(e.name || H.title(it.inv))}</b><small>${esc(H.title(it.inv))}${e.start ? ' · ' + esc(IX.fmtTime(e.date, e.start, it.inv.timezone, 'en')) : ''}</small></span></a></li>`).join('') : '<li class="muted small">No events on this day.</li>'}</ul>`;
+  }
+  function wireCalendar(v) {
+    const box = v.querySelector('.hx-cal-card');
+    if (!box) return;
+    box.onclick = (e) => {
+      const m = e.target.closest('[data-calm]'), d = e.target.closest('[data-cal]');
+      if (m) { CAL.m += +m.dataset.calm; if (CAL.m < 0) { CAL.m = 11; CAL.y--; } if (CAL.m > 11) { CAL.m = 0; CAL.y++; } CAL.sel = ''; }
+      else if (d) CAL.sel = CAL.sel === d.dataset.cal ? '' : d.dataset.cal;
+      else return;
+      box.innerHTML = calendar(S.items);
+    };
+  }
+
   /* ---------- greeting ---------- */
   function greeting() {
     const h = new Date().getHours();
@@ -412,36 +479,69 @@
     const todo = attention(S.items);
     const evRows = eventRows(S.items);
     const maxHeads = Math.max(1, ...evRows.map((r) => Math.max(r.heads, r.it.st.invited ? r.it.st.invited : 0)));
-    const metric = (ic, label, val, sub) => `<div><dt>${icon(ic)}${label}</dt><dd>${val}</dd>${sub ? `<p>${sub}</p>` : ''}</div>`;
+    const tile = (ic, label, val, sub) => `<div><span class="hx-tile-ic">${icon(ic)}</span><dt>${label}</dt><dd>${val}</dd>${sub ? `<p>${sub}</p>` : ''}</div>`;
 
-    H.render(`<div class="hx">
-      <section class="hx-welcome ${next ? 'has-next' : ''}">
-        <div class="hx-welcome-txt">
-          <p class="hx-eyebrow">${esc(greeting())}</p>
-          <h1>Every occasion deserves an extraordinary invitation.</h1>
-          <p class="hx-lead">${next ? `Your next event, <b>${esc(H.title(next.inv))}</b>, is ${esc(countdown(next.info.days).toLowerCase())}.` : 'Design it, write it, share it on WhatsApp, and see who is coming, all in one place.'}</p>
-          <a class="btn primary lg" href="#/new">${icon('plus')}Create new invitation</a>
-        </div>
-        ${next ? nextCard(next) : ''}
-      </section>
+    const recent = S.items.flatMap((it) => it.rsvps.map((r) => ({ r, it }))).sort((x, y) => (y.r.updatedAt || '').localeCompare(x.r.updatedAt || ''));
+    const nav = [['dash', 'Dashboard', 'chart', '#hxTop'], ['invs', 'My invitations', 'send', '#hxListH'], ['guests', 'Guests & replies', 'users', '#hxIntelH'], ['events', 'Events', 'calendar', '#hxEvH'], ['replies', 'Recent replies', 'check', '#hxRepH'], ['activity', 'Activity', 'clock', '#hxActH']];
 
-      ${S.items.length ? `<dl class="hx-kpis" aria-label="Your numbers">
-        ${metric('send', 'Invitations', tot.inv, `${tot.pub} published · ${tot.inv - tot.pub} ${tot.inv - tot.pub === 1 ? 'draft' : 'drafts'}`)}
-        ${metric('users', 'People coming', all.attendees, all.attendees ? `${all.adults} adults · ${all.children} children` : 'From “yes” replies')}
-        ${metric('clock', 'Awaiting reply', all.pending, `of ${all.invited} on your guest lists`)}
-        ${metric('check', 'Response rate', tot.rate + '%', `${all.responses} ${all.responses === 1 ? 'reply' : 'replies'} so far`)}
-        ${metric('calendar', 'Events in 30 days', tot.soon, next ? `Next: ${esc(countdown(next.info.days).toLowerCase())}` : 'Nothing coming up')}
-      </dl>` : ''}
+    H.render(`<div class="hx hx3">
+      <nav class="hx-rail" aria-label="Dashboard">
+        <a class="btn primary" href="#/new">${icon('plus')}Create invitation</a>
+        <ul>${nav.map(([k, l, ic, href], i) => `<li><a href="${href}" data-jump class="${i === 0 ? 'on' : ''}">${icon(ic)}<span>${l}</span></a></li>`).join('')}</ul>
+        <ul class="hx-rail-sub"><li><a href="#/settings">${icon('spark')}<span>Settings</span></a></li><li><a href="#/help">${icon('open')}<span>Help</span></a></li></ul>
+      </nav>
 
-      <section class="hx-quick" aria-labelledby="hxQuickH">
-        <h2 id="hxQuickH" class="hx-h">Start with an occasion</h2>
-        <div class="hx-quick-row">
-          ${QUICK.map((q) => { const c = IXT.CATEGORIES.find((x) => x.id === q.cat) || {}; const t = IXT.THEMES[c.theme] || {}; const p = (t.palettes || [{}])[0]; return `<a class="hx-occ" href="#/new/${q.cat}" style="--o-bg:${esc(p.bg || '#fff')};--o-acc:${esc(p.accent || '#c9a15a')}"><span class="hx-occ-sw" aria-hidden="true"></span>${esc(q.label)}</a>`; }).join('')}
-          <a class="hx-occ more" href="#/new">All occasions</a>
-        </div>
-      </section>
+      <div class="hx-center">
+        <header class="hx-head" id="hxTop">
+          <div>
+            <p class="hx-eyebrow">${esc(greeting())}</p>
+            <h1>Every occasion deserves an extraordinary invitation.</h1>
+            <p class="hx-lead">${next ? `Your next event, <b>${esc(H.title(next.inv))}</b>, is ${esc(countdown(next.info.days).toLowerCase())}.` : 'Design it, write it, share it on WhatsApp, and see who is coming, all in one place.'}</p>
+          </div>
+          <a class="btn primary lg hx-head-cta" href="#/new">${icon('plus')}Create new invitation</a>
+        </header>
 
-      <div class="hx-cols">
+        ${S.items.length ? `<dl class="hx-tiles" aria-label="Your numbers">
+          ${tile('calendar', 'Upcoming events', evRows.length, `${tot.soon} in the next 30 days`)}
+          ${tile('users', 'Guests invited', all.invited, `${all.pending} not replied yet`)}
+          ${tile('check', 'People coming', all.attendees, `${all.adults} adults · ${kids(all.children)}`)}
+          ${tile('send', 'Invitations', tot.inv, `${tot.pub} published · ${tot.inv - tot.pub} ${tot.inv - tot.pub === 1 ? 'draft' : 'drafts'}`)}
+        </dl>` : ''}
+
+        <section class="hx-quick" aria-labelledby="hxQuickH">
+          <h2 id="hxQuickH" class="hx-h">Start with an occasion</h2>
+          <div class="hx-quick-row">
+            ${QUICK.map((q) => { const c = IXT.CATEGORIES.find((x) => x.id === q.cat) || {}; const t = IXT.THEMES[c.theme] || {}; const p = (t.palettes || [{}])[0]; return `<a class="hx-occ" href="#/new/${q.cat}" style="--o-bg:${esc(p.bg || '#fff')};--o-acc:${esc(p.accent || '#c9a15a')}"><span class="hx-occ-sw" aria-hidden="true"></span>${esc(q.label)}</a>`; }).join('')}
+            <a class="hx-occ more" href="#/new">All occasions</a>
+          </div>
+        </section>
+
+        ${S.items.length ? `<section class="hx-intel" aria-labelledby="hxIntelH">
+          <h2 id="hxIntelH" class="hx-h">Guests and replies</h2>
+          <div class="hx-charts">
+            <div class="hx-panel hx-donut-card">
+              <div class="hx-panel-h"><h3>RSVP status</h3><span class="tiny muted">All invitations</span></div>
+              <div class="hx-donut-wrap">${donut(all)}
+                <ul class="hx-legend">${[['yes', 'Confirmed', all.yes, `${all.attendees} people`], ['maybe', 'Not sure yet', all.maybe, ''], ['no', 'Declined', all.no, ''], ['pend', 'Pending', all.pending, 'not replied']].map(([k, l, n, sub]) => `<li class="${k}"><i></i><span>${l}<b>${n}</b>${sub ? `<small>${sub}</small>` : ''}</span><em>${pct(n, all.yes + all.maybe + all.no + all.pending)}</em></li>`).join('')}</ul>
+              </div>
+              <p class="hx-expect"><span>Expected attendees</span><b>${all.attendees}</b><small>${all.adults} adults · ${kids(all.children)} · from “yes” replies</small></p>
+            </div>
+            <div class="hx-panel">
+              <div class="hx-panel-h"><h3>Replies by week</h3><span class="tiny muted">Last 8 weeks</span></div>
+              ${trend(S.items)}
+            </div>
+          </div>
+          <div class="hx-panel">
+            <div class="hx-panel-h"><h3 id="hxEvH">Event-wise tracking</h3><span class="tiny muted">People coming to each upcoming event</span></div>
+            ${evRows.length ? `<ol class="hx-evs">${evRows.slice(0, 6).map((r) => `<li><a href="#/dash/${esc(r.it.inv.id)}/overview">
+              <span class="hx-day"><b>${esc(IX.fmtDate(r.e.date, r.it.inv.timezone, 'en', { day: 'numeric', timeZone: r.it.inv.timezone }))}</b><small>${esc(IX.fmtDate(r.e.date, r.it.inv.timezone, 'en', { month: 'short', timeZone: r.it.inv.timezone }))}</small></span>
+              <span class="hx-ev-t"><b>${esc(r.e.name || H.title(r.it.inv))}</b><small>${esc(H.title(r.it.inv))}${r.e.start ? ' · ' + esc(IX.fmtTime(r.e.date, r.e.start, r.it.inv.timezone, 'en')) : ''}${r.e.venue ? ' · ' + esc(r.e.venue) : ''}</small></span>
+              <span class="hx-ev-n"><span class="hx-ev-bar"><i style="width:${Math.round((r.heads / maxHeads) * 100)}%"></i></span><b>${r.heads}</b><small>${r.it.inv.status === 'published' ? 'coming' : 'draft'}</small></span>
+              <span class="hx-count ${r.days <= 7 ? 'soon' : ''}">${esc(countdown(r.days))}</span>
+            </a></li>`).join('')}</ol>${evRows.length > 6 ? `<p class="tiny muted" style="margin:.5rem 0 0">${evRows.length - 6} more upcoming ${evRows.length - 6 === 1 ? 'event' : 'events'} in the calendar.</p>` : ''}` : '<p class="muted small" style="margin:0">No upcoming events. Add a date to an invitation to track it here.</p>'}
+          </div>
+        </section>` : ''}
+
         <section class="hx-main" aria-labelledby="hxListH">
           <div class="hx-toolbar">
             <h2 id="hxListH" class="hx-h">My invitations</h2>
@@ -456,44 +556,54 @@
             </div>
           </div>
           <div id="hxList"></div>
-
-          ${S.items.length ? `<section class="hx-intel" aria-labelledby="hxIntelH">
-            <h2 id="hxIntelH" class="hx-h">Guests and replies</h2>
-            <div class="hx-panel">
-              <dl class="hx-rsvp">
-                <div class="yes"><dt>Confirmed</dt><dd>${all.yes}</dd><p>${all.attendees} ${all.attendees === 1 ? 'person' : 'people'}</p></div>
-                <div class="maybe"><dt>Not sure yet</dt><dd>${all.maybe}</dd><p>may come</p></div>
-                <div class="no"><dt>Declined</dt><dd>${all.no}</dd><p>can’t come</p></div>
-                <div class="pend"><dt>Pending</dt><dd>${all.pending}</dd><p>not replied</p></div>
-                <div class="tot"><dt>Expected attendees</dt><dd>${all.attendees}</dd><p>${all.adults} adults · ${all.children} children</p></div>
-              </dl>
-              ${replyBar(all)}
-            </div>
-            <div class="hx-panel">
-              <div class="hx-panel-h"><h3>Event-wise tracking</h3><span class="tiny muted">People coming to each upcoming event</span></div>
-              ${evRows.length ? `<ol class="hx-evs">${evRows.slice(0, 8).map((r) => `<li><a href="#/dash/${esc(r.it.inv.id)}/overview">
-                <span class="hx-day"><b>${esc(IX.fmtDate(r.e.date, r.it.inv.timezone, 'en', { day: 'numeric', timeZone: r.it.inv.timezone }))}</b><small>${esc(IX.fmtDate(r.e.date, r.it.inv.timezone, 'en', { month: 'short', timeZone: r.it.inv.timezone }))}</small></span>
-                <span class="hx-ev-t"><b>${esc(r.e.name || H.title(r.it.inv))}</b><small>${esc(H.title(r.it.inv))}${r.e.start ? ' · ' + esc(IX.fmtTime(r.e.date, r.e.start, r.it.inv.timezone, 'en')) : ''}${r.e.venue ? ' · ' + esc(r.e.venue) : ''}</small></span>
-                <span class="hx-ev-n"><span class="hx-ev-bar"><i style="width:${Math.round((r.heads / maxHeads) * 100)}%"></i></span><b>${r.heads}</b><small>${r.it.inv.status === 'published' ? 'coming' : 'draft'}</small></span>
-                <span class="hx-count ${r.days <= 7 ? 'soon' : ''}">${esc(countdown(r.days))}</span>
-              </a></li>`).join('')}</ol>${evRows.length > 8 ? `<p class="tiny muted" style="margin:.5rem 0 0">${evRows.length - 8} more upcoming ${evRows.length - 8 === 1 ? 'event' : 'events'}.</p>` : ''}` : '<p class="muted small" style="margin:0">No upcoming events. Add a date to an invitation to track it here.</p>'}
-            </div>
-          </section>` : ''}
         </section>
-        ${S.items.length ? `<aside class="hx-side" aria-label="Attention and activity">
-          <section aria-labelledby="hxTodoH">
-            <h2 id="hxTodoH" class="hx-h">Needs attention</h2>
-            ${todo.length ? `<ul class="hx-todo">${todo.map((x) => `<li class="${x.tone}"><span class="hx-todo-ic">${icon(x.tone === 'info' ? 'bell' : 'alert')}</span><span class="hx-todo-t">${x.text}</span><a class="btn sm" href="${esc(x.href)}">${esc(x.cta)}</a></li>`).join('')}</ul>` : `<p class="hx-allgood">${icon('check')}Nothing needs you right now.</p>`}
-          </section>
-          <section aria-labelledby="hxActH">
-            <div class="hx-act-head"><h2 id="hxActH" class="hx-h">Recent activity</h2>
-              <div class="hx-filters sm" role="group" aria-label="Show activity">${ACT_TABS.map(([k, l]) => `<button type="button" data-actf="${k}" aria-pressed="${k === 'all'}" class="${k === 'all' ? 'on' : ''}">${l}</button>`).join('')}</div></div>
-            <div id="hxAct"></div>
-          </section>
-          <button class="btn sm ghost" type="button" id="loadSamplesSide">Add sample invitations</button>
-        </aside>` : ''}
+
+        ${S.items.length ? `<section class="hx-panel hx-replies" aria-labelledby="hxRepH">
+          <div class="hx-panel-h"><h2 id="hxRepH" class="hx-h">Recent replies</h2>
+            <label class="hx-search sm">${icon('search')}<span class="sr-only">Search replies</span><input id="hxRepQ" type="search" placeholder="Search name, event or reference" autocomplete="off"></label></div>
+          <div id="hxRep"></div>
+        </section>` : ''}
       </div>
+
+      ${S.items.length ? `<aside class="hx-side" aria-label="Upcoming, attention and activity">
+        ${next ? nextCard(next) : ''}
+        <section class="hx-panel hx-cal-card" aria-label="Calendar">${calendar(S.items)}</section>
+        <section aria-labelledby="hxTodoH">
+          <h2 id="hxTodoH" class="hx-h">Needs attention</h2>
+          ${todo.length ? `<ul class="hx-todo">${todo.map((x) => `<li class="${x.tone}"><span class="hx-todo-ic">${icon(x.tone === 'info' ? 'bell' : 'alert')}</span><span class="hx-todo-t">${x.text}</span><a class="btn sm" href="${esc(x.href)}">${esc(x.cta)}</a></li>`).join('')}</ul>` : `<p class="hx-allgood">${icon('check')}Nothing needs you right now.</p>`}
+        </section>
+        <section aria-labelledby="hxActH">
+          <div class="hx-act-head"><h2 id="hxActH" class="hx-h">Recent activity</h2>
+            <div class="hx-filters sm" role="group" aria-label="Show activity">${ACT_TABS.map(([k, l]) => `<button type="button" data-actf="${k}" aria-pressed="${k === 'all'}" class="${k === 'all' ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+          <div id="hxAct"></div>
+        </section>
+        <button class="btn sm ghost" type="button" id="loadSamplesSide">Add sample invitations</button>
+      </aside>` : ''}
     </div>`);
+
+    // recent replies table (searchable)
+    const drawRep = (q) => {
+      const box = v.querySelector('#hxRep');
+      if (!box) return;
+      const s2 = (q || '').trim().toLowerCase();
+      const rows = recent.filter(({ r, it }) => !s2 || [r.name, r.ref, H.title(it.inv)].join(' ').toLowerCase().includes(s2)).slice(0, 8);
+      const word = { yes: 'Coming', no: 'Declined', maybe: 'Not sure' };
+      box.innerHTML = rows.length ? `<div class="tbl-wrap"><table class="tbl hx-tbl"><thead><tr><th>Reference</th><th>Date</th><th>Guest</th><th>Invitation</th><th class="num">People</th><th>Status</th></tr></thead><tbody>
+        ${rows.map(({ r, it }) => `<tr><td class="mono">${esc(r.ref || '—')}</td><td>${esc(new Date(r.updatedAt || r.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }))}</td><td><b>${esc(r.name || '')}</b></td><td><a href="#/dash/${esc(it.inv.id)}/responses">${esc(H.title(it.inv))}</a></td><td class="num">${r.status === 'no' ? 0 : (r.adults || 0) + (r.children || 0)}</td><td><span class="pill ${r.status}">${word[r.status] || r.status}</span></td></tr>`).join('')}
+        </tbody></table></div>` : `<p class="muted small" style="margin:0">${s2 ? 'No replies match.' : 'Replies from guests will appear here.'}</p>`;
+    };
+    drawRep('');
+    const rq = v.querySelector('#hxRepQ');
+    if (rq) rq.oninput = () => drawRep(rq.value);
+    // left menu: smooth jump to a section
+    v.querySelectorAll('[data-jump]').forEach((a) => (a.onclick = (e) => {
+      const t = v.querySelector(a.getAttribute('href'));
+      if (!t) return;
+      e.preventDefault();
+      v.querySelectorAll('[data-jump]').forEach((x) => x.classList.toggle('on', x === a));
+      t.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    }));
+    wireCalendar(v);
 
     const drawAct = (f) => {
       const box = v.querySelector('#hxAct');
