@@ -6,7 +6,7 @@
   const NSTEPS = STEPS.length;
   // One line per step telling the host what to do here and what comes next.
   const STEP_HELP = [
-    'Pick what you are celebrating and a design – let AI paint one for you, or upload your own artwork. You can change this later.',
+    'Pick what you are celebrating, then choose a ready design, upload your own, or let AI paint one. You can change this later.',
     'Choose a message style, then fill in the names, date and place. Tip: you can also click any line on the card preview and type right there.',
     'Pick your link name, publish, and send it on WhatsApp.',
   ];
@@ -213,54 +213,84 @@
     });
   }
 
-  /* ---------- Step 1: template ---------- */
+  /* ---------- Step 1: design ----------
+   * One clear question, "How would you like to design your card?", with three ways:
+   * a gallery of ready designs (drawn as small cards), upload your own design, or AI.
+   * Only the chosen way is shown, so nothing important is hidden far down the page. */
+  const SAMPLE_NAME = { wedding: 'Priya & Rohan', engagement: 'Ananya & Kabir', birthday: 'Riya turns 5', anniversary: '25 Happy Years', housewarming: 'Griha Pravesh', religious: 'Shri Satyanarayan Puja', festival: 'Family Get-together', corporate: 'Team Meeting', conference: 'Summit 2026', launch: 'Launch Day', school: 'Annual Day', farewell: 'Happy Retirement', community: 'Community Meet', custom: 'You are invited' };
+  const DESIGN_WAYS = [
+    ['ready', '🎨', 'Ready designs', 'Pick one of ours'],
+    ['own', '🖼️', 'Your own design', 'Upload a picture'],
+    ['ai', '✨', 'Design with AI', 'New art for you'],
+  ];
+  // A small drawing of a ready design, built from the same colours and illustrations as the real card.
+  function miniCard(id, inv, name) {
+    const t = IXT.THEMES[id], p = t.palettes[id === inv.theme ? inv.paletteIndex : 0] || t.palettes[0], mo = IXT.motif(t.motif, p);
+    return `<span class="mini mini-${t.motif}" style="--mbg:${p.bg};--mbg2:${p.bg2};--mtx:${p.text};--mac:${p.accent}" aria-hidden="true">
+      ${mo.top ? `<span class="mini-top">${mo.top}</span>` : ''}
+      ${mo.hero ? `<span class="mini-hero">${mo.hero}</span>` : ''}
+      ${mo.corner ? `<span class="mini-c tl">${mo.corner}</span><span class="mini-c tr">${mo.corner}</span>` : ''}
+      <span class="mini-txt"><small>You are invited</small><b style="font-family:'${t.fonts.script}',cursive">${esc(name)}</b><span class="mini-div">${mo.divider}</span><small>Sat · 14 Feb</small></span></span>`;
+  }
+
   function step1(body) {
     const inv = W.inv;
     if (W.bgUrl === undefined) { W.bgUrl = ''; if (inv.media.background) H.store.resolveMedia(inv.media.background).then((u) => { W.bgUrl = u || ''; if (W.step === 1 && u) step1(body); }); }
+    if (!W.way) W.way = inv.design.aiArt ? 'ai' : inv.media.background ? 'own' : 'ready';
+    const guide = body.querySelector('.step-guide')?.outerHTML || '';
     const cat = IXT.CATEGORIES.find((c) => c.id === inv.category);
     const themeIds = Object.keys(IXT.THEMES).sort((a, b) => (a === cat.theme ? -1 : b === cat.theme ? 1 : 0));
     const th = IXT.THEMES[inv.theme];
-    body.innerHTML = `<div class="card stack">
+    const name = M.txt(inv, inv.defaultLang, 'title') || SAMPLE_NAME[inv.category] || 'You are invited';
+    const hasPic = !!inv.media.background;
+    const picNote = hasPic && W.way === 'ready'
+      ? `<p class="notice small" style="margin:0">Your own picture is on the card now. Tap a ready design below to use it instead.</p>` : '';
+    const panels = {
+      ready: `${picNote}<div class="design-grid" role="radiogroup" aria-label="Ready designs">${themeIds.map((id) => {
+        const on = id === inv.theme && !hasPic;
+        return `<button type="button" class="design-pick ${on ? 'on' : ''}" role="radio" aria-checked="${on}" data-theme-pick="${id}">
+          ${miniCard(id, inv, name)}<span class="dp-name">${esc(IXT.THEMES[id].name)}${id === cat.theme ? '<small>Best for ' + esc(cat.name) + '</small>' : ''}</span>${on ? '<span class="dp-tick" aria-hidden="true">✓</span>' : ''}</button>`;
+      }).join('')}</div>`,
+      own: `<p class="small muted" style="margin:0">Use a card someone designed for you, a painting or a photo. It fills the whole card and your names, date and place are written on top.</p>
+        ${W.bgUrl ? `<div class="own-done"><div class="own-prev" style="background-image:url('${esc(W.bgUrl)}')" role="img" aria-label="Your card picture"></div>
+            <div class="stack" style="gap:.6rem"><b>✓ Your picture is on the card</b>
+              <label class="btn">⇄ Choose a different picture<input type="file" hidden accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" id="artIn"></label>
+              <button class="btn danger" id="artDel">✕ Remove it</button></div></div>
+            <div class="field"><span class="lbl">How should it look?</span><div class="seg" role="radiogroup"><label><input type="radio" name="bgMode" value="full" data-bgmode ${inv.design.bgMode !== 'soft' ? 'checked' : ''}>Full picture</label><label><input type="radio" name="bgMode" value="soft" data-bgmode ${inv.design.bgMode === 'soft' ? 'checked' : ''}>Faint, in the background</label></div></div>`
+          : `<label class="drop-zone"><input type="file" hidden accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" id="artIn">
+              <span class="dz-ic" aria-hidden="true">⬆</span><b>Tap to choose your picture</b><span class="small muted">JPG, PNG or WebP from your phone or computer</span></label>`}
+        <p class="tiny muted" style="margin:0">Tip: a tall picture works best. Leave some plain space in the middle so your words are easy to read. You can move and zoom it after choosing.</p>`,
+      ai: `<div class="stack ai-card" id="aiCard"></div>`,
+    };
+    body.innerHTML = `${guide}<div class="card stack">
       <h2>1. What are you celebrating?</h2>
-      <div class="cat-grid" role="radiogroup" aria-label="Event type">${IXT.CATEGORIES.map((c) => `<button type="button" class="cat ${c.id === inv.category ? 'on' : ''}" role="radio" aria-checked="${c.id === inv.category}" data-cat="${c.id}"><span class="ic" aria-hidden="true">${c.icon}</span>${esc(c.name)}</button>`).join('')}</div>
+      <div class="cat-grid cat-chips" role="radiogroup" aria-label="Event type">${IXT.CATEGORIES.map((c) => `<button type="button" class="cat ${c.id === inv.category ? 'on' : ''}" role="radio" aria-checked="${c.id === inv.category}" data-cat="${c.id}"><span class="ic" aria-hidden="true">${c.icon}</span>${esc(c.name)}</button>`).join('')}</div>
+    </div>
+    <div class="card stack" id="designCard">
+      <h2>2. How would you like to design your card?</h2>
+      <div class="ways" role="tablist" aria-label="Ways to design your card">${DESIGN_WAYS.map(([id, ic, t, s]) => `<button type="button" class="way ${W.way === id ? 'on' : ''}" role="tab" aria-selected="${W.way === id}" data-way="${id}"><span class="way-ic" aria-hidden="true">${ic}</span><b>${t}</b><small>${s}</small></button>`).join('')}</div>
+      <div class="way-panel stack" role="tabpanel">${panels[W.way]}</div>
     </div>
     <div class="card stack">
-      <div class="row between"><h2 style="margin:0">2. Choose a design</h2><button class="btn sm" data-theme-pick="minimal-ivory">Start from a blank design</button></div>
-      <div class="theme-grid" role="radiogroup" aria-label="Design template">${themeIds.map((id) => {
-        const t = IXT.THEMES[id], p = t.palettes[0], mo = IXT.motif(t.motif, p);
-        return `<button type="button" class="theme ${id === inv.theme ? 'on' : ''}" role="radio" aria-checked="${id === inv.theme}" data-theme-pick="${id}">
-          <div class="theme-sw" style="background:linear-gradient(135deg,${p.bg},${p.bg2});color:${p.accent}">${mo.corner || ''}<span class="tt" style="font-family:'${t.fonts.script}',serif">Aa</span></div>
-          <div class="theme-name">${esc(t.name)}${id === cat.theme ? '<small>Recommended</small>' : ''}</div></button>`;
-      }).join('')}</div>
-    </div>
-    <div class="card stack ai-card" id="aiCard"></div>
-    <div class="card stack">
-      <h2>3. Colour theme</h2>
+      <h2>3. Colours &amp; shape</h2>
       <div class="swatches" role="radiogroup" aria-label="Colour theme">${th.palettes.map((p, i) => `<button type="button" class="swatch ${i === inv.paletteIndex ? 'on' : ''}" role="radio" aria-checked="${i === inv.paletteIndex}" data-pal="${i}"><i style="background:linear-gradient(135deg,${p.bg} 50%,${p.accent} 50%)"></i>${esc(p.name)}</button>`).join('')}</div>
-      <p class="tiny muted">You can fine-tune any colour later in step 2, under “Fonts, colours &amp; sections”.</p>
-    </div>
-    <div class="card stack">
-      <h2>4. Layout</h2>
-      <div class="seg" role="radiogroup" aria-label="Layout">${['portrait', 'landscape', 'square'].map((l) => `<label><input type="radio" name="layout" value="${l}" ${inv.layout === l ? 'checked' : ''}>${l[0].toUpperCase() + l.slice(1)}</label>`).join('')}</div>
-      <p class="tiny muted">Portrait is best for WhatsApp on phones. Landscape suits desktop screens and corporate events.</p>
-    </div>
-    <div class="card stack" id="artCard"><h2>5. Have your own artwork? <span class="tiny muted">(optional)</span></h2>
-      <p class="small muted" style="margin:0">Upload a designed card background, a painting or a photo. It becomes the background of the whole card and your words are placed on top.</p>
-      <div class="row">${W.bgUrl ? `<div class="art-prev" style="background-image:url('${esc(W.bgUrl)}')"></div>` : ''}
-        <label class="btn ${W.bgUrl ? '' : 'primary'}">${W.bgUrl ? '⇄ Replace artwork' : '⬆ Upload artwork'}<input type="file" hidden accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" id="artIn"></label>
-        ${W.bgUrl ? '<button class="btn danger" id="artDel">✕ Remove</button>' : ''}</div>
-      ${W.bgUrl ? `<div class="field"><span class="lbl">How should it be used?</span><div class="seg" role="radiogroup"><label><input type="radio" name="bgMode" value="full" data-bgmode ${inv.design.bgMode !== 'soft' ? 'checked' : ''}>As the card background</label><label><input type="radio" name="bgMode" value="soft" data-bgmode ${inv.design.bgMode === 'soft' ? 'checked' : ''}>Faint texture only</label></div></div>` : ''}
+      <div class="seg" role="radiogroup" aria-label="Card shape">${[['portrait', 'Tall (best for phones)'], ['landscape', 'Wide'], ['square', 'Square']].map(([l, n]) => `<label><input type="radio" name="layout" value="${l}" ${inv.layout === l ? 'checked' : ''}>${n}</label>`).join('')}</div>
+      <p class="tiny muted" style="margin:0">You can fine-tune fonts and colours later in step 2.</p>
     </div>`;
-    body.querySelector('#artIn').onchange = async (e) => {
+    body.querySelectorAll('[data-way]').forEach((b) => (b.onclick = () => { W.way = b.dataset.way; step1(body); }));
+    const artIn = body.querySelector('#artIn');
+    if (artIn) artIn.onchange = async (e) => {
       const f = e.target.files[0]; if (!f) return;
       const ref = await IXMedia.addImage(f, { invId: inv.id, askCrop: true, aspect: '3:4', maxDim: 1800 });
       if (!ref) return;
       if (inv.media.background) await H.store.deleteMedia(inv.media.background).catch(() => {});
       inv.media.background = ref; inv.design.bgMode = 'full'; inv.design.aiArt = ''; W.bgUrl = await H.store.resolveMedia(ref);
       changed(); step1(body);
+      fetch(W.bgUrl).then((r) => r.blob()).then(matchPaletteTo).catch(() => {}); // light picture → dark text, and the other way round
+      IX.toast('Your picture is on the card. Tap Preview to see it.', 'ok', 4000);
     };
     const del = body.querySelector('#artDel');
-    if (del) del.onclick = async () => { await H.store.deleteMedia(inv.media.background).catch(() => {}); inv.media.background = ''; inv.design.aiArt = ''; W.bgUrl = ''; changed(); step1(body); };
+    if (del) del.onclick = () => { removePicture(); step1(body); };
     body.querySelectorAll('[data-bgmode]').forEach((r) => (r.onchange = () => { inv.design.bgMode = r.value; changed(); }));
     body.querySelectorAll('[data-cat]').forEach((b) => (b.onclick = () => {
       const c = IXT.CATEGORIES.find((x) => x.id === b.dataset.cat);
@@ -269,16 +299,25 @@
       if (untouched) inv.events = [M.newEvent(c.main || c.events[0])];
       // fresh wording for the new event type, unless the host has written their own
       if (window.IXStudio && IXStudio.untouched(inv)) { IXStudio.notes(inv).style = IXCopy.defaultStyle(c.id); inv.languages.forEach((l) => IXStudio.fillDefault(inv, l)); }
-      setTheme(c.theme);
-      IX.toast(`Design set to “${IXT.THEMES[c.theme].name}”. You can choose any other below.`);
+      if (!inv.media.background) { setTheme(c.theme); IX.toast(`Design set to “${IXT.THEMES[c.theme].name}”. You can pick any other below.`); }
       changed(); step1(body);
     }));
-    body.querySelectorAll('[data-theme-pick]').forEach((b) => (b.onclick = () => { setTheme(b.dataset.themePick); changed(); step1(body); }));
+    body.querySelectorAll('[data-theme-pick]').forEach((b) => (b.onclick = async () => {
+      // A ready design replaces the host's own or AI picture (AI designs stay in "earlier designs").
+      if (inv.media.background && !inv.design.aiArt && !(await H.confirm('Use this ready design?', 'Your own picture will be taken off the card. You can upload it again any time.', 'Use ready design'))) return;
+      if (inv.media.background) removePicture();
+      setTheme(b.dataset.themePick); changed(); step1(body);
+    }));
     body.querySelectorAll('[data-pal]').forEach((b) => (b.onclick = () => { inv.paletteIndex = +b.dataset.pal; Object.assign(inv.design, { textColor: '', bgColor: '', accentColor: '' }); changed(); step1(body); }));
     body.querySelectorAll('input[name=layout]').forEach((r) => (r.onchange = () => { inv.layout = r.value; changed(); }));
     renderAi(body);
   }
-
+  function removePicture() {
+    const inv = W.inv;
+    if (inv.media.background) H.store.deleteMedia(inv.media.background).catch(() => {});
+    inv.media.background = ''; inv.design.aiArt = ''; W.bgUrl = '';
+    changed();
+  }
   /* ---------- Design with AI (step 1) ----------
    * The user picks a ready style + colours (+ a few optional words). The server step
    * (supabase/functions/generate-card-art) builds the full prompt, paints 4 backgrounds
@@ -308,7 +347,7 @@
     const A = (W.ai = W.ai || { style: null, colors: 'auto', words: '', busy: false, results: [], recent: null, credits: null, error: '', picking: '' });
     const style = A.style || AI_FOR_CAT[inv.category] || 'royal';
     if (!store.aiAvailable) {
-      el.innerHTML = `<h2>✨ Or let AI paint your card</h2><p class="small muted" style="margin:0">AI designs work in the online version once you are signed in. In this demo copy, pick a design above or upload your own artwork below.</p>`;
+      el.innerHTML = `<h3 style="margin:0">✨ Let AI paint your card</h3><p class="small muted" style="margin:0">AI designs work in the online version once you are signed in. In this demo copy, choose “Ready designs” or “Your own design” above.</p>`;
       return;
     }
     if (A.credits === null) { A.credits = false; store.aiCredits().then((c) => { A.credits = c; renderAi(stepBody); }).catch(() => { A.credits = { left: null }; renderAi(stepBody); }); }
@@ -321,7 +360,7 @@
         <span class="ai-use">${A.picking === u ? 'Applying…' : inv.design.aiArt === u ? '✓ On your card' : 'Use this design'}</span></button>`;
     const older = (A.recent || []).filter((u) => !A.results.includes(u));
     el.innerHTML = `
-      <div class="row between"><h2 style="margin:0">✨ Or let AI paint your card</h2>
+      <div class="row between"><h3 style="margin:0">✨ Let AI paint your card</h3>
         <span class="pill ai-left" id="aiLeft">${left == null ? '' : none ? 'No free tries left' : `${left} free ${left === 1 ? 'try' : 'tries'} left`}</span></div>
       <p class="small muted" style="margin:0">Choose a style and colours. AI paints 4 new background designs just for you, and your names and details are placed on top.</p>
       <div class="field"><span class="lbl">Style</span>
@@ -332,7 +371,7 @@
       <label class="field"><span class="lbl">Anything special? <span class="tiny muted">(optional, a few words)</span></span>
         <input class="input" id="aiWords" maxlength="120" placeholder="e.g. elephants and lotus flowers, Ganesha motif, mountains" value="${esc(A.words)}"></label>
       <div class="row"><button class="btn primary" id="aiGo" ${A.busy || none ? 'disabled' : ''}>${A.busy ? 'Painting…' : A.results.length ? '✨ Paint 4 more designs' : '✨ Paint 4 designs'}</button>
-        <span class="tiny muted">${none ? 'You have used your free AI tries. You can still pick a design above or upload your own artwork.' : 'Each try paints 4 designs and takes about half a minute.'}</span></div>
+        <span class="tiny muted">${none ? 'You have used your free AI tries. You can still choose “Ready designs” or “Your own design” above.' : 'Each try paints 4 designs and takes about half a minute.'}</span></div>
       ${A.error ? `<p class="notice warn" role="alert" style="margin:0">${esc(A.error)}</p>` : ''}
       ${A.busy ? `<div class="ai-grid" aria-live="polite" aria-busy="true">${'<div class="ai-pick ai-wait"><span class="ai-img"></span></div>'.repeat(4)}</div><p class="small muted" style="margin:0;text-align:center">🎨 Painting your designs… please keep this page open.</p>` : ''}
       ${A.results.length && !A.busy ? `<div class="field"><span class="lbl">Tap a design to put it on your card</span><div class="ai-grid">${A.results.map(thumb).join('')}</div></div>` : ''}
