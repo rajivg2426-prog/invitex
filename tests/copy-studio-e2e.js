@@ -163,7 +163,18 @@ const ok = (t, c, n = '') => { if (!c) fails++; console.log((c ? 'PASS ' : 'FAIL
   await p.click('[data-cslang=en]'); await p.click('#csGen'); await p.waitForSelector('.cs-card');
   await p.locator('.cs-card').nth(0).locator('[data-line$=".message"] [data-act=pick]').click();
   ok('phone: no horizontal overflow', await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), String(await p.evaluate(() => document.documentElement.scrollWidth)));
+  await p.locator('.cs-card').nth(0).locator('[data-line$=".message"] [data-act=pick]').click(); // clear the mix again
+  await p.locator('.cs-card').nth(1).locator('[data-act=select]').click();
+  ok('Choose marks one version and shows a "Use" bar', (await p.locator('.cs-card.chosen').count()) === 1 && /Version B chosen/.test(await p.locator('.cs-mix').innerText()));
+  ok('phone: the "Use" bar stays on screen', await p.locator('#csSelUse').isVisible() && await p.evaluate(() => { const r = document.querySelector('#csSelUse').getBoundingClientRect(); const x = r.left + r.width / 2, y = r.top + r.height / 2; return r.top >= 0 && r.bottom <= window.innerHeight && document.elementFromPoint(x, y).closest('#csSelUse') !== null; }));
+  const chosenTop = (await p.locator('.cs-card').nth(1).locator('[data-line$=".familyName"] .cs-text').textContent()).trim();
+  await p.screenshot({ path: OUT + '/studio-mobile-chosen.png' });
+  await p.click('#csSelUse');
+  if (await p.locator('.modal').count()) await p.click('.modal-f >> text=Replace everything');
+  await p.waitForSelector('.cs-done');
   await p.screenshot({ path: OUT + '/studio-mobile.png', fullPage: true });
+  await p.click('#csBack2'); await p.waitForSelector('#tf-familyName');
+  ok('"Use version B" puts it on the card', (await field('familyName')) === chosenTop, await field('familyName'));
   await p.setViewportSize({ width: 1366, height: 900 });
 
   /* --- 11. older invitations open unchanged; the guest page never gets studio notes --- */
