@@ -120,7 +120,7 @@
     }
     if (!aiOn(store) && !notice) notice = store && store.aiWriteNote ? store.aiWriteNote : '';
     versions.forEach((v, i) => { v.letter = LETTERS[i]; v.style = c.style; v.length = c.length; v.lang = l; v.lineSource = {}; });
-    S.versions = versions; S.notice = notice; S.mix = {}; S.previewing = null;
+    S.versions = versions; S.notice = notice; S.mix = {}; S.previewing = null; S.selected = '';
   }
 
   async function regenerateLine(ctx, v, k) {
@@ -262,16 +262,19 @@
       <div class="row between cs-vh"><h3 style="margin:0">${S.versions.length} versions</h3>
         <div class="seg" role="radiogroup" aria-label="View"><button type="button" class="${compare ? '' : 'on'}" data-csview="cards" aria-checked="${!compare}" role="radio">Versions</button><button type="button" class="${compare ? 'on' : ''}" data-csview="compare" aria-checked="${compare}" role="radio">Compare line by line</button></div></div>
       ${compare ? `<div class="cs-compare">${C().FIELDS.map((k) => `<section class="cs-cmp"><h4>${FIELD_LABEL[k]}</h4>${S.versions.map((v) => `<div class="cs-cmp-i"><span class="cs-letter">${v.letter}</span>${lineHtml(v, k, l)}</div>`).join('')}</section>`).join('')}</div>`
-        : `<div class="cs-versions">${S.versions.map((v) => `<article class="cs-card ${S.previewing === v.id ? 'previewing' : ''}" data-v="${v.id}">
-          <header><span class="cs-letter">${v.letter}</span><span class="cs-ap">${esc(APPROACH_LABEL[v.approach] || 'Version ' + v.letter)}</span>${srcBadge(v)}</header>
+        : `<div class="cs-versions">${S.versions.map((v) => `<article class="cs-card ${S.previewing === v.id ? 'previewing' : ''} ${S.selected === v.id ? 'chosen' : ''}" data-v="${v.id}">
+          <header><span class="cs-letter">${v.letter}</span><span class="cs-ap">${esc(APPROACH_LABEL[v.approach] || 'Version ' + v.letter)}</span>${srcBadge(v)}
+            <button type="button" class="cs-choose ${S.selected === v.id ? 'on' : ''}" data-act="select" role="radio" aria-checked="${S.selected === v.id}" aria-label="Choose version ${v.letter}">${S.selected === v.id ? '✓ Chosen' : 'Choose'}</button></header>
           ${C().FIELDS.map((k) => lineHtml(v, k, l)).join('')}
           ${repeatWarn(v)}
-          <footer><button type="button" class="btn sm" data-act="preview">${S.previewing === v.id ? '● On the preview' : '👁 Preview on card'}</button><button type="button" class="btn sm primary" data-act="use">Use this version</button></footer>
+          <footer><button type="button" class="btn sm" data-act="preview">${S.previewing === v.id ? '● On the preview' : '👁 Preview on card'}</button><button type="button" class="btn sm primary" data-act="use">✓ Use this version on my card</button></footer>
         </article>`).join('')}</div>`}
-      <div class="cs-mix ${mixKeys.length ? 'on' : ''}" aria-live="polite">
+      <div class="cs-mix ${mixKeys.length || S.selected ? 'on' : ''}" aria-live="polite">
         ${mixKeys.length ? `<div><b>Your mix</b> <span class="tiny">${C().FIELDS.map((k) => `${FIELD_LABEL[k]}: ${S.mix[k] ? S.versions.find((v) => v.id === S.mix[k]).letter : '<i>from your card</i>'}`).join(' · ')}</span></div>
           <div class="row"><button type="button" class="btn sm" id="csMixPv">👁 Preview mix</button><button type="button" class="btn sm primary" id="csMixUse">Use my mix</button><button type="button" class="btn sm ghost" id="csMixClear">Clear</button></div>`
-          : '<span class="tiny muted">Tip: tap “+ Mix” on any line to combine lines from different versions.</span>'}
+          : S.selected && S.versions.some((v) => v.id === S.selected) ? `<div><b>Version ${S.versions.find((v) => v.id === S.selected).letter} chosen</b> <span class="tiny muted">Nothing changes on your card until you tap “Use”.</span></div>
+          <div class="row"><button type="button" class="btn sm" id="csSelPv">👁 Preview</button><button type="button" class="btn sm primary" id="csSelUse">✓ Use version ${S.versions.find((v) => v.id === S.selected).letter} on my card</button></div>`
+          : '<span class="tiny muted">Tap <b>Choose</b> on the version you like best, then <b>Use</b> it. Or tap “+ Mix” on single lines to combine versions.</span>'}
       </div>` : `<div class="cs-empty"><p>Choose a style and tap <b>Write ${c.count} versions</b>. Nothing on your card changes until you choose “Use”.</p></div>`}
       ${c.history.length ? `<details class="card cs-hist"><summary><b>Earlier wording</b> <span class="tiny muted">(${c.history.length}) – restore any previous version</span></summary><ul>${histItems}</ul></details>` : ''}
     </div>`;
@@ -309,6 +312,18 @@
       if (S.previewing === v.id) { S.previewing = null; ctx.preview(null); } else { S.previewing = v.id; ctx.preview(v.fields, S.lang); }
       rerender();
     }));
+    el.querySelectorAll('.cs-card [data-act="select"]').forEach((b) => (b.onclick = () => {
+      const v = vOf(b); S.selected = S.selected === v.id ? '' : v.id;
+      // on a wide screen the preview sits beside the studio; on a phone it would cover it, so only on request
+      if (S.selected && window.innerWidth >= 1000) { S.previewing = v.id; ctx.preview(v.fields, S.lang); }
+      rerender();
+    }));
+    const useSel = async () => {
+      const v = S.versions.find((x) => x.id === S.selected); if (!v) return;
+      if (await apply(ctx, v.fields, 'Version ' + v.letter, v.source)) { S.selected = ''; if (window.IX) IX.toast('Version ' + v.letter + ' is on your card', 'ok'); rerender(); }
+    };
+    if ($('#csSelUse')) $('#csSelUse').onclick = useSel;
+    if ($('#csSelPv')) $('#csSelPv').onclick = () => { const v = S.versions.find((x) => x.id === S.selected); if (v) { S.previewing = v.id; ctx.preview(v.fields, S.lang); rerender(); } };
     el.querySelectorAll('.cs-card [data-act="use"]').forEach((b) => (b.onclick = async () => {
       const v = vOf(b);
       if (await apply(ctx, v.fields, 'Version ' + v.letter, v.source)) { if (window.IX) IX.toast('Version ' + v.letter + ' is on your card', 'ok'); rerender(); }
