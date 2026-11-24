@@ -10,6 +10,8 @@ const ok = (t, cond, note = '') => { results.push([t, !!cond, note]); console.lo
   const ctx = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1366, height: 900 }, acceptDownloads: true });
   // block third-party popups like wa.me/calendar from actually loading
   await ctx.route(/wa\.me|calendar\.google|google\.com\/maps|maps\.google/, r => r.fulfill({ status: 200, body: 'stub' }));
+  // always test in Demo/Local mode (js/config.js now points at the live Supabase project)
+  await ctx.route(/js\/config\.js/, (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: "window.INVITEX_CONFIG={SUPABASE_URL:'',SUPABASE_ANON_KEY:'',DEFAULT_TIMEZONE:'Asia/Kolkata'};" }));
   const watch = (p, tag) => { p.on('pageerror', e => errs.push(tag + ' PAGEERR ' + e.message)); p.on('console', m => { if (m.type() === 'error' && !/maps|fonts|ERR_|403/.test(m.text())) errs.push(tag + ' ' + m.text()); }); };
   const host = await ctx.newPage(); watch(host, 'host');
   // test images
@@ -55,9 +57,17 @@ const ok = (t, cond, note = '') => { results.push([t, !!cond, note]); console.lo
   await host.click('[data-evact="copy.1"]');
   await host.click('#fpMessage > summary'); await host.waitForSelector('#rte');
   await host.click('#rte'); await host.keyboard.type('We joyfully invite you to our wedding.');
-  await host.selectOption('#aiStyle', 'royal'); await host.click('#aiGen'); await host.click('#aiIns');
+  // writing studio: a version is applied only after asking about lines typed by hand
+  await host.click('#msgStudio'); await host.waitForSelector('#csGen');
+  await host.click('[data-csstyle=royal]'); await host.click('#csGen'); await host.waitForSelector('.cs-card');
+  await host.locator('.cs-card').first().locator('[data-act=use]').click();
+  await host.waitForSelector('.modal');
+  const askTxt = await host.locator('.modal-b').innerText();
+  await host.click('.modal-f >> text=Keep my lines');
+  await host.waitForSelector('#csBack2'); await host.click('#csBack2');
+  await host.click('#fpMessage > summary'); await host.waitForSelector('#rte');
   const msgHtml = await host.locator('#rte').innerHTML();
-  ok('TEST 1b: AI assistant inserts without overwriting user text', msgHtml.includes('We joyfully invite you') && /families request the honour/.test(msgHtml));
+  ok('TEST 1b: writing studio asks first and keeps the text the host typed', /Main message/.test(askTxt) && msgHtml.includes('We joyfully invite you') && (await host.inputValue('#tf-hostName')) === 'The Malhotra & Sethi Families');
   await host.click('#fpLook > summary'); await host.waitForSelector('#secList');
   await host.click('#nextBtn'); await host.waitForSelector('#slug');
   await host.fill('#slug', 'kabir-ananya');

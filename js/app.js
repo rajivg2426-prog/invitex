@@ -145,7 +145,9 @@
   H.routes.new = async () => {
     const inv = M.newInvitation('wedding');
     // start with complete, matching wording so the card is never blank
-    if (window.IXWording) {
+    // (written for this invitation, so two new cards do not read the same)
+    if (window.IXStudio) IXStudio.fillDefault(inv, 'en');
+    else if (window.IXWording) {
       inv.tone = IXWording.tones('wedding')[0].id;
       Object.assign(inv.text.en, IXWording.build('wedding', 'en', inv.tone));
     }

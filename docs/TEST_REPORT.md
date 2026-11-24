@@ -62,9 +62,35 @@ One intermittent failure of TEST 10 (an edit not saved) was seen once during dev
 - **WhatsApp**: uses official `wa.me` click-to-chat. The host must press Send, and delivery cannot be confirmed. There is no bulk or automatic sending (that would need the paid WhatsApp Business API). In tests the wa.me page was stubbed and the generated URL and message were verified.
 - **Email**: `mailto:` links open the host's own mail app. There is no server-side email sending.
 - **Google Maps embed** was blocked by the test sandbox's network. The embed URL and the directions link were verified, but the map tiles were not seen rendering.
-- **Message assistant** uses built-in templates (offline, no API key). A cloud AI writer is not included.
+- **Writing studio AI writer**: tested with fake providers only (`tests/copy-function-test.mjs`). It has not been run against live Gemini/OpenAI/Anthropic. The built-in writer is used whenever the AI is off or fails.
 - **Audio/video** are uploaded as-is (browsers cannot compress them). Images are compressed.
 - **PDF** is made through the browser's *Print → Save as PDF* on a print-optimised page, not a generated PDF file.
 - **Section ordering** uses up/down buttons (keyboard accessible) rather than drag-and-drop.
 - **Rate limiting / captcha** on public RSVP submission is not included. See the hardening checklist in DEPLOYMENT.md.
 - Accessibility: keyboard navigation, focus trapping in dialogs, labels, `aria-live` messages and reduced-motion support were implemented and spot-checked. No full screen-reader audit was done.
+
+## 5. Writing studio (InviteX V2 wording)
+
+| Test | Result |
+|---|---|
+| `node tests/copy-engine-test.mjs`: 14 occasions × every offered style × 3 languages × 3 lengths (1,422 combinations, 4,266 versions) | 18,475 checks passed |
+| `node tests/copy-function-test.mjs`: server step with fake Supabase and AI | 40 passed |
+| `node tests/copy-studio-e2e.js`: studio in the browser (demo mode, fake AI) | all passed |
+| `node tests/ai-function-test.mjs`, `tests/ai-design-e2e.js`, `tests/rsvp-onetap.js` (existing) | all passed |
+
+The engine checks cover:
+- every line is filled, with no leftover `{tokens}`, "undefined" or doubled punctuation;
+- Hindi and Punjabi are written in their own script;
+- no wedding or religious words at business events, and no party words at a puja;
+- no religion appears unless the host chose one;
+- no phrase is repeated across lines of a version;
+- versions in one request differ (highest similarity 0.44 against a 0.5 limit);
+- names with special characters are escaped;
+- missing details are handled without inventing anything;
+- multiple events and traditions are handled;
+- the same seed gives the same result;
+- wording the host turned down is avoided;
+- lines are still not shared after 8 rounds;
+- AI answers with placeholders, links, invented numbers, the wrong script or near-duplicates are rejected.
+
+`tests/e2e.js` was updated for the writing studio (TEST 1b now checks that the studio asks before replacing typed text and keeps it). It still stops at TEST 7 (CSV export file name) and then times out. The same happens on `main` without these changes, because that test predates the 3-step editor and the one-tap RSVP. It needs a separate refresh.

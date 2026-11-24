@@ -88,6 +88,7 @@
   model.publicSnapshot = (inv) => {
     const s = IX.deepClone(inv);
     delete s.published;
+    delete s.copy; // writing-studio notes (history, personal note) are for the host only
     if (s.settings) delete s.settings.passwordHash;
     return s;
   };
@@ -350,6 +351,8 @@
       for (const x of data.rsvps || []) await this.put('rsvps', x);
     }
     get aiAvailable() { return false; } // AI designs need the online (Supabase) version
+    get aiWriteAvailable() { return false; } // the AI writer needs the online version; the built-in writer is used here
+    get aiWriteNote() { return 'AI writing works in the online version. These versions are from InviteX\u2019s built-in writer.'; }
     async wipe() { const db = await this.dbp; db.close(); await reqP(indexedDB.deleteDatabase(DB_NAME)); }
   }
   const blobToDataURL = (b) => new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(b); });
@@ -495,6 +498,28 @@
       const j = await res.json().catch(() => ({}));
       if (res.status === 404) throw Object.assign(new Error('The AI designer is not switched on yet (the server step has not been deployed).'), { code: 'not_configured' });
       if (!res.ok) throw Object.assign(new Error(j.error || 'The AI designer had a problem. Please try again.'), { code: j.code || 'error', used: j.used, limit: j.limit });
+      return j;
+    }
+    /* AI invitation writer (server step: supabase/functions/write-invitation-copy).
+     * Throws with .code: auth | limit | not_configured | network | timeout | error. The studio then uses the built-in writer. */
+    get aiWriteAvailable() { return !this._aiWriteOff; }
+    async aiWrite(payload) {
+      const { data } = await this.sb.auth.getSession();
+      const token = data.session && data.session.access_token;
+      if (!token) throw Object.assign(new Error('Please sign in again to use the AI writer.'), { code: 'auth' });
+      const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 60000);
+      let res;
+      try {
+        res = await fetch(`${CFG.SUPABASE_URL.replace(/\/$/, '')}/functions/v1/write-invitation-copy`, {
+          method: 'POST', signal: ctl.signal,
+          headers: { 'content-type': 'application/json', apikey: CFG.SUPABASE_ANON_KEY, authorization: `Bearer ${token}` },
+          body: JSON.stringify(payload),
+        });
+      } catch (e) { throw Object.assign(new Error(e.name === 'AbortError' ? 'The AI writer took too long.' : 'Could not reach the AI writer.'), { code: e.name === 'AbortError' ? 'timeout' : 'network' }); }
+      finally { clearTimeout(timer); }
+      const j = await res.json().catch(() => ({}));
+      if (res.status === 404 || j.code === 'not_configured') { this._aiWriteOff = true; throw Object.assign(new Error('The AI writer is not switched on yet.'), { code: 'not_configured' }); }
+      if (!res.ok) throw Object.assign(new Error(j.error || 'The AI writer had a problem.'), { code: j.code || 'error', left: j.left, limit: j.limit });
       return j;
     }
     // the user's earlier AI designs (newest first), so paid-for paintings are never lost

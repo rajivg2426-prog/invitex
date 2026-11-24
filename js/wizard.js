@@ -114,7 +114,10 @@
   const pushPreview = (opened) => {
     const f = document.getElementById('pvIframe');
     if (!f || !f.contentWindow || !W) return;
-    const msg = { type: 'ix-preview', inv: IX.deepClone(W.inv), lang: W.pvLang || W.lang };
+    const inv = IX.deepClone(W.inv);
+    // the writing studio can show a version on the card before it is used
+    if (W.pvWording) { inv.text[W.pvWording.lang] = Object.assign({}, inv.text[W.pvWording.lang], W.pvWording.fields); }
+    const msg = { type: 'ix-preview', inv, lang: W.pvWording ? W.pvWording.lang : W.pvLang || W.lang };
     if (opened === false) msg.opened = false;
     f.contentWindow.postMessage(msg, location.origin);
   };
@@ -264,8 +267,8 @@
       inv.category = c.id;
       const untouched = inv.events.every((e) => !e.date && !e.venue);
       if (untouched) inv.events = [M.newEvent(c.main || c.events[0])];
-      const keepWording = inv.tone && !wordingUntouched(inv);
-      if (!keepWording) applyTone(inv, IXWording.tones(c.id)[0].id, c.id);
+      // fresh wording for the new event type, unless the host has written their own
+      if (window.IXStudio && IXStudio.untouched(inv)) { IXStudio.notes(inv).style = IXCopy.defaultStyle(c.id); inv.languages.forEach((l) => IXStudio.fillDefault(inv, l)); }
       setTheme(c.theme);
       IX.toast(`Design set to “${IXT.THEMES[c.theme].name}”. You can choose any other below.`);
       changed(); step1(body);
@@ -388,21 +391,6 @@
       const i = pals.findIndex((p) => (lum(p.bg) > 0.55) === light);
       if (i >= 0) { W.inv.paletteIndex = i; Object.assign(W.inv.design, { textColor: '', bgColor: '', accentColor: '' }); changed(); if (W.step === 1) step1(document.getElementById('stepBody')); }
     } catch (e) { /* keep the current colours */ }
-  }
-  // Fill every wording field in one matching style ("type of message"), in all languages.
-  function applyTone(inv, tone, category = inv.category) {
-    inv.tone = tone;
-    inv.languages.forEach((l) => {
-      const w = IXWording.build(category, l, tone, { host: M.txt(inv, l, 'hostName'), title: M.txt(inv, l, 'title') });
-      TONE_FIELDS.forEach((k) => (inv.text[l][k] = w[k]));
-    });
-  }
-  // True when the wording is still exactly what the chosen style wrote (or empty).
-  function wordingUntouched(inv) {
-    return inv.languages.every((l) => {
-      const w = inv.tone ? IXWording.build(inv.category, l, inv.tone, { host: M.txt(inv, l, 'hostName'), title: M.txt(inv, l, 'title') }) : {};
-      return TONE_FIELDS.every((k) => { const cur = (inv.text[l][k] || '').trim(); return !cur || cur === (w[k] || '').trim(); });
-    });
   }
   function setTheme(id) {
     const t = IXT.THEMES[id];
@@ -543,30 +531,38 @@
   function langTabs(active, attr = 'data-lt') {
     return `<div class="ltabs" role="tablist">${W.inv.languages.map((l) => `<button type="button" role="tab" aria-selected="${l === active}" class="ltab ${l === active ? 'on' : ''}" ${attr}="${l}" lang="${l}">${esc(LANGS[l])}${l === W.inv.defaultLang ? ' ★' : ''}</button>`).join('')}</div>`;
   }
+  function openStudio(body) {
+    W.studio = true;
+    IXStudio.open(body, {
+      inv: W.inv, lang: W.lang, langs: LANGS, H, store: H.store,
+      changed: () => changed(),
+      preview: (fields, lang) => { W.pvWording = fields ? { fields, lang } : null; pushPreview(); if (fields && window.innerWidth < 1000) document.getElementById('pvPane')?.classList.add('open'); },
+      close: () => { W.studio = false; W.pvWording = null; pushPreview(); step3(body); body.scrollIntoView && body.scrollIntoView({ block: 'start' }); },
+    });
+  }
   function step3(body) {
+    if (W.studio && window.IXStudio) return openStudio(body);
     const inv = W.inv, L = W.lang;
     const cat = IXT.CATEGORIES.find((c) => c.id === inv.category);
     const tf = (k, label, ph = '', ta = false, req = false) => `<div class="field"><label for="tf-${k}">${esc(label)}${req ? ' *' : ''}</label>${ta ? `<textarea class="input" id="tf-${k}" lang="${L}" data-k="text.${L}.${k}" placeholder="${esc(ph)}" rows="3"></textarea>` : `<input class="input" id="tf-${k}" lang="${L}" data-k="text.${L}.${k}" placeholder="${esc(ph)}" ${req ? 'required' : ''}>`}${suggRow(k)}</div>`;
     const suggRow = (k) => {
       // lines covered by the "type of message" sets are not offered one by one any more
-      if (window.IXWording && TONE_FIELDS.includes(k)) return '';
+      if (window.IXStudio && TONE_FIELDS.includes(k)) return '';
       const list = window.IXSuggest ? IXSuggest.list(inv.category, L, k) : [];
       if (!list.length) return '';
       return `<div class="sugg" data-sugg="${k}"><span class="sugg-l">${IXSuggest.APPEND.includes(k) ? 'Tap to add:' : 'Suggestions:'}</span>${list.map((t, i) => `<button type="button" class="chip" data-sg="${k}.${i}" lang="${L}" title="Use this text">${esc(t)}</button>`).join('')}</div>`;
     };
     const tzs = TZ_CHOICES.some(([z]) => z === inv.timezone) ? TZ_CHOICES : [[inv.timezone, inv.timezone.replace(/_/g, ' ')], ...TZ_CHOICES];
-    const tones = window.IXWording ? IXWording.tones(inv.category, 'en') : [];
-    const tonePicker = tones.length ? `<div class="tone-pick">
-        <div class="lbl">What kind of message do you want to send?</div>
-        <p class="tiny muted" style="margin:.1rem 0 .6rem">Pick one and all the wording on your card is written in that same style, so it reads as one message. You can still change any line below.</p>
-        <div class="tone-grid" role="radiogroup" aria-label="Type of message">${tones.map((t) => {
-          const w = IXWording.build(inv.category, L, t.id);
-          return `<button type="button" class="tone ${inv.tone === t.id ? 'on' : ''}" role="radio" aria-checked="${inv.tone === t.id}" data-tone="${t.id}"><b>${esc(t.label)}</b><span lang="${L}">${esc(w.familyName)} · ${esc(w.subtitle)}</span><i lang="${L}">“${esc(w.welcome)}”</i></button>`;
-        }).join('')}</div></div>` : '';
+    const cn = window.IXStudio ? IXStudio.notes(inv) : null;
+    const st = cn && IXCopy.STYLE[cn.style];
+    const studioEntry = cn ? `<div class="cs-entry">
+        <div><b>Writing studio</b><span class="tiny muted">${st ? 'Current style: ' + esc(st.label.en) + ' · ' : ''}get 3–5 fresh versions of every line, compare, mix and edit</span></div>
+        <div class="row"><button type="button" class="btn primary" id="openStudio">✦ Write my wording</button>${cn.history.length ? '<button type="button" class="btn sm ghost" id="undoWording" title="Bring back the wording you had before">↶ Undo last change</button>' : ''}</div>
+      </div>` : '';
     body.innerHTML = `
       <div class="card stack"><h2>Words on your card</h2>
         ${langTabs(L)}
-        ${tonePicker}
+        ${studioEntry}
         <p class="tiny muted" style="margin:0">The fields are in the same order as they appear on the card, top to bottom.</p>
         ${tf('familyName', 'Small line at the top', 'e.g. Together with their families')}
         ${tf('title', cat.id === 'wedding' || cat.id === 'engagement' ? 'Names of the couple' : 'Event title', cat.id === 'wedding' ? 'Aarav & Diya' : 'e.g. Riya turns 5!', false, true)}
@@ -606,14 +602,20 @@
       </details>`;
     bind(body);
     const md = body.querySelector('.more-details'); if (md) md.addEventListener('toggle', () => (W.moreOpen = md.open));
-    // "type of message": rewrite every wording field at once, in one tone, in every language
-    body.querySelectorAll('[data-tone]').forEach((b) => (b.onclick = async () => {
-      const tone = b.dataset.tone;
-      const label = b.querySelector('b').textContent;
-      if (!wordingUntouched(inv) && !(await H.confirm(`Use the “${esc(label)}” wording?`, 'The top line, the line under the names, the welcome, the main message and the thank-you will be rewritten in this style (in every language you chose). Names, dates and venues stay as they are.', 'Use this wording'))) return;
-      applyTone(inv, tone);
-      changed(); step3(body); IX.toast('Wording updated – see the preview', 'ok');
-    }));
+    // writing studio
+    const os = body.querySelector('#openStudio');
+    if (os) os.onclick = () => { openStudio(body); body.scrollIntoView && body.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
+    const uw = body.querySelector('#undoWording');
+    if (uw) uw.onclick = async () => {
+      const c = IXStudio.notes(inv), h = c.history[0];
+      if (!h) return;
+      const cur = Object.fromEntries(IXCopy.FIELDS.map((k) => [k, inv.text[h.lang]?.[k] || '']));
+      Object.assign(inv.text[h.lang], h.fields);
+      c.history.shift();
+      c.history.unshift({ at: new Date().toISOString(), lang: h.lang, label: 'Before undo', fields: cur });
+      c.applied[h.lang] = Object.assign({}, h.fields);
+      changed(); step3(body); IX.toast('Previous wording is back', 'ok');
+    };
     // ready-made wording: fills an empty field; never overwrites typed text without asking
     body.querySelectorAll('[data-sg]').forEach((b) => (b.onclick = async () => {
       const [k, i] = b.dataset.sg.split('.');
@@ -636,10 +638,8 @@
       const l = c.dataset.langtoggle;
       if (c.checked) {
         inv.languages.push(l); inv.text[l] = Object.assign({}, M.newInvitation().text.en, inv.text[l] || {});
-        if (inv.tone && TONE_FIELDS.every((k) => !(inv.text[l][k] || '').trim())) {
-          const w = IXWording.build(inv.category, l, inv.tone, { host: M.txt(inv, l, 'hostName'), title: M.txt(inv, l, 'title') });
-          TONE_FIELDS.forEach((k) => (inv.text[l][k] = w[k]));
-        }
+        // write the new language's wording natively in it (not translated), if it is still empty
+        if (window.IXStudio && TONE_FIELDS.every((k) => !(inv.text[l][k] || '').trim())) IXStudio.fillDefault(inv, l);
       }
       else {
         if (inv.languages.length === 1) { c.checked = true; return IX.toast('At least one language is required', 'warn'); }
@@ -749,13 +749,9 @@
       </div>
       <p class="tiny muted">Typing in Hindi or Punjabi: use your phone keyboard's हिन्दी / ਪੰਜਾਬੀ layout, or a tool such as Google Input Tools on a computer. All Unicode languages are supported.</p>
     </div>
-    <div class="card stack">
-      <h2>✨ Try another style <span class="tiny muted">(optional)</span></h2>
-      <p class="small muted">See the message written in a different style. It is shown here first and <b>never replaces your text unless you choose to</b>.</p>
-      <div class="row"><select class="input" id="aiStyle" style="width:auto" aria-label="Type of message">${IXWording.tones(inv.category, 'en').map((t) => `<option value="${t.id}" ${t.id === inv.tone ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}</select>
-        <button class="btn" id="aiGen">Suggest wording (${esc(LANGS[L])})</button></div>
-      <div id="aiOut"></div>
-      <p class="tiny muted">The assistant uses built-in wording templates and works offline. A cloud AI writer can be plugged in for production (see docs).</p>
+    <div class="card cs-entry">
+      <div><b>Want different wording?</b><span class="tiny muted">The writing studio gives you 3–5 fresh versions of this message and every other line. Nothing changes until you choose.</span></div>
+      <button type="button" class="btn" id="msgStudio">✦ Open the writing studio</button>
     </div>`;
     const rte = body.querySelector('#rte');
     rte.innerHTML = IX.sanitizeHTML(inv.text[L].message || '');
@@ -771,19 +767,11 @@
     body.querySelector('[data-size]').onchange = (e) => { rte.focus(); if (e.target.value) document.execCommand('fontSize', false, e.target.value); e.target.value = ''; sync(); };
     body.querySelector('[data-color]').onchange = (e) => { rte.focus(); document.execCommand('foreColor', false, e.target.value); sync(); };
     body.querySelectorAll('[data-lt]').forEach((b) => (b.onclick = () => { W.lang = b.dataset.lt; W.pvLang = W.lang; step4(body); pushPreview(); }));
-    body.querySelector('#aiGen').onclick = () => {
-      const style = body.querySelector('#aiStyle').value;
-      const sug = IXWording.build(inv.category, L, style, { host: M.txt(inv, L, 'hostName'), title: M.txt(inv, L, 'title') }).message;
-      const styleName = body.querySelector('#aiStyle').selectedOptions[0].textContent;
-      const out = body.querySelector('#aiOut');
-      out.innerHTML = `<div class="suggest"><b>Suggestion (${esc(styleName)})</b><div class="body" lang="${L}">${IX.sanitizeHTML(sug)}</div>
-        <div class="row"><button class="btn sm primary" id="aiIns">Insert below my text</button><button class="btn sm" id="aiRep">Replace my text…</button><button class="btn sm ghost" id="aiNo">Discard</button></div></div>`;
-      out.querySelector('#aiIns').onclick = () => { rte.innerHTML += sug; sync(); out.innerHTML = ''; IX.toast('Suggestion added below your text', 'ok'); };
-      out.querySelector('#aiRep').onclick = async () => {
-        if (IX.htmlToText(rte.innerHTML) && !(await H.confirm('Replace your message?', 'Your current message in this language will be replaced by the suggestion. You can undo with Ctrl+Z immediately after.', 'Replace'))) return;
-        rte.focus(); document.execCommand('selectAll'); document.execCommand('insertHTML', false, sug); sync(); out.innerHTML = '';
-      };
-      out.querySelector('#aiNo').onclick = () => (out.innerHTML = '');
+    body.querySelector('#msgStudio').onclick = () => {
+      const words = document.getElementById('fpWords');
+      if (!words) return;
+      const d = document.getElementById('fpMessage'); if (d) d.open = false;
+      openStudio(words); words.scrollIntoView({ block: 'start', behavior: 'smooth' });
     };
   }
 
