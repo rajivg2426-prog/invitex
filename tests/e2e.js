@@ -160,8 +160,11 @@ const ok = (t, cond, note = '') => { results.push([t, !!cond, note]); console.lo
 
   /* TEST 8 & 9 */
   await mob.goto(BASE + 'invite.html?i=kabir-ananya'); await mob.click('#openBtn');
-  const dir = await mob.getAttribute('#directionsBtn', 'href');
-  const [mp] = await Promise.all([ctx.waitForEvent('page'), mob.click('#directionsBtn')]); const mpUrl = mp.url(); await mp.close();
+  // several events: each event in the schedule has its own directions link, the Venue section has none (no duplicates)
+  ok('TEST 8b: no duplicate directions/save-date buttons', (await mob.locator('#directionsBtn').count()) === 0 && (await mob.locator('#sec-schedule a[href*="google.com/maps/dir"]').count()) === (await mob.locator('.ix-event').count()));
+  const dirSel = '#sec-schedule a[href*="google.com/maps/dir"] >> nth=0';
+  const dir = await mob.getAttribute(dirSel, 'href');
+  const [mp] = await Promise.all([ctx.waitForEvent('page'), mob.click(dirSel)]); const mpUrl = mp.url(); await mp.close();
   ok('TEST 8: Directions opens Google Maps with venue', mpUrl.startsWith('https://www.google.com/maps/dir/?api=1&destination=') && decodeURIComponent(dir).includes('The Leela Palace'), mpUrl.slice(0, 110));
   const gc = await mob.getAttribute('.ix-event a[href*="calendar.google.com"]', 'href');
   const u = new URL(gc);

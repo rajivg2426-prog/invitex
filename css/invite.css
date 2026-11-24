@@ -330,3 +330,4 @@ body.is-preview [data-edit] { cursor: text; border-radius: 6px; outline: 1px das
 body.is-preview [data-edit]:hover { outline-color: color-mix(in srgb, var(--accent) 70%, transparent); }
 body.is-preview [data-edit]:focus { outline: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
 body.is-preview [data-edit][data-empty="1"]::before { content: 'Click to add text'; opacity: .45; font-style: italic; }
+.ix-venue-ics { text-align: center; margin: .3rem 0 0; }

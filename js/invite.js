@@ -202,6 +202,20 @@
   const sec = (id, inner, cls = '') => `<section class="ix-sec ix-sec-${id} reveal ${cls}" id="sec-${id}" aria-labelledby="h-${id}">${inner}</section>`;
   const h2 = (id, text) => `<h2 class="ix-h2" id="h-${id}">${esc(text)}</h2>`;
 
+  const shown = (inv, id) => !!inv.design.sections[id] && inv.design.sectionOrder.includes(id);
+  const schedEvents = (inv) => (inv.events || []).filter((e) => e.name || e.date);
+  const venueEvent = (inv) => firstEvent(inv) || (inv.events || [])[0];
+  // "Save the date" and "Get directions" appear once on the card. With a single
+  // event they sit in the Venue section as big buttons; with several events each
+  // event in the Schedule keeps its own links, and the Venue section just shows
+  // the address. If one of the two sections is switched off, the other has them.
+  const venueHasButtons = (inv) => {
+    const ev = venueEvent(inv);
+    if (!shown(inv, 'venue') || !ev || !(ev.venue || ev.address)) return false;
+    const evs = schedEvents(inv);
+    return !shown(inv, 'schedule') || !evs.length || (evs.length === 1 && evs[0] === ev);
+  };
+
   const SECTIONS = {
     opening(ctx) {
       const { inv, motif } = ctx;
@@ -266,13 +280,16 @@
     },
     schedule(ctx) {
       const { inv } = ctx;
-      const evs = (inv.events || []).filter((e) => e.name || e.date);
+      const evs = schedEvents(inv);
       if (!evs.length) return '';
       const tz = inv.timezone, vtz = IX.viewerTz();
+      const noLinks = isPrint || venueHasButtons(inv);
       const link = isPreview ? '' : location.href.split('#')[0];
       return sec('schedule', `${h2('schedule', t('schedule'))}${divider(ctx)}
         <ol class="ix-events">${evs.map((ev, i) => {
-          const local = ev.date && ev.start && vtz !== tz ? new Intl.DateTimeFormat(IX.locale(S.lang), { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: vtz }).format(IX.zonedToUtc(ev.date, ev.start, tz)) : '';
+          // Only show "your local time" when it really differs (browsers may name India's zone Asia/Calcutta).
+          const lf = (z) => new Intl.DateTimeFormat(IX.locale(S.lang), { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: z }).format(IX.zonedToUtc(ev.date, ev.start, tz));
+          const local = ev.date && ev.start && vtz !== tz && lf(vtz) !== lf(tz) ? lf(vtz) : '';
           return `<li class="ix-event">
             <div class="ix-event-dot" aria-hidden="true">${i + 1}</div>
             <div class="ix-event-body">
@@ -282,7 +299,7 @@
               ${ev.venue || ev.address ? `<p class="ix-where">${ICON.pin}${esc(IX.venueText(ev))}</p>` : ''}
               ${ev.dressCode ? `<p class="ix-small">👗 ${esc(t('dressCode'))}: ${esc(ev.dressCode)}</p>` : ''}
               ${ev.notes ? `<p class="ix-small">${esc(ev.notes)}</p>` : ''}
-              ${isPrint || !(ev.date || ev.venue || ev.address || ev.mapUrl) ? '' : `<div class="ix-evlinks">
+              ${noLinks || !(ev.date || ev.venue || ev.address || ev.mapUrl) ? '' : `<div class="ix-evlinks">
                 ${ev.date ? `<a class="ix-link" target="_blank" rel="noopener" href="${esc(IX.googleCalendarUrl(inv, ev, link))}">${ICON.cal}<span>${esc(t('saveDate'))}</span></a>` : ''}
                 ${ev.venue || ev.address || ev.mapUrl ? `<a class="ix-link" target="_blank" rel="noopener" href="${esc(IX.mapsDirectionsUrl(ev))}">${ICON.pin}<span>${esc(t('directions'))}</span></a>` : ''}
                 ${ev.date ? `<button type="button" class="ix-link ix-link-sub" data-ics="${esc(ev.id)}" title="${esc(t('icsFile'))}">${esc(t('otherCal'))}</button>` : ''}
@@ -293,13 +310,15 @@
     },
     venue(ctx) {
       const { inv } = ctx;
-      const ev = firstEvent(inv) || (inv.events || [])[0];
+      const ev = venueEvent(inv);
       if (!ev || !(ev.venue || ev.address)) return '';
+      const addr = IX.addressText(ev, ' – ');
       return sec('venue', `${h2('venue', t('venue'))}${divider(ctx)}
-        <p class="ix-venue-name">${esc(ev.venue)}</p>
-        <p class="ix-muted">${esc([ev.address, [ev.city, ev.pin].filter(Boolean).join(' – ')].filter(Boolean).join(', '))}</p>
-        ${isPrint ? '' : `<div class="ix-actions center"><a class="ix-btn ix-btn-primary" id="directionsBtn" target="_blank" rel="noopener" href="${esc(IX.mapsDirectionsUrl(ev))}">${ICON.pin}${esc(t('directions'))}</a>
-        ${ev.date ? `<a class="ix-btn ix-btn-ghost" target="_blank" rel="noopener" id="gcalBtn" href="${esc(IX.googleCalendarUrl(inv, ev, isPreview ? '' : location.href.split('#')[0]))}">${ICON.cal}${esc(t('saveDate'))}</a>` : ''}</div>`}`, 'ix-card');
+        ${ev.venue ? `<p class="ix-venue-name">${esc(ev.venue)}</p>` : ''}
+        ${addr ? `<p class="ix-muted">${esc(addr)}</p>` : ''}
+        ${isPrint || !venueHasButtons(inv) ? '' : `<div class="ix-actions center"><a class="ix-btn ix-btn-primary" id="directionsBtn" target="_blank" rel="noopener" href="${esc(IX.mapsDirectionsUrl(ev))}">${ICON.pin}${esc(t('directions'))}</a>
+        ${ev.date ? `<a class="ix-btn ix-btn-ghost" target="_blank" rel="noopener" id="gcalBtn" href="${esc(IX.googleCalendarUrl(inv, ev, isPreview ? '' : location.href.split('#')[0]))}">${ICON.cal}${esc(t('saveDate'))}</a>` : ''}</div>
+        ${ev.date ? `<p class="ix-venue-ics"><button type="button" class="ix-link ix-link-sub" data-ics="${esc(ev.id)}" title="${esc(t('icsFile'))}">${esc(t('otherCal'))}</button></p>` : ''}`}`, 'ix-card');
     },
     highlights(ctx) {
       const list = (ctx.inv.highlights || []).filter((h) => h.title);

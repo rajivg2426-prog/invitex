@@ -176,7 +176,15 @@
     out.push(s);
     return out.join('\r\n');
   };
-  IX.venueText = (ev) => [ev.venue, ev.address, [ev.city, ev.pin].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  // City and PIN, leaving out any part the host already typed into the address
+  // (so "Rangbari, Kota, Rajasthan 324005" + Kota + 324005 doesn't repeat them).
+  IX.cityPin = (ev, sep = ' ') => {
+    const addr = ' ' + String(ev.address || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ') + ' ';
+    const has = (v) => { const w = String(v || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim(); return !!w && addr.includes(' ' + w + ' '); };
+    return [ev.city, ev.pin].filter((v) => v && String(v).trim() && !has(v)).join(sep);
+  };
+  IX.addressText = (ev, sep = ' ') => [ev.address, IX.cityPin(ev, sep)].filter(Boolean).join(', ');
+  IX.venueText = (ev) => [ev.venue, IX.addressText(ev)].filter(Boolean).join(', ');
   IX.buildICS = (inv, events, url) => {
     const tz = inv.timezone || 'Asia/Kolkata';
     const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//InviteX//Digital Invitations//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
