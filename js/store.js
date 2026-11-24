@@ -66,7 +66,6 @@
         expiresAt: '',
         passwordProtected: false,
         passwordHash: '',
-        mapEmbed: true,
         whatsappToHost: false,
       },
     };

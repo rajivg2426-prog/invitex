@@ -782,7 +782,6 @@
         <div class="row"><label class="check"><input type="checkbox" id="pwOn" ${s.passwordProtected ? 'checked' : ''}> Password-protect this invitation</label><span class="pill ${s.passwordProtected ? 'ok' : ''}">${s.passwordProtected ? 'Password set' : 'Public link'}</span></div>
         <div class="row" id="pwRow" ${s.passwordProtected ? '' : 'hidden'}><input class="input" style="max-width:260px" id="pw" type="text" autocomplete="off" placeholder="${s.passwordProtected ? 'Enter a new password to change it' : 'Choose a password'}"><button class="btn sm" id="pwSet">Set password</button></div>
         <div class="field" style="max-width:260px"><label for="exp">Invitation expires on</label><input class="input" type="date" id="exp" data-k="settings.expiresAt"><span class="hint">After this date guests see “This invitation has expired”. Leave empty to never expire.</span></div>
-        <label class="check"><input type="checkbox" data-k="settings.mapEmbed"> Show an embedded Google Map of the venue</label>
         <p class="tiny muted">Guest mobile numbers are never shown on the invitation. Only you can see RSVP details in your dashboard.</p>
       </div></div></details>
 `;

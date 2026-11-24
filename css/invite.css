@@ -176,8 +176,6 @@ body.layout-square .ix-hero { min-height: min(100svh, 720px); }
 
 /* venue */
 .ix-venue-name { font: 600 1.4em/1.3 var(--f-head); margin: 0; }
-.ix-map { margin: 1.2rem 0; border-radius: 14px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); aspect-ratio: 16/10; background: var(--surface); }
-.ix-map iframe { width: 100%; height: 100%; border: 0; }
 
 /* highlights */
 .ix-highlights { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: .8rem; }
@@ -316,7 +314,7 @@ textarea.ix-input { resize: vertical; }
 @media print {
   @page { margin: 10mm; }
   body.ix-guest { background: var(--bg) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .ix-topbar, .ix-opener, .ix-scroll, .ix-actions, .ix-sec-rsvp, .ix-map, .ix-lightbox, .ix-foot, .ix-voice-btn, video, audio { display: none !important; }
+  .ix-topbar, .ix-opener, .ix-scroll, .ix-actions, .ix-sec-rsvp, .ix-lightbox, .ix-foot, .ix-voice-btn, video, audio { display: none !important; }
   .ix-page { box-shadow: none !important; margin: 0 auto !important; }
   .ix-hero { min-height: auto; page-break-after: always; padding-top: 3rem; }
   .ix-hero-art { position: relative; height: 260px; }

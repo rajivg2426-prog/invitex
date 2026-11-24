@@ -295,11 +295,9 @@
       const { inv } = ctx;
       const ev = firstEvent(inv) || (inv.events || [])[0];
       if (!ev || !(ev.venue || ev.address)) return '';
-      const embed = inv.settings.mapEmbed && !isPrint && navigator.onLine !== false;
       return sec('venue', `${h2('venue', t('venue'))}${divider(ctx)}
         <p class="ix-venue-name">${esc(ev.venue)}</p>
         <p class="ix-muted">${esc([ev.address, [ev.city, ev.pin].filter(Boolean).join(' – ')].filter(Boolean).join(', '))}</p>
-        ${embed ? `<div class="ix-map"><iframe title="Map: ${esc(ev.venue)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="${esc(IX.mapsEmbedUrl(ev))}"></iframe></div>` : ''}
         ${isPrint ? '' : `<div class="ix-actions center"><a class="ix-btn ix-btn-primary" id="directionsBtn" target="_blank" rel="noopener" href="${esc(IX.mapsDirectionsUrl(ev))}">${ICON.pin}${esc(t('directions'))}</a>
         ${ev.date ? `<a class="ix-btn ix-btn-ghost" target="_blank" rel="noopener" id="gcalBtn" href="${esc(IX.googleCalendarUrl(inv, ev, isPreview ? '' : location.href.split('#')[0]))}">${ICON.cal}${esc(t('saveDate'))}</a>` : ''}</div>`}`, 'ix-card');
     },
