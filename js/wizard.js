@@ -39,7 +39,8 @@
     H.render(`
       <div class="wiz-head">
         <div><h1 id="wTitle">${esc(H.title(inv))}</h1><span class="save-state" id="saveState" aria-live="polite">All changes saved</span></div>
-        <div class="row"><span class="pill ${inv.status}" id="wStatus"></span><a class="btn sm" href="#/dash/${esc(inv.id)}">📊 RSVP dashboard</a></div>
+        <div class="row"><div class="hist" role="group" aria-label="Undo and redo"><button type="button" class="btn sm ghost iconbtn" id="undoBtn" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>${H.icon ? H.icon('undo') : '↶'}</button><button type="button" class="btn sm ghost iconbtn" id="redoBtn" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" disabled>${H.icon ? H.icon('redo') : '↷'}</button></div>
+          <span class="pill ${inv.status}" id="wStatus"></span><a class="btn sm" href="#/dash/${esc(inv.id)}">📊 RSVP dashboard</a></div>
       </div>
       <div class="wiz">
         <div class="wiz-main">
@@ -77,9 +78,19 @@
       if (e.data?.type === 'ix-edit-focus') focusField(e.data.key, e.data.lang, e.data.inline);
     };
     window.addEventListener('message', onMsg);
+    histInit();
+    v.querySelector('#undoBtn').onclick = undo;
+    v.querySelector('#redoBtn').onclick = redo;
+    const onKey = (e) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.key.toLowerCase() !== 'z' && e.key.toLowerCase() !== 'y') return;
+      const t = e.target; if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return; // let fields undo their own typing
+      e.preventDefault();
+      if (e.key.toLowerCase() === 'y' || e.shiftKey) redo(); else undo();
+    };
+    document.addEventListener('keydown', onKey);
     const onLeave = (e) => { if (W && W.dirty) { e.preventDefault(); e.returnValue = ''; } };
     window.addEventListener('beforeunload', onLeave);
-    H.cleanup.push(() => { window.removeEventListener('message', onMsg); window.removeEventListener('beforeunload', onLeave); if (W && W.dirty) save(); });
+    H.cleanup.push(() => { window.removeEventListener('message', onMsg); window.removeEventListener('beforeunload', onLeave); document.removeEventListener('keydown', onKey); if (W && W.hist) clearTimeout(W.hist.timer); const w = W; (w && w.dirty ? save() : Promise.resolve()).then(() => emptyTrash(w)); });
     v.querySelectorAll('[data-step]').forEach((b) => (b.onclick = () => goStep(+b.dataset.step)));
     v.querySelector('#prevBtn').onclick = () => goStep(W.step - 1);
     v.querySelector('#nextBtn').onclick = () => (W.step < NSTEPS ? goStep(W.step + 1) : publish());
@@ -143,12 +154,57 @@
   }
   function changed(rerenderTitle = true, preview = true) {
     W.dirty = true;
+    histSoon();
     const st = document.getElementById('saveState');
     if (st) st.textContent = 'Unsaved changes…';
     if (rerenderTitle) { const t = document.getElementById('wTitle'); if (t) t.textContent = H.title(W.inv); }
     debouncedSave();
     if (preview) debouncedPreview();
   }
+  /* ---------- undo / redo ----------
+   * Every change is snapshotted (after a short pause, so a typed word is one step).
+   * Files taken off the card are only deleted when the host leaves the editor, so
+   * undo can always bring a photo back. */
+  const HIST_MAX = 60;
+  const KEEP = ['id', 'status', 'published', 'publishedAt', 'createdAt', 'updatedAt'];
+  const snap = (inv) => { const o = { ...inv }; KEEP.forEach((k) => delete o[k]); return JSON.stringify(o); };
+  function histInit() { W.hist = { past: [], future: [], last: snap(W.inv), timer: 0 }; W.trash = new Set(); }
+  function histRecord() {
+    const h = W && W.hist; if (!h || W.applying) return;
+    clearTimeout(h.timer); h.timer = 0;
+    const s = snap(W.inv);
+    if (s === h.last) return;
+    h.past.push(h.last); if (h.past.length > HIST_MAX) h.past.shift();
+    h.last = s; h.future = [];
+    histButtons();
+  }
+  const histSoon = () => { const h = W && W.hist; if (!h || W.applying) return; clearTimeout(h.timer); h.timer = setTimeout(histRecord, 600); };
+  function histApply(s) {
+    const o = JSON.parse(s);
+    Object.keys(W.inv).forEach((k) => { if (!KEEP.includes(k)) delete W.inv[k]; });
+    Object.assign(W.inv, o);
+    normalise(W.inv);
+    if (!W.inv.languages.includes(W.lang)) W.lang = W.inv.defaultLang;
+    W.bgUrl = undefined; W.pvWording = null;
+    W.applying = true; changed(); W.applying = false;
+    goStep(W.step); pushPreview(); histButtons();
+  }
+  function undo() { histRecord(); const h = W.hist; if (!h.past.length) return; h.future.push(h.last); h.last = h.past.pop(); histApply(h.last); IX.toast('Undone'); }
+  function redo() { histRecord(); const h = W.hist; if (!h.future.length) return; h.past.push(h.last); h.last = h.future.pop(); histApply(h.last); IX.toast('Redone'); }
+  function histButtons() {
+    const u = document.getElementById('undoBtn'), r = document.getElementById('redoBtn');
+    if (u) u.disabled = !W.hist.past.length && snap(W.inv) === W.hist.last;
+    if (r) r.disabled = !W.hist.future.length;
+  }
+  // Take a file off the card now; delete it for good only when it is no longer used on leaving.
+  function discard(ref) { if (ref && W) W.trash.add(ref); return Promise.resolve(); }
+  function emptyTrash(w) {
+    if (!w || !w.trash || !w.trash.size) return;
+    const used = new Set(M.mediaRefs(w.inv));
+    w.trash.forEach((ref) => { if (!used.has(ref)) H.store.deleteMedia(ref).catch(() => {}); });
+    w.trash.clear();
+  }
+
   const TEXT_KEYS = ['title', 'subtitle', 'hostName', 'familyName', 'welcome', 'message', 'instructions', 'extraInfo', 'thankyou'];
   // Show (and for the main message, open) the form field matching a line clicked on the card.
   function focusField(key, lang, inline) {
@@ -237,6 +293,7 @@
     const inv = W.inv;
     if (W.bgUrl === undefined) { W.bgUrl = ''; if (inv.media.background) H.store.resolveMedia(inv.media.background).then((u) => { W.bgUrl = u || ''; if (W.step === 1 && u) step1(body); }); }
     if (!W.way) W.way = inv.design.aiArt ? 'ai' : inv.media.background ? 'own' : 'ready';
+    if (!W.galTab) W.galTab = IXGallery.TAB_FOR_CAT[inv.category] || 'all';
     const guide = body.querySelector('.step-guide')?.outerHTML || '';
     const cat = IXT.CATEGORIES.find((c) => c.id === inv.category);
     const themeIds = Object.keys(IXT.THEMES).sort((a, b) => (a === cat.theme ? -1 : b === cat.theme ? 1 : 0));
@@ -246,10 +303,13 @@
     const picNote = hasPic && W.way === 'ready'
       ? `<p class="notice small" style="margin:0">Your own picture is on the card now. Tap a ready design below to use it instead.</p>` : '';
     const panels = {
-      ready: `${picNote}<div class="design-grid" role="radiogroup" aria-label="Ready designs">${themeIds.map((id) => {
-        const on = id === inv.theme && !hasPic;
-        return `<button type="button" class="design-pick ${on ? 'on' : ''}" role="radio" aria-checked="${on}" data-theme-pick="${id}">
-          ${miniCard(id, inv, name)}<span class="dp-name">${esc(IXT.THEMES[id].name)}${id === cat.theme ? '<small>Best for ' + esc(cat.name) + '</small>' : ''}</span>${on ? '<span class="dp-tick" aria-hidden="true">✓</span>' : ''}</button>`;
+      ready: `${picNote}${describeBox()}
+        <div class="gal-tabs" role="tablist" aria-label="Occasion">${IXGallery.TABS.filter(([t]) => t === 'all' || themeIds.some((id) => IXGallery.inTab(id, t))).map(([t, l]) => `<button type="button" role="tab" aria-selected="${t === W.galTab}" class="gal-tab ${t === W.galTab ? 'on' : ''}" data-gal-tab="${t}">${esc(l)}</button>`).join('')}</div>
+        <div class="design-grid" role="radiogroup" aria-label="Ready designs">${themeIds.filter((id) => IXGallery.inTab(id, W.galTab)).map((id) => {
+        const on = id === inv.theme && !hasPic, t = IXT.THEMES[id], meta = IXGallery.META[id] || {};
+        return `<div class="design-tile ${on ? 'on' : ''}"><button type="button" class="design-pick ${on ? 'on' : ''}" role="radio" aria-checked="${on}" data-theme-pick="${id}">
+          ${miniCard(id, inv, name)}<span class="dp-name">${esc(t.name.replace(' (blank)', ''))}<span class="dp-style">${esc(meta.style || '')}</span>${id === cat.theme ? '<small>Best for ' + esc(cat.name) + '</small>' : ''}</span>${on ? '<span class="dp-tick" aria-hidden="true">✓</span>' : ''}</button>
+          <div class="dp-pals" role="group" aria-label="${esc(t.name)} colours">${t.palettes.map((p, i) => `<button type="button" class="dp-pal ${on && i === inv.paletteIndex ? 'on' : ''}" data-theme-pick="${id}" data-pal-pick="${i}" title="${esc(p.name)}" aria-label="${esc(t.name)}, ${esc(p.name)}"><i style="background:linear-gradient(135deg,${p.bg} 50%,${p.accent} 50%)"></i></button>`).join('')}</div></div>`;
       }).join('')}</div>`,
       own: `<p class="small muted" style="margin:0">Use a card someone designed for you, a painting or a photo. It fills the whole card and your names, date and place are written on top.</p>
         ${W.bgUrl ? `<div class="own-done"><div class="own-prev" style="background-image:url('${esc(W.bgUrl)}')" role="img" aria-label="Your card picture"></div>
@@ -283,7 +343,7 @@
       const f = e.target.files[0]; if (!f) return;
       const ref = await IXMedia.addImage(f, { invId: inv.id, askCrop: true, aspect: '3:4', maxDim: 1800 });
       if (!ref) return;
-      if (inv.media.background) await H.store.deleteMedia(inv.media.background).catch(() => {});
+      if (inv.media.background) discard(inv.media.background);
       inv.media.background = ref; inv.design.bgMode = 'full'; inv.design.aiArt = ''; W.bgUrl = await H.store.resolveMedia(ref);
       changed(); step1(body);
       fetch(W.bgUrl).then((r) => r.blob()).then(matchPaletteTo).catch(() => {}); // light picture → dark text, and the other way round
@@ -295,6 +355,7 @@
     body.querySelectorAll('[data-cat]').forEach((b) => (b.onclick = () => {
       const c = IXT.CATEGORIES.find((x) => x.id === b.dataset.cat);
       inv.category = c.id;
+      W.galTab = IXGallery.TAB_FOR_CAT[c.id] || 'all';
       const untouched = inv.events.every((e) => !e.date && !e.venue);
       if (untouched) inv.events = [M.newEvent(c.main || c.events[0])];
       // fresh wording for the new event type, unless the host has written their own
@@ -306,15 +367,59 @@
       // A ready design replaces the host's own or AI picture (AI designs stay in "earlier designs").
       if (inv.media.background && !inv.design.aiArt && !(await H.confirm('Use this ready design?', 'Your own picture will be taken off the card. You can upload it again any time.', 'Use ready design'))) return;
       if (inv.media.background) removePicture();
-      setTheme(b.dataset.themePick); changed(); step1(body);
+      setTheme(b.dataset.themePick);
+      if (b.dataset.palPick != null) { inv.paletteIndex = +b.dataset.palPick; Object.assign(inv.design, { textColor: '', bgColor: '', accentColor: '' }); }
+      changed(); step1(body);
     }));
+    body.querySelectorAll('[data-gal-tab]').forEach((b) => (b.onclick = () => { W.galTab = b.dataset.galTab; step1(body); }));
+    wireDescribe(body);
     body.querySelectorAll('[data-pal]').forEach((b) => (b.onclick = () => { inv.paletteIndex = +b.dataset.pal; Object.assign(inv.design, { textColor: '', bgColor: '', accentColor: '' }); changed(); step1(body); }));
     body.querySelectorAll('input[name=layout]').forEach((r) => (r.onchange = () => { inv.layout = r.value; changed(); }));
     renderAi(body);
   }
+  /* "Describe your card": finds the closest ready designs and colours for a few words,
+   * and can hand the same words to the AI painter. */
+  function describeBox() {
+    const D = (W.desc = W.desc || { text: '', result: null });
+    const inv = W.inv, r = D.result;
+    const aiName = r && r.aiStyle ? (AI_STYLES.find((x) => x.id === r.aiStyle) || {}).name : '';
+    const colName = r ? ((AI_COLORS.find(([id]) => id === r.aiColors) || [])[1] || '') : '';
+    return `<div class="describe">
+      <label class="lbl" for="descIn">Describe the card you want <span class="tiny muted">(optional)</span></label>
+      <div class="describe-row"><textarea class="input" id="descIn" rows="2" maxlength="240" placeholder="e.g. An elegant Indian wedding card with an ivory background, champagne-gold lettering, floral borders and a royal feel">${esc(D.text)}</textarea>
+        <button type="button" class="btn primary" id="descGo">Find designs</button></div>
+      ${r ? (r.understood ? `<div class="describe-out" aria-live="polite">
+        <span class="lbl">Closest ready designs</span>
+        <div class="describe-picks">${r.designs.map((d) => { const t = IXT.THEMES[d.theme], p = t.palettes[d.palette] || t.palettes[0]; const on = inv.theme === d.theme && inv.paletteIndex === d.palette && !inv.media.background; return `<button type="button" class="describe-pick ${on ? 'on' : ''}" data-theme-pick="${d.theme}" data-pal-pick="${d.palette}"><i style="background:linear-gradient(135deg,${p.bg} 50%,${p.accent} 50%)"></i><span><b>${esc(t.name.replace(' (blank)', ''))}</b><small>${esc(p.name)}${d.hits.length ? ' · matches “' + esc(d.hits.join(', ')) + '”' : ''}</small></span>${on ? '<em>On your card</em>' : ''}</button>`; }).join('')}</div>
+        <div class="describe-ai"><span>Want new artwork instead? AI can paint it${aiName ? ` in the <b>${esc(aiName)}</b> style` : ''}${colName && r.aiColors !== 'auto' ? ` with <b>${esc(colName.toLowerCase())}</b>` : ''}.</span><button type="button" class="btn sm" id="descAi">✨ Paint with AI</button></div>
+      </div>` : '<p class="small muted" style="margin:0">Try a few words about colours, style or mood, like “pastel floral” or “modern navy”.</p>') : ''}
+    </div>`;
+  }
+  function wireDescribe(body) {
+    const D = W.desc, go = body.querySelector('#descGo'), inp = body.querySelector('#descIn');
+    if (!go) return;
+    inp.oninput = () => (D.text = inp.value);
+    inp.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); go.click(); } };
+    go.onclick = () => {
+      D.text = inp.value;
+      if (!D.text.trim()) { inp.focus(); return; }
+      D.result = IXGallery.suggest(D.text, W.inv.category);
+      W.galTab = 'all';
+      step1(body);
+      body.querySelector('.describe-out, .describe p')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    };
+    const ai = body.querySelector('#descAi');
+    if (ai) ai.onclick = () => {
+      const r = D.result;
+      W.ai = Object.assign(W.ai || { style: null, colors: 'auto', words: '', busy: false, results: [], recent: null, credits: null, error: '', picking: '' },
+        { style: r.aiStyle || W.ai?.style || null, colors: r.aiColors || 'auto', words: r.words.slice(0, 120) });
+      W.way = 'ai'; step1(body);
+      document.getElementById('designCard')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    };
+  }
   function removePicture() {
     const inv = W.inv;
-    if (inv.media.background) H.store.deleteMedia(inv.media.background).catch(() => {});
+    if (inv.media.background) discard(inv.media.background);
     inv.media.background = ''; inv.design.aiArt = ''; W.bgUrl = '';
     changed();
   }
@@ -404,7 +509,7 @@
       const src = await (await fetch(url)).blob();
       const { blob } = await IX.compressImage(src, { maxDim: 1800, quality: 0.86 });
       const ref = await H.store.putMedia(blob, { name: 'ai-design.webp', invitationId: inv.id });
-      if (inv.media.background) await H.store.deleteMedia(inv.media.background).catch(() => {});
+      if (inv.media.background) discard(inv.media.background);
       inv.media.background = ref; inv.design.bgMode = 'full'; inv.design.aiArt = url;
       matchPaletteTo(src);
       W.bgUrl = await H.store.resolveMedia(ref);
@@ -512,7 +617,7 @@
       const key = inp.dataset.slot, kind = inp.dataset.kind;
       const ref = kind === 'image' ? await IXMedia.addImage(f, { invId: inv.id, askCrop: true, aspect: aspectOf(key), keepAlpha: key === 'logo', maxDim: key === 'logo' ? 600 : 1600 }) : await IXMedia.addFile(f, kind, inv.id);
       if (!ref) return;
-      if (m[key]) await H.store.deleteMedia(m[key]).catch(() => {});
+      if (m[key]) discard(m[key]);
       m[key] = ref; changed(); rerender();
     }));
     body.querySelectorAll('[data-recrop]').forEach((b) => (b.onclick = async () => {
@@ -522,7 +627,7 @@
     }));
     body.querySelectorAll('[data-del]').forEach((b) => (b.onclick = async () => {
       const key = b.dataset.del;
-      await H.store.deleteMedia(m[key]).catch(() => {});
+      discard(m[key]);
       m[key] = ''; changed(); rerender();
     }));
     const listOf = (kind) => (kind === 'hosts' ? inv.hostsList : m.gallery);
@@ -548,7 +653,7 @@
     }));
     body.querySelectorAll('[data-ldel]').forEach((b) => (b.onclick = async () => {
       const [k, i] = b.dataset.ldel.split('.'); const arr = listOf(k);
-      await H.store.deleteMedia(arr[+i].ref).catch(() => {});
+      discard(arr[+i].ref);
       arr.splice(+i, 1); changed(); rerender();
     }));
     body.querySelectorAll('[data-lcrop]').forEach((b) => (b.onclick = async () => {
@@ -560,7 +665,7 @@
       const [k, i] = inp.dataset.lrep.split('.'); const it = listOf(k)[+i];
       const ref = await IXMedia.addImage(inp.files[0], { invId: inv.id, askCrop: true, aspect: k === 'hosts' ? '4:5' : 'free' });
       if (!ref) return;
-      await H.store.deleteMedia(it.ref).catch(() => {});
+      discard(it.ref);
       it.ref = ref; changed(); rerender();
     }));
   }
@@ -823,7 +928,10 @@
     const seg = (k, opts) => `<div class="seg" role="radiogroup">${opts.map(([v, l]) => `<label><input type="radio" name="${k}" value="${v}" ${d[k] === v ? 'checked' : ''} data-seg="${k}">${l}</label>`).join('')}</div>`;
     body.innerHTML = `
       <div class="card stack"><h2>Fonts</h2>
-        <p class="tiny muted" style="margin:0">Each box shows your own text in that font, exactly as guests will see it.</p>
+        <div class="field"><span class="lbl">Fonts that go well together</span>
+          <div class="pair-grid" role="radiogroup" aria-label="Font pairings">${IXGallery.pairsFor(inv.theme).map((pr) => { const on = ['script', 'head', 'body'].every((k) => d.fonts[k] === pr.fonts[k]); return `<button type="button" class="pair ${on ? 'on' : ''}" role="radio" aria-checked="${on}" data-pair="${pr.id}">
+            <span class="pair-s" style="font-family:'${esc(pr.fonts.script)}',serif">${esc(sample.script)}</span><span class="pair-h" style="font-family:'${esc(pr.fonts.head)}',serif">${esc(sample.head)}</span><span class="pair-b" style="font-family:'${esc(pr.fonts.body)}',sans-serif">${esc(sample.body)}</span><span class="pair-n">${esc(pr.name)}</span></button>`; }).join('')}</div></div>
+        <p class="tiny muted" style="margin:0">Or choose each font yourself. Each box shows your own text in that font, exactly as guests will see it.</p>
         <div class="field"><span class="lbl" id="fl-script">Names / title font</span>${sel('script', [...new Set([d.fonts.script, ...IXT.FONT_CHOICES.script])])}</div>
         <div class="field"><span class="lbl" id="fl-head">Heading font</span>${sel('head', [...new Set([d.fonts.head, ...IXT.FONT_CHOICES.head])])}</div>
         <div class="field"><span class="lbl" id="fl-body">Text font</span>${sel('body', [...new Set([d.fonts.body, ...IXT.FONT_CHOICES.body])])}</div>
@@ -851,6 +959,11 @@
         <ul class="sec-list" id="secList"></ul>
       </div>`;
     bind(body);
+    body.querySelectorAll('[data-pair]').forEach((b) => (b.onclick = () => {
+      const pr = IXGallery.FONT_PAIRS.find((x) => x.id === b.dataset.pair);
+      d.fonts = { ...d.fonts, ...pr.fonts };
+      changed(); step5(body);
+    }));
     body.querySelectorAll('[data-font]').forEach((b) => (b.onclick = () => {
       d.fonts[b.dataset.font] = b.dataset.f;
       b.parentElement.querySelectorAll('.font-opt').forEach((x) => { const on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-checked', on); });

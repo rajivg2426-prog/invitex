@@ -25,6 +25,7 @@ Click **Load 4 sample invitations** (Himachali Dham, Wedding, Birthday, Corporat
 
 - **14 categories**: wedding, engagement/reception, birthday, anniversary, housewarming, puja, festival/family gathering, corporate meeting, conference, product launch, school/college, retirement/farewell, community, custom. There are **14 themed designs** (each with its own illustrations, fonts and 2–3 colour palettes) plus a blank design. Portrait, landscape and square layouts.
 - **3-step editor** with a live phone/desktop preview: Design → Fill your card → Share. Step 1 offers three clear ways to design the card: a gallery of ready designs, upload your own design, or design with AI. Autosaves drafts.
+- **Design studio**: ready designs grouped by occasion (wedding, engagement, reception, birthday, anniversary, housewarming, religious, festivals, family gatherings, corporate, conferences, launches, school & college, farewell, community), each showing its style and colour choices; *Describe the card you want* finds the closest designs and colours from a few words and can hand them to the AI painter; three font pairings per design; undo / redo (buttons, Ctrl+Z, Ctrl+Shift+Z) for every change, including bringing back a removed picture.
 - **✨ Design with AI** (optional, online version): pick a ready style (Royal, Floral, Temple, Minimal, Mehndi, Pichwai, Birthday, Corporate) and colours, and AI paints 4 card backgrounds to choose from. 3 free tries per user; the AI key stays on the server. Setup: [docs/AI_DESIGNS_SETUP.md](docs/AI_DESIGNS_SETUP.md).
 - **Media**: drag-and-drop upload, crop/reposition/zoom/rotate, automatic resize and WebP/JPEG compression, replace/delete/reorder, host/couple/family photos with names and roles, gallery, background, logo, background music, voice message and video. Files are checked by their actual content, not just the extension.
 - **Multiple events** per invitation (Mehendi, Haldi, Wedding, Reception…), each with its own date, time, venue, dress code and Maps link. Time-zone aware.
@@ -53,6 +54,7 @@ js/store.js           Data model + LocalStore (IndexedDB) + SupabaseStore (produ
 js/media.js           Upload validation, compression, crop/reposition/rotate tool
 js/app.js             Router, modals, settings, login, help
 js/home.js            Home dashboard (#/) and quick-create (#/new/<occasion>)
+js/gallery.js         Design gallery: occasion tabs, "describe your card" matcher, font pairings
 js/wizard.js          6-step creation wizard with live preview
 js/dashboard.js       RSVP dashboard, guests & reminders, sharing, image card, check-in
 js/invite.js          Guest microsite renderer and RSVP form
