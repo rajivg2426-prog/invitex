@@ -134,6 +134,15 @@
         { name: 'Earth', bg: '#f7f1e8', bg2: '#eadfcd', surface: 'rgba(90,60,30,0.06)', text: '#3c2a17', muted: '#7a6650', accent: '#8d5a2b', accent2: '#4e7d4b', onAccent: '#fff' },
       ],
     },
+    'painted-art': {
+      name: 'Your Painted Artwork', motif: 'artwork', opener: 'fade',
+      fonts: { script: 'Great Vibes', head: 'Cormorant Garamond', body: 'Lato' },
+      palettes: [
+        { name: 'Ivory & Ink', bg: '#fbf8f1', bg2: '#f3ede1', surface: 'rgba(60,40,20,0.035)', text: '#26221f', muted: '#6d655c', accent: '#8c2f45', accent2: '#b08d57', onAccent: '#fff' },
+        { name: 'Blush', bg: '#fdf6f3', bg2: '#f6e6e0', surface: 'rgba(120,40,60,0.04)', text: '#3d2229', muted: '#7d5f66', accent: '#a3485c', accent2: '#c9a26b', onAccent: '#fff' },
+        { name: 'Royal Night', bg: '#1f1519', bg2: '#130c0f', surface: 'rgba(255,240,220,0.05)', text: '#f6ecdf', muted: '#c9b8a6', accent: '#e2b968', accent2: '#c26a7a', onAccent: '#1f1519' },
+      ],
+    },
     'minimal-ivory': {
       name: 'Minimal Ivory (blank)', motif: 'minimal', opener: 'fade',
       fonts: { script: 'Cormorant Garamond', head: 'Cormorant Garamond', body: 'Inter' },
@@ -305,6 +314,8 @@
     return { hero, corner: '', divider: dividerSVG(p.accent) };
   };
   M.minimal = (p) => ({ corner: '', hero: '', divider: dividerSVG(p.accent) });
+  // Host-uploaded artwork does the decorating; keep our own ornaments quiet.
+  M.artwork = (p) => ({ corner: '', hero: '', divider: `<svg viewBox="0 0 120 10" aria-hidden="true"><path d="M0 5 H50 M70 5 H120" stroke="${p.accent2}" stroke-width=".8"/><path d="M60 1 L64 5 L60 9 L56 5Z" fill="${p.accent}"/></svg>` });
 
   function dividerSVG(c) {
     return `<svg viewBox="0 0 200 20" aria-hidden="true"><path d="M0 10 H80 M120 10 H200" stroke="${c}" stroke-width="1"/><path d="M100 2 L108 10 L100 18 L92 10Z" fill="none" stroke="${c}" stroke-width="1.3"/><circle cx="100" cy="10" r="2.5" fill="${c}"/><circle cx="86" cy="10" r="1.6" fill="${c}"/><circle cx="114" cy="10" r="1.6" fill="${c}"/></svg>`;

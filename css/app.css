@@ -277,3 +277,8 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 /* guest import preview */
 #impTbl tr.is-skip td { color: var(--muted); } #impTbl tr.is-skip .nm { text-decoration: line-through; } #impTbl tr.is-skip { background: #fdf1f1; }
 #impTbl .bad { color: #b3261e; font-weight: 600; } #impTbl .good { color: #1b7f4b; font-weight: 700; }
+/* artwork layout choices (design step) */
+.art-opts { display: grid; gap: .5rem; }
+.art-opt { display: grid; grid-template-columns: auto 1fr; column-gap: .6rem; align-items: start; padding: .7rem .8rem; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; }
+.art-opt input { grid-row: span 2; margin-top: .2rem; }
+.art-opt.on { border-color: var(--plum2); box-shadow: 0 0 0 2px color-mix(in srgb, var(--plum2) 25%, transparent); }

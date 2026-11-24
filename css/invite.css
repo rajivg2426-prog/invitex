@@ -81,6 +81,35 @@ body.layout-square .ix-hero { min-height: min(100svh, 720px); }
 .ix-hero-venue small { color: var(--text); letter-spacing: .1em; }
 .ix-voice-btn { margin-top: 1.2rem; }
 .ix-scroll { position: absolute; bottom: 1.2rem; left: 50%; transform: translateX(-50%); z-index: 3; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: var(--accent); border: 1px solid var(--accent); text-decoration: none; font-size: 22px; animation: bob 2s infinite; background: color-mix(in srgb, var(--bg) 60%, transparent); }
+/* hero built around the host's own painting / ready-made card */
+.ix-art { justify-content: flex-start; padding: 0 0 5rem; }
+.ix-art-img { margin: 0; width: 100%; position: relative; z-index: 1; }
+.ix-art-img img { display: block; width: 100%; height: auto; animation: artIn 1.6s ease both; }
+@keyframes artIn { from { opacity: 0; filter: blur(8px); transform: scale(1.015); } }
+.anim-none .ix-art-img img { animation: none; }
+.art-top .ix-art-img { padding: 3.8rem 1rem 0; }
+.art-top .ix-art-img img { max-height: 58svh; object-fit: contain; }
+.ix-art-text { position: relative; z-index: 2; padding: 1.3rem 1.6rem 0; max-width: 30rem; width: 100%; }
+.ix-art-welcome { display: flex; align-items: center; justify-content: center; gap: .9rem; margin: 0 0 .4rem; font-family: var(--f-script); font-size: calc(clamp(2.5rem, 12.5vw, 3.6rem) * var(--scale)); line-height: 1.15; color: var(--text); }
+.ix-art-welcome i { flex: 1; max-width: 5.5rem; height: 1px; background: currentColor; opacity: .55; }
+.lang-hi .ix-art-welcome, .lang-pa .ix-art-welcome { font-family: var(--f-head); font-size: calc(1.9rem * var(--scale)); }
+.ix-art-names { font-family: var(--f-head); font-weight: 600; font-size: calc(clamp(2.1rem, 9.5vw, 2.9rem) * var(--scale)); line-height: 1.08; margin: .5rem 0 0; color: var(--text); display: flex; flex-direction: column; align-items: center; overflow-wrap: anywhere; }
+.ix-art-names small { font-family: var(--f-script); font-weight: 400; font-size: .62em; color: var(--muted); line-height: 1; margin: .12em 0 .18em; }
+.lang-hi .ix-art-names small, .lang-pa .ix-art-names small { font-family: var(--f-head); font-size: .45em; }
+.ix-art-sub { font-family: var(--f-head); font-style: italic; color: var(--muted); margin: .8rem 0 0; font-size: 1.05em; }
+.ix-art-date { margin: 1.2rem 0 0; font: 600 .8em/1.5 var(--f-body); letter-spacing: .22em; text-transform: uppercase; }
+.lang-hi .ix-art-date, .lang-pa .ix-art-date { letter-spacing: .04em; font-size: .95em; }
+.ix-art-venue { margin: .35rem 0 0; font-size: .86em; color: var(--muted); letter-spacing: .03em; }
+.ix-art .ix-greet { margin-bottom: .2rem; }
+.art-full { justify-content: flex-end; padding: 0 1rem 5.2rem; }
+.art-full .ix-art-img { position: absolute; inset: 0; }
+.art-full .ix-art-img img { width: 100%; height: 100%; object-fit: cover; }
+.art-full .ix-art-text { background: color-mix(in srgb, var(--bg) 87%, transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); border-radius: 18px; padding: 1.3rem 1.3rem 1.5rem; box-shadow: 0 12px 34px rgba(0,0,0,.28); width: min(100%, 26rem); }
+.art-card { justify-content: center; padding: 3.8rem .9rem 5rem; }
+.art-card .ix-art-img { max-width: 34rem; }
+.art-card .ix-art-img img { width: 100%; max-height: calc(100svh - 9rem); object-fit: contain; filter: drop-shadow(0 14px 28px rgba(0,0,0,.3)); }
+.art-card .ix-greet { margin-top: 1rem; }
+body.layout-landscape .art-top .ix-art-img img { max-height: 52vh; }
 @keyframes bob { 50% { transform: translate(-50%, 6px); } }
 
 /* corners */

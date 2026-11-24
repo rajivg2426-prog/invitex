@@ -170,7 +170,7 @@
       <div class="theme-grid" role="radiogroup" aria-label="Design template">${themeIds.map((id) => {
         const t = IXT.THEMES[id], p = t.palettes[0], mo = IXT.motif(t.motif, p);
         return `<button type="button" class="theme ${id === inv.theme ? 'on' : ''}" role="radio" aria-checked="${id === inv.theme}" data-theme-pick="${id}">
-          <div class="theme-sw" style="background:linear-gradient(135deg,${p.bg},${p.bg2});color:${p.accent}">${mo.corner || ''}<span class="tt" style="font-family:'${t.fonts.script}',serif">Aa</span></div>
+          <div class="theme-sw" style="background:linear-gradient(135deg,${p.bg},${p.bg2});color:${p.accent}">${t.motif === 'artwork' ? ART_SW : mo.corner || ''}<span class="tt" style="font-family:'${t.fonts.script}',serif">Aa</span></div>
           <div class="theme-name">${esc(t.name)}${id === cat.theme ? '<small>Recommended</small>' : ''}</div></button>`;
       }).join('')}</div>
     </div>
@@ -183,7 +183,8 @@
       <h2>4. Layout</h2>
       <div class="seg" role="radiogroup" aria-label="Layout">${['portrait', 'landscape', 'square'].map((l) => `<label><input type="radio" name="layout" value="${l}" ${inv.layout === l ? 'checked' : ''}>${l[0].toUpperCase() + l.slice(1)}</label>`).join('')}</div>
       <p class="tiny muted">Portrait is best for WhatsApp on phones. Landscape suits desktop screens and corporate events.</p>
-    </div>`;
+    </div>
+    ${th.motif === 'artwork' || inv.media.artwork ? artCard(inv) : ''}`;
     body.querySelectorAll('[data-cat]').forEach((b) => (b.onclick = () => {
       const c = IXT.CATEGORIES.find((x) => x.id === b.dataset.cat);
       inv.category = c.id;
@@ -196,6 +197,48 @@
     body.querySelectorAll('[data-theme-pick]').forEach((b) => (b.onclick = () => { setTheme(b.dataset.themePick); changed(); step1(body); }));
     body.querySelectorAll('[data-pal]').forEach((b) => (b.onclick = () => { inv.paletteIndex = +b.dataset.pal; Object.assign(inv.design, { textColor: '', bgColor: '', accentColor: '' }); changed(); step1(body); }));
     body.querySelectorAll('input[name=layout]').forEach((r) => (r.onchange = () => { inv.layout = r.value; changed(); }));
+    wireArt(body, () => step1(body));
+  }
+  // Tiny painted-landscape icon for the "Your Painted Artwork" design tile.
+  const ART_SW = '<svg viewBox="0 0 100 70" style="position:absolute;inset:14% 18% auto;width:64%;height:auto" aria-hidden="true"><rect x="2" y="2" width="96" height="66" rx="3" fill="#fff" stroke="#b08d57" stroke-width="2"/><circle cx="72" cy="20" r="8" fill="#f4a261"/><path d="M6 58 L30 30 L46 46 L60 34 L94 60 V64 H6Z" fill="#7fb069" opacity=".9"/><path d="M6 64 L26 44 L44 64Z" fill="#118ab2" opacity=".7"/><path d="M40 64 Q60 40 94 64Z" fill="#ef476f" opacity=".55"/></svg>';
+  // "Your artwork" card: upload a painting / finished card and choose how the text sits with it.
+  function artCard(inv) {
+    const d = inv.design, mode = d.artLayout || 'top';
+    const opt = (v, title, hint) => `<label class="art-opt ${mode === v ? 'on' : ''}"><input type="radio" name="artLayout" value="${v}" ${mode === v ? 'checked' : ''}><b>${title}</b><span class="tiny muted">${hint}</span></label>`;
+    return `<div class="card stack" id="artCard">
+      <h2>5. Your artwork</h2>
+      <p class="small muted">Upload a painting or illustration, such as a mandap, palace or haveli scene, or a finished card. Use only artwork you made, bought or have permission to use.</p>
+      <div class="media-slot"><div class="prev" id="artPrev">🖼</div><div class="stack" style="--gap:.4rem">
+        <div><b>Artwork image</b><div class="tiny muted">JPG, PNG or WebP. Shown sharp at full width; you can trim the edges.</div></div>
+        <div class="row"><label class="btn sm">${inv.media.artwork ? '⇄ Replace' : '⬆ Upload artwork'}<input type="file" hidden accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" id="artFile"></label>
+        ${inv.media.artwork ? '<button class="btn sm" id="artCrop">✂ Trim</button><button class="btn sm danger" id="artDel">✕ Remove</button>' : ''}</div></div></div>
+      <div class="field"><span class="lbl">How should your text sit with the artwork?</span>
+        <div class="art-opts" role="radiogroup" aria-label="Artwork layout">
+          ${opt('top', 'Art on top, text below', 'Clean ivory card like a welcome board.')}
+          ${opt('full', 'Art fills the screen', 'Names and date on a soft panel over the painting.')}
+          ${opt('card', 'My image is the whole card', 'It already has the names and date written on it, so no text is added on top.')}
+        </div></div>
+      ${mode === 'card' ? '' : `<label class="check"><input type="checkbox" id="artWelcome" ${d.artWelcome !== false ? 'checked' : ''}> Show “Welcome” in script above the names</label>`}
+    </div>`;
+  }
+  function wireArt(body, rerender) {
+    const inv = W.inv, m = inv.media;
+    const card = body.querySelector('#artCard'); if (!card) return;
+    if (m.artwork) H.store.resolveMedia(m.artwork).then((u) => { const p = card.querySelector('#artPrev'); if (u && p) { p.style.backgroundImage = `url('${u.replace(/'/g, '%27')}')`; p.textContent = ''; } }).catch(() => {});
+    card.querySelector('#artFile').onchange = async (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      const ref = await IXMedia.addImage(f, { invId: inv.id, askCrop: true, aspect: 'free', maxDim: 2000 });
+      if (!ref) return;
+      if (m.artwork) await H.store.deleteMedia(m.artwork).catch(() => {});
+      m.artwork = ref; changed(); rerender();
+    };
+    const crop = card.querySelector('#artCrop');
+    if (crop) crop.onclick = async () => { const ref = await IXMedia.recrop(m.artwork, { aspect: 'free', invId: inv.id, maxDim: 2000 }); if (ref) { m.artwork = ref; changed(); rerender(); } };
+    const del = card.querySelector('#artDel');
+    if (del) del.onclick = async () => { await H.store.deleteMedia(m.artwork).catch(() => {}); m.artwork = ''; changed(); rerender(); };
+    card.querySelectorAll('input[name=artLayout]').forEach((r) => (r.onchange = () => { inv.design.artLayout = r.value; changed(); rerender(); }));
+    const wel = card.querySelector('#artWelcome');
+    if (wel) wel.onchange = (e) => { inv.design.artWelcome = e.target.checked; changed(); };
   }
   function setTheme(id) {
     const t = IXT.THEMES[id];
@@ -233,6 +276,7 @@
     body.innerHTML = `
       <div class="card stack"><h2>Cover photo</h2>
         ${slot('cover', 'Main photo on the opening screen', 'Couple, host, birthday person or event poster. You will be able to crop it.')}
+        ${slot('artwork', 'Painted artwork or ready-made card', 'A painting or finished card image. When added, it replaces the cover photo and leads the opening screen. Choose how text sits with it in step 1.')}
       </div>
       <div class="card stack"><h2>Hosts, couple &amp; family photos</h2>
         <div class="drop" tabindex="0" role="button" id="dzHosts"><span class="ic" aria-hidden="true">👨‍👩‍👧</span><b>Drag photos here or tap to choose</b><span class="tiny muted">JPG, PNG or WebP · each photo gets a name and role</span><input type="file" hidden multiple accept=".jpg,.jpeg,.png,.webp"></div>
@@ -254,11 +298,11 @@
         <p class="tiny muted">Audio and video files are stored as uploaded (browsers cannot compress them). Use short clips for fast loading. Only upload music you have the right to use.</p>
       </div>`;
     const rerender = () => step2(body);
-    const aspectOf = (key) => ({ cover: '4:5', background: '3:4', logo: 'free' }[key] || '4:5');
+    const aspectOf = (key) => ({ cover: '4:5', background: '3:4', logo: 'free', artwork: 'free' }[key] || '4:5');
     body.querySelectorAll('input[data-slot]').forEach((inp) => (inp.onchange = async () => {
       const f = inp.files[0]; if (!f) return;
       const key = inp.dataset.slot, kind = inp.dataset.kind;
-      const ref = kind === 'image' ? await IXMedia.addImage(f, { invId: inv.id, askCrop: true, aspect: aspectOf(key), keepAlpha: key === 'logo', maxDim: key === 'logo' ? 600 : 1600 }) : await IXMedia.addFile(f, kind, inv.id);
+      const ref = kind === 'image' ? await IXMedia.addImage(f, { invId: inv.id, askCrop: true, aspect: aspectOf(key), keepAlpha: key === 'logo', maxDim: key === 'logo' ? 600 : key === 'artwork' ? 2000 : 1600 }) : await IXMedia.addFile(f, kind, inv.id);
       if (!ref) return;
       if (m[key]) await H.store.deleteMedia(m[key]).catch(() => {});
       m[key] = ref; changed(); rerender();

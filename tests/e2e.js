@@ -219,6 +219,21 @@ await mob.reload(); await mob.waitForSelector('.ix-title'); const after = await 
   await host.goto(BASE + 'index.html#/dash/' + invId + '/checkin'); await host.waitForSelector('#cref');
   await host.fill('#cref', 'IVX:kabir-ananya:' + ref); await host.click('#cf button[type=submit]'); await host.waitForSelector('text=Welcome');
   ok('Extra: QR/ref check-in works', true);
+  // host's own painted artwork leads the opening screen; names stay as real text over it
+  await host.goto(BASE + 'index.html#/edit/' + invId + '/1'); await host.waitForSelector('[data-theme-pick="painted-art"]');
+  await host.click('[data-theme-pick="painted-art"]'); await host.waitForSelector('#artFile', { state: 'attached' });
+  await host.setInputFiles('#artFile', g1); await host.waitForSelector('#stage'); await host.waitForTimeout(300);
+  await host.click('.modal-f >> text=Apply'); await host.waitForSelector('#artCrop');
+  await host.click('input[name=artLayout][value=full]'); await host.waitForTimeout(300);
+  await host.click('#draftBtn'); await host.waitForTimeout(1200);
+  await host.evaluate(async (id) => { const inv = (await H.store.listInvitations()).find((i) => i.id === id); await H.store.publish(inv); }, invId);
+  const ag = await ctx.newPage(); watch(ag, 'art'); await ag.setViewportSize({ width: 390, height: 844 });
+  await ag.goto(BASE + 'invite.html?i=kabir-ananya'); await ag.waitForSelector('#openBtn'); await ag.click('#openBtn');
+  await ag.waitForSelector('.ix-art.art-full .ix-art-img img');
+  const art = await ag.evaluate(() => { const im = document.querySelector('.ix-art-img img'); return { loaded: im.complete && im.naturalWidth > 0, names: [...document.querySelectorAll('.ix-art-names span')].map((x) => x.textContent), mid: (document.querySelector('.ix-art-names small') || {}).textContent, ov: document.documentElement.scrollWidth > window.innerWidth + 1 }; });
+  await ag.screenshot({ path: OUT + '/artwork.png' });
+  ok('TEST 14: uploaded painted artwork leads the guest page with real-text names', art.loaded && art.names.length === 2 && !!art.mid && !art.ov, JSON.stringify(art));
+  await ag.close();
   // phone device emulation of host wizard
   const ph = await browser.newContext({ ...devices['iPhone 13'], ignoreHTTPSErrors: true });
   const pp = await ph.newPage(); watch(pp, 'hostmobile'); await pp.goto(BASE + 'index.html#/new'); await pp.waitForSelector('.cat-grid');
