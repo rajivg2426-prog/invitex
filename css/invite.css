@@ -254,14 +254,17 @@ textarea.ix-input { resize: vertical; }
 .ix-howmany .ix-stepper { flex: none; width: 140px; }
 .ix-howmany .ix-stepper button { width: 42px; }
 .ix-yes { width: 100%; min-height: 58px; font-size: 1rem; letter-spacing: .1em; }
-.ix-no { width: 100%; min-height: 46px; border-color: color-mix(in srgb, var(--accent) 40%, transparent); font-size: .78rem; opacity: .9; }
+.ix-alt { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+.ix-maybe, .ix-no { width: 100%; min-height: 46px; padding-inline: .6rem; border-color: color-mix(in srgb, var(--accent) 40%, transparent); font-size: .78rem; opacity: .9; }
 .ix-privacy { opacity: .85; }
 .ix-onetap .ix-notice, .ix-onetap .ix-error { margin: 0; }
 .ix-wa-alt a { color: var(--accent); font-weight: 600; }
 .ix-editlink summary { cursor: pointer; color: var(--muted); text-align: center; list-style-position: inside; }
 
 .ix-thanks { text-align: center; outline: none; }
-.ix-thanks-ic { font-size: 3rem; }
+.ix-thanks-ic { color: var(--accent); }
+.ix-thanks-ic .ix-ic-lg { width: 64px; height: 64px; stroke-width: 1.6; }
+.ix-thanks-links { justify-content: center; margin: .2rem 0 .8rem; }
 .ix-ref b { font: 700 1.5em/1.4 ui-monospace, monospace; letter-spacing: .08em; color: var(--accent); }
 .ix-qr { display: inline-block; background: #fff; padding: 10px; border-radius: 12px; margin: .4rem auto; }
 .ix-qr svg { display: block; }
@@ -331,3 +334,29 @@ body.is-preview [data-edit]:hover { outline-color: color-mix(in srgb, var(--acce
 body.is-preview [data-edit]:focus { outline: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
 body.is-preview [data-edit][data-empty="1"]::before { content: 'Click to add text'; opacity: .45; font-style: italic; }
 .ix-venue-ics { text-align: center; margin: .3rem 0 0; }
+
+/* RSVP: optional details under the one-tap buttons */
+.ix-more { border-radius: 14px; border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); padding: 0 1rem; }
+.ix-more > summary { cursor: pointer; min-height: 48px; display: flex; align-items: center; gap: .5rem; list-style: none; font: 600 .9em/1.3 system-ui, 'Noto Sans Devanagari', 'Noto Sans Gurmukhi', sans-serif; color: var(--accent); }
+.ix-more > summary::-webkit-details-marker { display: none; }
+.ix-more > summary::before { content: '+'; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1px solid currentColor; font-weight: 400; line-height: 1; }
+.ix-more[open] > summary::before { content: '−'; }
+.ix-more[open] { padding-bottom: 1rem; display: grid; gap: .8rem; }
+.ix-more > .ix-small { margin: -.4rem 0 0; color: var(--muted); }
+.ix-evpick { display: flex; flex-wrap: wrap; gap: .5rem; }
+.ix-check { display: inline-flex; align-items: center; gap: .45rem; min-height: 44px; padding: .3rem .85rem; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); cursor: pointer; font: 500 .9em/1.2 system-ui, 'Noto Sans Devanagari', 'Noto Sans Gurmukhi', sans-serif; }
+.ix-check input { accent-color: var(--accent); width: 18px; height: 18px; margin: 0; }
+.ix-check:has(input:checked) { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.ix-who .ix-ic, .ix-notice .ix-ic { width: 1.1em; height: 1.1em; vertical-align: -.2em; margin-right: .2rem; }
+.ix-chip .ix-ic { width: 1.1em; height: 1.1em; }
+
+/* floating "Reply" button on phones */
+.ix-fab { position: fixed; z-index: 40; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: inline-flex; align-items: center; gap: .5rem; min-height: 50px; padding: .7rem 1.6rem; border-radius: 999px; background: var(--accent); color: var(--on-accent); text-decoration: none; font: 600 .9rem/1 var(--f-head); letter-spacing: .12em; text-transform: uppercase; box-shadow: 0 10px 30px rgba(0,0,0,.25); animation: ixFabIn .3s ease-out; }
+.ix-fab[hidden] { display: none; }
+.ix-fab .ix-ic { width: 1.2em; height: 1.2em; stroke-width: 2; }
+@keyframes ixFabIn { from { opacity: 0; transform: translate(-50%, 12px); } }
+@media (min-width: 900px) { .ix-fab { left: auto; right: 24px; transform: none; } @keyframes ixFabIn { from { opacity: 0; transform: translateY(12px); } } }
+@media print { .ix-fab { display: none !important; } }
+.ix-alt .ix-btn { letter-spacing: .06em; font-size: .74rem; }
+.ix-more[open] > *:not(summary) { margin-top: .9rem; }
+.ix-more[open] > .ix-small { margin-top: 0; }

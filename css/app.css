@@ -526,13 +526,11 @@ details.more-details[open]>summary,details.more-options[open]>summary{margin-bot
   .cs-opts .seg button { padding: .45rem .55rem; }
   .cs-tools .cs-pick { min-width: 52px; }
 }
-<<<<<<< HEAD
 @media (max-width: 520px) {
   .hx-kpis dt { font-size: 11px; } .hx-kpis dt .ic { display: none; }
   .hx-tools { flex-wrap: wrap; } .hx-search { flex-basis: 100%; } .hx-sort { flex: 1; } .hx-sort select { width: 100%; }
   .hx-filters { width: 100%; } .hx-filters button { flex: 1; justify-content: center; padding: .4rem .3rem; }
 }
-=======
 
 /* Step 1: three ways to design the card */
 .cat-chips { display: flex; flex-wrap: wrap; gap: .45rem; }
@@ -575,7 +573,6 @@ details.more-details[open]>summary,details.more-options[open]>summary{margin-bot
 .own-prev { width: 120px; aspect-ratio: 3 / 4; border-radius: 12px; background: center/cover; border: 1px solid var(--line); box-shadow: var(--sh); }
 @media (max-width: 380px) { .way small { display: none; } .design-grid { grid-template-columns: 1fr 1fr; gap: .55rem; } }
 @media (max-width: 560px) { .cat-chips { display: grid; grid-template-columns: 1fr 1fr; } .cat-chips .cat { border-radius: 12px; padding: .4rem .55rem; font-size: 12.5px; text-align: left; line-height: 1.2; } }
->>>>>>> 8f271c35ecc3321e9bd82a6b92fc5df02c053694
 
 /* design studio: describe your card, occasion tabs, palette dots, font pairs, undo/redo */
 .describe { display: grid; gap: .5rem; padding: .9rem; border-radius: 14px; background: var(--ivory); border: 1px solid var(--champagne); }
@@ -677,3 +674,23 @@ details.more-details[open]>summary,details.more-options[open]>summary{margin-bot
 /* numbers in the sans face: the serif's old-style "1" reads like an "I" */
 .hx-kpis dd, .hx-rsvp dd, .hx-next-cd b { font-family: var(--font); font-variant-numeric: lining-nums tabular-nums; letter-spacing: -.02em; }
 .hx-kpis dd { font-size: 1.7rem; } .hx-rsvp dd { font-size: 1.45rem; } .hx-next-cd b { font-size: 2.1rem; }
+/* V2: guest list search and filters */
+.gfilters { align-items: center; margin-top: .4rem; }
+.gfilters .chips { display: flex; flex-wrap: wrap; gap: .35rem; }
+.gfilters .chip { border: 1px solid var(--line); background: #fff; color: var(--ink2); font: 500 13px var(--font); padding: .35rem .75rem; border-radius: 999px; min-height: 34px; cursor: pointer; }
+.gfilters .chip b { font-weight: 600; color: var(--muted); margin-left: .15rem; }
+.gfilters .chip.on { background: var(--plum); border-color: var(--plum); color: #fff; }
+.gfilters .chip.on b { color: var(--champagne); }
+.gfilters .chip:focus-visible { outline: 2px solid var(--plum2); outline-offset: 2px; }
+.gfilters #gCount { width: 100%; margin: 0; }
+tr[hidden] { display: none; }
+
+/* V2: sharing centre */
+.sx-status { margin-bottom: 1rem; }
+.sx-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .6rem; margin-top: .8rem; }
+.sx-step { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: .7rem .8rem; display: grid; gap: .1rem; }
+.sx-step b { font: 600 1.5rem/1.1 var(--font); color: var(--plum); }
+.sx-step span { font-size: 13px; color: var(--ink2); }
+.sx-step small { font-size: 11px; color: var(--muted); }
+.sx-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+@media (max-width: 640px) { .sx-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sx-actions .btn { flex: 1 1 40%; justify-content: center; } }

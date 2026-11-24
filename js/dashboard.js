@@ -2,11 +2,24 @@
 (function () {
   'use strict';
   const IX = window.IX, M = IX.model, esc = IX.esc, H = window.H;
-  const TABS = [['overview', '📊 Overview'], ['responses', '✅ Responses'], ['guests', '👥 Guests & reminders'], ['share', '📤 Share'], ['checkin', '🎟 Check-in']];
+  const TABS = [['overview', 'Overview'], ['responses', 'Responses'], ['guests', 'Guests & reminders'], ['share', 'Share'], ['checkin', 'Check-in']];
   const STATUS = { yes: 'Attending', no: 'Declined', maybe: 'Maybe' };
   const FOOD = { veg: 'Vegetarian', nonveg: 'Non-vegetarian', jain: 'Jain', vegan: 'Vegan', other: 'Other' };
   const DEFAULT_TPL = 'Dear {name},\nWe are delighted to invite you to {event}.\nDate: {date}\nTime: {time}\nVenue: {venue}\nPlease visit our digital invitation and confirm your attendance.\n{link}\nLooking forward to celebrating with you!';
   const DEFAULT_REM = 'Dear {name},\nA gentle reminder to confirm your attendance for {event} on {date}.\nPlease reply here: {link}\nThank you!';
+  // Hand-written message templates for Hindi and Punjabi invitations (not translated by a machine).
+  const LANG_TPL = {
+    hi: {
+      invite: 'प्रिय {name},\n{event}\nइस अवसर पर आप सादर आमंत्रित हैं।\nतिथि: {date}\nसमय: {time}\nस्थान: {venue}\nकृपया हमारा डिजिटल निमंत्रण देखें और अपने आने की पुष्टि करें।\n{link}\nआपकी प्रतीक्षा रहेगी!',
+      remind: 'प्रिय {name},\n{event} – {date}\nकृपया अपने आने की पुष्टि करना न भूलें।\nयहाँ जवाब दें: {link}\nधन्यवाद!',
+      friend: 'मित्र',
+    },
+    pa: {
+      invite: 'ਪਿਆਰੇ {name},\n{event}\nਇਸ ਮੌਕੇ ਤੇ ਤੁਹਾਨੂੰ ਨਿੱਘਾ ਸੱਦਾ ਹੈ।\nਮਿਤੀ: {date}\nਸਮਾਂ: {time}\nਥਾਂ: {venue}\nਕਿਰਪਾ ਕਰਕੇ ਸਾਡਾ ਡਿਜੀਟਲ ਸੱਦਾ ਵੇਖੋ ਅਤੇ ਆਪਣੇ ਆਉਣ ਦੀ ਪੁਸ਼ਟੀ ਕਰੋ।\n{link}\nਤੁਹਾਡੀ ਉਡੀਕ ਰਹੇਗੀ!',
+      remind: 'ਪਿਆਰੇ {name},\n{event} – {date}\nਕਿਰਪਾ ਕਰਕੇ ਆਪਣੇ ਆਉਣ ਦੀ ਪੁਸ਼ਟੀ ਕਰਨਾ ਨਾ ਭੁੱਲਣਾ।\nਇੱਥੇ ਜਵਾਬ ਦਿਓ: {link}\nਧੰਨਵਾਦ!',
+      friend: 'ਦੋਸਤ',
+    },
+  };
   let D = null;
 
   H.routes.dash = async (v, id, tab) => {
@@ -22,7 +35,7 @@
       <div class="dash-head">
         <div><h1 style="margin:0">${esc(H.title(inv))}</h1>
           <div class="row small muted"><span class="pill ${inv.status}">${inv.status === 'published' ? '● Published' : 'Draft – not visible to guests'}</span>${inv.slug ? `<a target="_blank" rel="noopener" href="${esc(IX.inviteUrl(inv.slug))}">${esc(IX.inviteUrl(inv.slug))}</a>` : ''}</div></div>
-        <div class="row no-print"><button class="btn sm" id="refresh">↻ Refresh</button><a class="btn sm" href="#/edit/${esc(inv.id)}/1">✏️ Edit invitation</a><button class="btn sm danger" id="delInv">🗑 Delete</button></div>
+        <div class="row no-print"><button class="btn sm" id="refresh">Refresh</button><a class="btn sm" href="#/edit/${esc(inv.id)}/1">Edit invitation</a><button class="btn sm danger" id="delInv">Delete</button></div>
       </div>
       ${inv.status !== 'published' ? `<div class="notice warn" style="margin-bottom:1rem">This invitation is a draft. <a href="#/edit/${esc(inv.id)}/6">Publish it</a> to get a shareable link.</div>` : ''}
       ${IX.isProduction ? '' : '<div class="notice warn no-print" style="margin-bottom:1rem"><b>Demo/Local mode:</b> this dashboard only shows RSVPs submitted in <b>this browser</b>. Responses from guests on other phones are not collected until Production mode is configured.</div>'}
@@ -51,20 +64,39 @@
   }
 
   /* ---------- message helpers ---------- */
+  // The language of WhatsApp / email messages. Only languages the invitation itself has are offered.
+  const msgLangs = () => (D.inv.languages || ['en']).filter((l) => l === 'en' || LANG_TPL[l]);
+  const msgLang = () => (msgLangs().includes(D.inv.shareLang) ? D.inv.shareLang : msgLangs().includes(D.inv.defaultLang) ? D.inv.defaultLang : 'en');
   function fill(tpl, guest) {
     const inv = D.inv, ev = (inv.events || []).find((e) => e.date) || inv.events[0] || {};
-    const tz = inv.timezone;
-    const link = guest && guest.token ? IX.inviteUrl(inv.slug, { g: guest.token }) : IX.inviteUrl(inv.slug);
+    const tz = inv.timezone, l = msgLang();
+    const extra = l === (inv.defaultLang || 'en') ? {} : { lang: l };
+    const link = guest && guest.token ? IX.inviteUrl(inv.slug, { g: guest.token, ...extra }) : IX.inviteUrl(inv.slug, extra);
     return tpl
-      .replace(/\{name\}/g, guest ? guest.name : 'friend')
-      .replace(/\{event\}/g, M.txt(inv, 'en', 'title') || M.txt(inv, inv.defaultLang, 'title'))
-      .replace(/\{date\}/g, ev.date ? IX.fmtDate(ev.date, tz, 'en') : '')
-      .replace(/\{time\}/g, ev.start ? IX.fmtTime(ev.date, ev.start, tz, 'en') + (ev.end ? ' – ' + IX.fmtTime(ev.date, ev.end, tz, 'en') : '') : '')
+      .replace(/\{name\}/g, guest ? guest.name : l === 'en' ? 'friend' : LANG_TPL[l].friend)
+      .replace(/\{event\}/g, M.txt(inv, l, 'title') || M.txt(inv, 'en', 'title') || M.txt(inv, inv.defaultLang, 'title'))
+      .replace(/\{date\}/g, ev.date ? IX.fmtDate(ev.date, tz, l) : '')
+      .replace(/\{time\}/g, ev.start ? IX.fmtTime(ev.date, ev.start, tz, l) + (ev.end ? ' – ' + IX.fmtTime(ev.date, ev.end, tz, l) : '') : '')
       .replace(/\{venue\}/g, IX.venueText(ev))
       .replace(/\{link\}/g, link);
   }
-  const tpl = () => D.inv.shareTemplate || DEFAULT_TPL;
-  const remTpl = () => D.inv.reminderTemplate || DEFAULT_REM;
+  const tpl = () => { const l = msgLang(); return l === 'en' ? D.inv.shareTemplate || DEFAULT_TPL : (D.inv.shareTemplates || {})[l] || LANG_TPL[l].invite; };
+  const remTpl = () => { const l = msgLang(); return l === 'en' ? D.inv.reminderTemplate || DEFAULT_REM : (D.inv.reminderTemplates || {})[l] || LANG_TPL[l].remind; };
+  async function setTpl(kind, value) {
+    const l = msgLang(), inv = D.inv;
+    if (l === 'en') inv[kind === 'remind' ? 'reminderTemplate' : 'shareTemplate'] = value;
+    else { const k = kind === 'remind' ? 'reminderTemplates' : 'shareTemplates'; inv[k] = Object.assign({}, inv[k], { [l]: value }); }
+    await saveInv();
+  }
+  function langPicker() {
+    const ls = msgLangs();
+    if (ls.length < 2) return '';
+    return `<div class="field"><span class="lbl">Message language</span><div class="seg" role="group" aria-label="Message language">${ls.map((l) => `<label><input type="radio" name="msgLang" value="${l}" ${l === msgLang() ? 'checked' : ''}>${esc(window.IX_LANGS[l] || l)}</label>`).join('')}</div>
+      <span class="hint">Guests open the invitation in this language.</span></div>`;
+  }
+  function wireLangPicker(body, redraw) {
+    body.querySelectorAll('[name=msgLang]').forEach((r) => (r.onchange = async () => { D.inv.shareLang = r.value; await saveInv(); redraw(); }));
+  }
   async function saveInv() { await H.store.saveInvitation(D.inv); }
 
   /* ---------- Overview ---------- */
@@ -123,7 +155,7 @@
         <td class="small">${r.status === 'no' ? '—' : (r.eventIds && r.eventIds.length ? r.eventIds.map(evName).filter(Boolean).map(esc).join(', ') : 'All')}</td>
         <td class="small">${esc(FOOD[r.food] || '')}</td>
         <td class="small"><span class="phone" data-full="${esc(r.phone)}">${esc(IX.maskPhone(r.phone))}</span>${r.email ? `<div class="tiny">${esc(r.email)}</div>` : ''}</td>
-        <td class="small" style="max-width:220px">${r.requirements ? `<div><b>Needs:</b> ${esc(r.requirements)}</div>` : ''}${r.message ? `<div>💬 ${esc(r.message)}</div>` : ''}</td>
+        <td class="small" style="max-width:220px">${r.requirements ? `<div><b>Needs:</b> ${esc(r.requirements)}</div>` : ''}${r.message ? `<div class="muted">“${esc(r.message)}”</div>` : ''}</td>
         <td class="tiny"><code>${esc(r.ref)}</code><div class="muted">${esc(new Date(r.updatedAt).toLocaleString())}</div></td>
         ${actions ? `<td class="acts no-print"><button class="btn sm" data-edit="${esc(r.id)}">Edit</button> <button class="btn sm danger ghost" data-delr="${esc(r.id)}" aria-label="Delete response">✕</button></td>` : ''}
       </tr>`).join('')}</tbody></table>`;
@@ -139,12 +171,12 @@
         <label class="check small"><input type="checkbox" id="showPh"> Show full phone numbers</label>
       </div>
       <div class="row no-print" style="margin-bottom:.8rem">
-        <button class="btn sm primary" id="csv">⬇ Export CSV / Excel</button>
-        <button class="btn sm" id="print">🖨 Print list</button>
+        <button class="btn sm primary" id="csv">Export CSV / Excel</button>
+        <button class="btn sm" id="print">Print list</button>
         <button class="btn sm" id="addR">+ Add response manually</button>
       </div>
       <p class="small"><b>${rows.length}</b> shown · <b>${rows.filter((r) => r.status === 'yes').reduce((a, r) => a + r.adults + r.children, 0)}</b> attending in this view</p>
-      ${rows.length ? `<div class="tbl-wrap">${table(rows)}</div>` : '<div class="empty card"><div class="big">📭</div><p>No responses match.</p></div>'}`;
+      ${rows.length ? `<div class="tbl-wrap">${table(rows)}</div>` : '<div class="empty card"><p>No responses match.</p></div>'}`;
     const qi = body.querySelector('#q');
     qi.oninput = IX.debounce(() => { D.q = qi.value; responses(body); const n = document.getElementById('q'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 250);
     body.querySelector('#flt').value = D.filter;
@@ -214,6 +246,37 @@
     if (g.sentAt) return [`<span class="pill pending">WhatsApp/email opened ${esc(new Date(g.sentAt).toLocaleDateString())}</span>`, 'pending'];
     return ['<span class="pill">Not sent</span>', 'new'];
   }
+  // Search and quick filters for the invite list. Rows are only shown or hidden,
+  // so buttons inside the table keep working and nothing is re-drawn while typing.
+  const GF = [['', 'All'], ['new', 'Not sent yet'], ['pending', 'Sent, no reply'], ['opened', 'Opened, no reply'], ['responded', 'Replied']];
+  function guestFilters() {
+    const n = (k) => D.guests.filter((g) => !k || guestState(g)[1] === k).length;
+    D.gf = D.gf || '';
+    return `<div class="filters gfilters no-print">
+      <input class="input" type="search" id="gq" placeholder="Search guests by name, number or email…" aria-label="Search guests" value="${esc(D.gq || '')}">
+      <div class="chips" role="group" aria-label="Show guests">${GF.map(([k, l]) => `<button type="button" class="chip ${D.gf === k ? 'on' : ''}" data-gf="${k}" aria-pressed="${D.gf === k}">${l} <b>${n(k)}</b></button>`).join('')}</div>
+      <p class="tiny muted" id="gCount" aria-live="polite"></p></div>`;
+  }
+  function wireGuestFilters(body) {
+    const q = body.querySelector('#gq');
+    if (!q) return;
+    const apply = () => {
+      const s = (D.gq || '').trim().toLowerCase(), digits = s.replace(/\D/g, '');
+      let shown = 0;
+      body.querySelectorAll('tr[data-kind]').forEach((tr) => {
+        const hit = (!D.gf || tr.dataset.kind === D.gf) && (!s || tr.dataset.s.includes(s) || (digits.length >= 3 && tr.dataset.s.includes(digits)));
+        tr.hidden = !hit; if (hit) shown++;
+      });
+      body.querySelector('#gCount').textContent = shown === D.guests.length ? '' : `${shown} of ${D.guests.length} shown`;
+    };
+    q.oninput = () => { D.gq = q.value; apply(); };
+    body.querySelectorAll('[data-gf]').forEach((b) => (b.onclick = () => {
+      D.gf = b.dataset.gf;
+      body.querySelectorAll('[data-gf]').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', x === b); });
+      apply();
+    }));
+    apply();
+  }
   function guests(body) {
     const pub = D.inv.status === 'published';
     const pending = D.guests.filter((g) => !D.rsvps.some((r) => r.guestId === g.id));
@@ -229,9 +292,9 @@
           <button class="btn primary" type="submit">+ Add guest</button></form>
         <div class="card stack"><h2>Import guest list</h2>
           <p class="tiny muted">Upload an Excel (.xlsx) or CSV file with columns <b>Name, WhatsApp number, Email, Max people</b>. Only Name is required. You'll see a preview before anything is added.</p>
-          <div class="row"><label class="btn primary" for="impFile">📄 Upload Excel / CSV</label><input type="file" id="impFile" accept=".xlsx,.csv,.txt,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
-            <button class="btn sm ghost" id="impTpl">⬇ Sample template</button></div>
-          ${'contacts' in navigator && 'select' in navigator.contacts ? '<button class="btn wa" id="pickContacts">📇 Pick from phone contacts</button><p class="tiny muted" style="margin:0">Names and numbers come straight from your phone, so each guest gets a personal link and can reply with one tap.</p>' : ''}
+          <div class="row"><label class="btn primary" for="impFile">Upload Excel / CSV</label><input type="file" id="impFile" accept=".xlsx,.csv,.txt,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+            <button class="btn sm ghost" id="impTpl">Sample template</button></div>
+          ${'contacts' in navigator && 'select' in navigator.contacts ? '<button class="btn wa" id="pickContacts">Pick from phone contacts</button><p class="tiny muted" style="margin:0">Names and numbers come straight from your phone, so each guest gets a personal link and can reply with one tap.</p>' : ''}
           <details><summary class="small">Or paste names</summary>
             <p class="tiny muted">One guest per line: <code>Name, phone, max people</code> (phone and max optional). You can paste straight from Excel.</p>
             <textarea class="input" id="bulk" rows="5" placeholder="Rakesh Kumar, 9876543210, 4&#10;Meena Aunty, +91 91234 56789"></textarea>
@@ -239,23 +302,26 @@
       </div>
       <div class="card stack">
         <div class="row between"><h2 style="margin:0">Invite list (${D.guests.length})</h2>
-          <div class="row"><button class="btn sm" id="dlGuests">⬇ Download guest list</button><button class="btn sm gold" id="remAll" ${pending.length && pub ? '' : 'disabled'}>🔔 Send reminders (${pending.length} pending)</button></div></div>
+          <div class="row"><button class="btn sm" id="dlGuests">Download guest list</button><button class="btn sm gold" id="remAll" ${pending.length && pub ? '' : 'disabled'}>Send reminders (${pending.length} pending)</button></div></div>
+        ${langPicker()}
         <details><summary class="small">Edit WhatsApp message templates</summary>
           <div class="grid2" style="margin-top:.6rem"><div class="field"><label for="tpl">Invitation message</label><textarea class="input" id="tpl" rows="8">${esc(tpl())}</textarea></div>
           <div class="field"><label for="rtpl">Reminder message</label><textarea class="input" id="rtpl" rows="8">${esc(remTpl())}</textarea></div></div>
           <p class="tiny muted">Placeholders: {name} {event} {date} {time} {venue} {link}</p></details>
         <p class="tiny muted">WhatsApp buttons open WhatsApp with your message ready – you press Send. We record that WhatsApp was opened, not that the message was delivered.</p>
+        ${D.guests.length ? guestFilters() : ''}
         ${D.guests.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Guest</th><th>Status</th><th>Max</th><th>Personal link & sending</th><th></th></tr></thead><tbody>
-          ${D.guests.map((g) => { const [st, kind] = guestState(g); const link = IX.inviteUrl(D.inv.slug, { g: g.token }); return `<tr>
+          ${D.guests.map((g) => { const [st, kind] = guestState(g); const link = IX.inviteUrl(D.inv.slug, { g: g.token }); return `<tr data-kind="${kind}" data-s="${esc([g.name, g.phone, IX.normPhone(g.phone), g.email].join(' ').toLowerCase())}">
             <td><b>${esc(g.name)}</b><div class="tiny muted">${esc(IX.maskPhone(g.phone))}${g.email ? ' · ' + esc(g.email) : ''}</div></td>
             <td>${st}</td><td class="num">${g.allowed || '—'}</td>
-            <td class="acts">${pub ? `<button class="btn sm wa" data-wa="${esc(g.id)}" ${g.phone ? '' : 'title="No number – WhatsApp will ask you to pick a contact"'}>💬 ${kind === 'new' ? 'WhatsApp' : 'Resend'}</button>
-              ${kind !== 'responded' && g.sentAt ? `<button class="btn sm" data-rem="${esc(g.id)}">🔔 Remind</button>` : ''}
-              ${g.email ? `<a class="btn sm" data-mail="${esc(g.id)}" href="${esc(IX.mailtoUrl(g.email, 'Invitation: ' + H.title(D.inv), fill(tpl(), g)))}">✉ Email</a>` : ''}
-              <button class="btn sm ghost" data-cp="${esc(link)}">🔗 Copy link</button>` : '—'}</td>
+            <td class="acts">${pub ? `<button class="btn sm wa" data-wa="${esc(g.id)}" ${g.phone ? '' : 'title="No number – WhatsApp will ask you to pick a contact"'}>${kind === 'new' ? 'WhatsApp' : 'Resend'}</button>
+              ${kind !== 'responded' && g.sentAt ? `<button class="btn sm" data-rem="${esc(g.id)}">Remind</button>` : ''}
+              ${g.email ? `<a class="btn sm" data-mail="${esc(g.id)}" href="${esc(IX.mailtoUrl(g.email, 'Invitation: ' + H.title(D.inv), fill(tpl(), g)))}">Email</a>` : ''}
+              <button class="btn sm ghost" data-cp="${esc(link)}">Copy link</button>` : '—'}</td>
             <td><button class="btn sm ghost" data-eg="${esc(g.id)}">Edit</button><button class="btn sm ghost danger" data-dg="${esc(g.id)}" aria-label="Remove guest">✕</button></td></tr>`; }).join('')}
           </tbody></table></div>` : '<p class="muted small">No guests added yet. You can also share one general link from the Share tab – anyone with it can RSVP.</p>'}
       </div>`;
+    wireGuestFilters(body);
     const err = body.querySelector('#g-err');
     body.querySelector('#gf').onsubmit = async (e) => {
       e.preventDefault();
@@ -313,8 +379,9 @@
       const rows = txt.includes('\t') ? txt.split(/\r?\n/).map((l) => l.split('\t')) : txt.split(/\r?\n/).map((l) => l.split(','));
       previewImport(IXImport.toGuests(rows));
     };
-    body.querySelector('#tpl').onchange = async (e) => { D.inv.shareTemplate = e.target.value; await saveInv(); IX.toast('Template saved', 'ok'); };
-    body.querySelector('#rtpl').onchange = async (e) => { D.inv.reminderTemplate = e.target.value; await saveInv(); IX.toast('Template saved', 'ok'); };
+    body.querySelector('#tpl').onchange = async (e) => { await setTpl('invite', e.target.value); IX.toast('Template saved', 'ok'); };
+    body.querySelector('#rtpl').onchange = async (e) => { await setTpl('remind', e.target.value); IX.toast('Template saved', 'ok'); };
+    wireLangPicker(body, () => guests(body));
     const mark = async (id, field) => { const g = D.guests.find((x) => x.id === id); g[field] = new Date().toISOString(); await H.store.saveGuest(g); await reload(); guests(body); };
     body.querySelectorAll('[data-wa]').forEach((b) => (b.onclick = () => { const g = D.guests.find((x) => x.id === b.dataset.wa); window.open(IX.whatsappUrl(fill(tpl(), g), g.phone), '_blank', 'noopener'); mark(g.id, 'sentAt'); }));
     body.querySelectorAll('[data-rem]').forEach((b) => (b.onclick = () => { const g = D.guests.find((x) => x.id === b.dataset.rem); window.open(IX.whatsappUrl(fill(remTpl(), g), g.phone), '_blank', 'noopener'); mark(g.id, 'remindedAt'); }));
@@ -345,7 +412,7 @@
       H.modal({
         title: `Send reminders (${pending.length})`, wide: true,
         body: `<p class="small">Browsers can only open one WhatsApp chat at a time, so tap each guest below. WhatsApp opens with the reminder ready – press Send there, then come back for the next.</p>
-          <div class="stack">${pending.map((g) => `<div class="row between" style="border-bottom:1px solid var(--line);padding:.4rem 0"><span><b>${esc(g.name)}</b> <span class="tiny muted">${esc(IX.maskPhone(g.phone))}</span></span><span class="row">${g.remindedAt ? '<span class="pill maybe">reminded</span>' : ''}<a class="btn sm wa" target="_blank" rel="noopener" data-r1="${esc(g.id)}" href="${esc(IX.whatsappUrl(fill(remTpl(), g), g.phone))}">💬 Remind</a></span></div>`).join('')}</div>`,
+          <div class="stack">${pending.map((g) => `<div class="row between" style="border-bottom:1px solid var(--line);padding:.4rem 0"><span><b>${esc(g.name)}</b> <span class="tiny muted">${esc(IX.maskPhone(g.phone))}</span></span><span class="row">${g.remindedAt ? '<span class="pill maybe">reminded</span>' : ''}<a class="btn sm wa" target="_blank" rel="noopener" data-r1="${esc(g.id)}" href="${esc(IX.whatsappUrl(fill(remTpl(), g), g.phone))}">Remind</a></span></div>`).join('')}</div>`,
         actions: [{ label: 'Done', cls: 'primary' }],
         onOpen: (m) => m.querySelectorAll('[data-r1]').forEach((a) => a.addEventListener('click', async () => {
           const g = D.guests.find((x) => x.id === a.dataset.r1); g.remindedAt = new Date().toISOString(); await H.store.saveGuest(g);
@@ -355,39 +422,65 @@
     };
   }
 
-  /* ---------- Share ---------- */
+  /* ---------- Share (sharing centre) ---------- */
+  // What InviteX can honestly know: when the host opened WhatsApp or email for a guest,
+  // when a guest opened their personal link, and when they replied. Never "delivered".
+  function shareStatus() {
+    const gs = D.guests, has = (g) => D.rsvps.some((r) => r.guestId === g.id);
+    const n = { invited: gs.length, sent: gs.filter((g) => g.sentAt).length, opened: gs.filter((g) => g.openedAt || has(g)).length, replied: gs.filter(has).length };
+    n.notSent = gs.filter((g) => !g.sentAt && !has(g)).length;
+    const general = D.rsvps.filter((r) => !r.guestId).length;
+    const step = (v, l, sub) => `<div class="sx-step"><b>${v}</b><span>${l}</span>${sub ? `<small>${sub}</small>` : ''}</div>`;
+    return `<div class="card sx-status">
+      <div class="row between"><h2 style="margin:0">Sharing status</h2><button class="btn sm" data-goto="guests">Personal invites${n.notSent ? ` · ${n.notSent} not sent` : ''}</button></div>
+      ${n.invited ? `<div class="sx-steps">
+        ${step(n.invited, 'On your guest list')}
+        ${step(n.sent, 'WhatsApp or email opened', 'by you, to send')}
+        ${step(n.opened, 'Opened their link')}
+        ${step(n.replied, 'Replied')}
+      </div>` : `<p class="small muted" style="margin:.4rem 0 0">No guest list yet. Add guests in <b>Guests &amp; reminders</b> to send each one a personal link with their name, or share the general link below.</p>`}
+      ${general ? `<p class="tiny muted" style="margin:.6rem 0 0">${general} ${general === 1 ? 'reply' : 'replies'} came through the general link.</p>` : ''}
+      <p class="tiny muted" style="margin:.6rem 0 0">InviteX can see when <i>you</i> opened WhatsApp or email to send, and when a guest opened their personal link or replied. It cannot see whether a WhatsApp message was delivered or read.</p>
+    </div>`;
+  }
   function share(body) {
     const inv = D.inv;
     if (inv.status !== 'published') { body.innerHTML = `<div class="card"><p>Publish the invitation to share it.</p><a class="btn primary" href="#/edit/${esc(inv.id)}/6">Go to Publish</a></div>`; return; }
-    const link = IX.inviteUrl(inv.slug);
+    const l = msgLang();
+    const link = IX.inviteUrl(inv.slug, l === (inv.defaultLang || 'en') ? {} : { lang: l });
     const msg = fill(tpl(), null);
     body.innerHTML = `
       ${IX.isProduction ? '' : '<div class="notice warn" style="margin-bottom:1rem"><b>Demo/Local mode:</b> this link opens only in this browser. Guests on other phones will see “Invitation not found” until Production mode is set up. Use it to test the full guest journey here.</div>'}
+      ${shareStatus()}
       <div class="share-grid">
-        <div class="card stack"><h2>Invitation link</h2>
-          <div class="copyrow"><input class="input" readonly value="${esc(link)}" aria-label="Invitation link" id="lnk"><button class="btn" id="cpy">Copy</button></div>
-          <div class="row"><a class="btn wa" target="_blank" rel="noopener" id="waAll" href="${esc(IX.whatsappUrl(msg))}">💬 Share on WhatsApp</a>
-          <a class="btn" href="${esc(IX.mailtoUrl('', 'Invitation: ' + H.title(inv), msg))}">✉ Email</a>
-          ${navigator.share ? '<button class="btn" id="nshare">📱 More apps…</button>' : ''}
-          <a class="btn ghost" target="_blank" rel="noopener" href="${esc(link)}">👁 Open</a></div>
-          <div class="field"><label for="msgPrev">WhatsApp message</label><textarea class="input" id="msgPrev" rows="9">${esc(msg)}</textarea><span class="hint">Edit before sharing. For personalised messages with each guest's name, use the Guests tab.</span></div>
+        <div class="card stack"><h2>Share the invitation</h2>
+          ${langPicker()}
+          <div class="copyrow"><input class="input" readonly value="${esc(link)}" aria-label="Invitation link" id="lnk"><button class="btn" id="cpy">Copy link</button></div>
+          <div class="sx-actions">
+            <a class="btn wa" target="_blank" rel="noopener" id="waAll" href="${esc(IX.whatsappUrl(msg))}">WhatsApp</a>
+            <a class="btn" id="mailAll" href="${esc(IX.mailtoUrl('', 'Invitation: ' + H.title(inv), msg))}">Email</a>
+            ${navigator.share ? '<button class="btn" id="nshare">More apps…</button>' : ''}
+            <a class="btn ghost" target="_blank" rel="noopener" href="${esc(link)}">Open as a guest</a></div>
+          <div class="field"><label for="msgPrev">Message</label><textarea class="input" id="msgPrev" rows="9">${esc(msg)}</textarea><span class="hint">Edit before sharing. This general message greets everyone the same way; for a message with each guest's name and their own link, use <b>Personal invites</b>.</span></div>
         </div>
         <div class="card stack" style="text-align:center"><h2>QR code</h2>
           <div class="qr-box" id="qr">${IX.qrSVG(link, { size: 220 })}</div>
-          <p class="tiny muted">Print it on physical cards or show it at the venue.</p>
-          <div class="row" style="justify-content:center"><button class="btn" id="qrPng">⬇ Download QR (PNG)</button></div>
+          <p class="tiny muted">Print it on physical cards or show it at the venue. Scanning opens the invitation.</p>
+          <div class="row" style="justify-content:center"><button class="btn" id="qrPng">Download QR (PNG)</button></div>
         </div>
-        <div class="card stack"><h2>Download &amp; print</h2>
-          <p class="small muted">A ready-to-share image card (1080×1350, ideal for WhatsApp status and Instagram), or a full PDF of the invitation.</p>
+        <div class="card stack"><h2>Image &amp; print</h2>
+          <p class="small muted">A ready-to-share image card (1080×1350, right for WhatsApp status and Instagram), or a print-friendly page you can save as PDF.</p>
           <canvas id="cardCanvas" width="1080" height="1350" style="width:100%;max-width:300px;border-radius:12px;box-shadow:var(--sh);display:block;margin:0 auto"></canvas>
-          <div class="row" style="justify-content:center"><button class="btn primary" id="dlImg">⬇ Download image</button>
-          <a class="btn" target="_blank" rel="noopener" href="${esc(IX.inviteUrl(inv.slug, { print: '1' }))}">🖨 Print / Save as PDF</a></div>
+          <div class="row" style="justify-content:center"><button class="btn primary" id="dlImg">Download image</button>
+          <a class="btn" target="_blank" rel="noopener" href="${esc(IX.inviteUrl(inv.slug, { print: '1', lang: l === (inv.defaultLang || 'en') ? '' : l }))}">Print / Save as PDF</a></div>
           <p class="tiny muted">In the print dialog choose “Save as PDF”. Turn on “Background graphics” for full colours.</p>
         </div>
       </div>`;
+    body.querySelector('[data-goto=guests]').onclick = () => document.querySelector('[data-tab=guests]').click();
+    wireLangPicker(body, () => share(body));
     body.querySelector('#cpy').onclick = async () => { await IX.copy(link); IX.toast('Link copied', 'ok'); };
     const mp = body.querySelector('#msgPrev');
-    mp.oninput = () => (body.querySelector('#waAll').href = IX.whatsappUrl(mp.value));
+    mp.oninput = () => { body.querySelector('#waAll').href = IX.whatsappUrl(mp.value); body.querySelector('#mailAll').href = IX.mailtoUrl('', 'Invitation: ' + H.title(inv), mp.value); };
     const ns = body.querySelector('#nshare');
     if (ns) ns.onclick = () => navigator.share({ title: H.title(inv), text: mp.value.replace(link, '').trim(), url: link }).catch(() => {});
     body.querySelector('#qrPng').onclick = async () => IX.download((inv.slug || 'invite') + '-qr.png', await IX.qrPNG(link, 800));
@@ -405,7 +498,7 @@
     }
     const f = inv.design.fonts;
     try { await Promise.all([`64px "${f.script}"`, `40px "${f.head}"`, '40px "Noto Sans Devanagari"', '40px "Noto Sans Gurmukhi"'].map((x) => document.fonts.load(x))); } catch (e) { /* fonts optional */ }
-    const p = M.palette(inv), c = cv.getContext('2d'), W = cv.width, Hh = cv.height, L = inv.defaultLang;
+    const p = M.palette(inv), c = cv.getContext('2d'), W = cv.width, Hh = cv.height, L = D && D.inv === inv ? msgLang() : inv.defaultLang;
     const g = c.createLinearGradient(0, 0, 0, Hh); g.addColorStop(0, p.bg); g.addColorStop(1, p.bg2);
     c.fillStyle = g; c.fillRect(0, 0, W, Hh);
     const loadSvg = (svg) => IX.loadImage('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.replace('<svg ', '<svg width="440" height="440" ')));
@@ -449,10 +542,10 @@
     if (sub) { c.font = `500 32px "${f.head}", "Noto Sans Devanagari", "Noto Sans Gurmukhi", serif`; c.fillText(sub, W / 2, y); y += 70; }
     const ev = (inv.events || []).find((e) => e.date);
     if (ev) {
-      c.font = `600 40px "${f.head}", serif`; c.fillStyle = p.accent;
-      c.fillText(IX.fmtDate(ev.date, inv.timezone, 'en', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: inv.timezone }), W / 2, y); y += 54;
+      c.font = `600 40px "${f.head}", "Noto Sans Devanagari", "Noto Sans Gurmukhi", serif`; c.fillStyle = p.accent;
+      c.fillText(IX.fmtDate(ev.date, inv.timezone, L, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: inv.timezone }), W / 2, y); y += 54;
       c.fillStyle = p.text; c.font = `500 32px "${f.head}", serif`;
-      if (ev.start) { c.fillText(IX.fmtTime(ev.date, ev.start, inv.timezone, 'en'), W / 2, y); y += 50; }
+      if (ev.start) { c.fillText(IX.fmtTime(ev.date, ev.start, inv.timezone, L), W / 2, y); y += 50; }
       if (ev.venue) { c.font = `600 34px "${f.head}", serif`; c.fillStyle = p.accent; c.fillText(ev.venue.toUpperCase(), W / 2, y); y += 46; }
       if (ev.city) { c.font = `500 28px "${f.head}", serif`; c.fillStyle = p.text; c.fillText(ev.city, W / 2, y); y += 40; }
     }
@@ -473,7 +566,7 @@
       <div class="grid2"><form class="card stack" id="cf"><h2>Verify a guest</h2>
         <p class="small muted">Scan the QR code on the guest's confirmation screen, or type their reference (e.g. IVX-7K2M9Q).</p>
         <div class="copyrow"><input class="input" id="cref" placeholder="IVX-XXXXXX" autocapitalize="characters" aria-label="Confirmation reference"><button class="btn primary" type="submit">Check in</button></div>
-        ${'BarcodeDetector' in window ? '<button type="button" class="btn" id="scan">📷 Scan QR with camera</button><video id="scanV" class="scan-video" hidden playsinline muted></video>' : '<p class="tiny muted">Camera scanning is available in Chrome/Edge on Android and desktop. Elsewhere, type the reference.</p>'}
+        ${'BarcodeDetector' in window ? '<button type="button" class="btn" id="scan">Scan QR with camera</button><video id="scanV" class="scan-video" hidden playsinline muted></video>' : '<p class="tiny muted">Camera scanning is available in Chrome/Edge on Android and desktop. Elsewhere, type the reference.</p>'}
         <div id="cres" aria-live="polite"></div></form>
       <div class="card"><h2>Confirmed guests</h2>
         <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Guest</th><th class="num">People</th><th>Ref</th><th></th></tr></thead><tbody>

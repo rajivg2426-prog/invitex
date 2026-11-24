@@ -26,7 +26,7 @@ const res = []; const ok = (t, c, n = '') => { res.push(c); console.log((c ? 'PA
   // 1. personal link: one tap
   let p = await open(`${BASE}invite.html?i=${info.slug}&g=${info.token}`);
   await p.locator('#rsvpBox').screenshot({ path: OUT + '/1-personal-link.png' });
-  const typed = await p.locator('#rsvpForm input:not([type=hidden])').count();
+  const typed = await p.locator('#rsvpForm input:not([type=hidden]):visible').count();
   ok('personal link: greets guest, no name/number boxes', (await p.locator('.ix-who-name').innerText()).includes('Rakesh') && typed === 1, 'visible inputs=' + typed);
   ok('count starts at party size 4', (await p.inputValue('input[name=adults]')) === '4');
   await p.locator('.ix-yes').dblclick(); await p.waitForSelector('#thanks');

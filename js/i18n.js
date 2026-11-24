@@ -5,6 +5,11 @@
   'use strict';
   const L = {
     en: {
+      addDetails: 'Add details (optional)',
+      detailsHint: 'Children, events, food or a note for the host. You can skip this.',
+      childrenOf: 'Of these, how many are children?',
+      confirmMaybe: 'Not sure yet',
+      rsvpNow: 'Reply',
       langName: 'English',
       openInvite: 'Open Invitation',
       tapToOpen: 'Tap to open your invitation',
@@ -100,6 +105,11 @@
       editLinkShort: 'Change your reply from another phone',
     },
     hi: {
+      addDetails: 'और जानकारी दें (वैकल्पिक)',
+      detailsHint: 'बच्चे, कौन-से कार्यक्रम, भोजन या मेज़बान के लिए संदेश। चाहें तो छोड़ दें।',
+      childrenOf: 'इनमें से कितने बच्चे हैं?',
+      confirmMaybe: 'अभी पक्का नहीं',
+      rsvpNow: 'जवाब दें',
       langName: 'हिन्दी',
       openInvite: 'निमंत्रण खोलें',
       tapToOpen: 'अपना निमंत्रण खोलने के लिए टैप करें',
@@ -195,6 +205,11 @@
       editLinkShort: 'दूसरे फ़ोन से उत्तर बदलें',
     },
     pa: {
+      addDetails: 'ਹੋਰ ਜਾਣਕਾਰੀ ਦਿਓ (ਵਿਕਲਪਿਕ)',
+      detailsHint: 'ਬੱਚੇ, ਕਿਹੜੇ ਸਮਾਗਮ, ਖਾਣਾ ਜਾਂ ਮੇਜ਼ਬਾਨ ਲਈ ਸੁਨੇਹਾ। ਚਾਹੋ ਤਾਂ ਛੱਡ ਦਿਓ।',
+      childrenOf: 'ਇਨ੍ਹਾਂ ਵਿੱਚੋਂ ਕਿੰਨੇ ਬੱਚੇ ਹਨ?',
+      confirmMaybe: 'ਹਾਲੇ ਪੱਕਾ ਨਹੀਂ',
+      rsvpNow: 'ਜਵਾਬ ਦਿਓ',
       langName: 'ਪੰਜਾਬੀ',
       openInvite: 'ਸੱਦਾ ਖੋਲ੍ਹੋ',
       tapToOpen: 'ਆਪਣਾ ਸੱਦਾ ਖੋਲ੍ਹਣ ਲਈ ਟੈਪ ਕਰੋ',
