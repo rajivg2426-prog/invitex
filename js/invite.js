@@ -492,7 +492,10 @@
     if (op) {
       document.body.classList.add('locked');
       const ob = document.getElementById('openBtn');
-      ob.focus({ preventScroll: true });
+      // In the editor's live preview the iframe must never take focus: every
+      // keystroke re-renders the preview, and focusing here stole the cursor
+      // from the field the host was typing in.
+      if (!isPreview) ob.focus({ preventScroll: true });
       ob.onclick = () => {
         S.opened = true;
         op.classList.add('opening');
