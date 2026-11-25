@@ -52,6 +52,10 @@
     const name = parts[0] || 'home';
     document.querySelectorAll('.topnav a').forEach((a) => a.classList.toggle('on', a.getAttribute('href') === '#/' + (name === 'home' ? '' : name)));
     if (H.store.mode === 'supabase' && !H.user && name !== 'login' && name !== 'help') return H.go('#/login');
+    if (H.user && H.store.mode === 'supabase') {
+      await H.loadAccount();
+      if (H.account.status === 'suspended' && name !== 'help') return suspended();
+    }
     const fn = H.routes[name] || H.routes.home;
     try { await fn(view, ...parts.slice(1)); } catch (e) {
       console.error(e);
@@ -60,6 +64,28 @@
     view.focus({ preventScroll: true });
   }
   H.route = () => route();
+
+  /* ---------- my role (host / admin) and status ---------- */
+  H.account = { role: 'host', status: 'active' };
+  H.isAdmin = () => H.account.role === 'admin' && H.account.status === 'active';
+  H.loadAccount = async (force) => {
+    const uid = H.user ? H.user.id : null;
+    if (!force && H.accountFor === uid && uid) return H.account;
+    H.accountFor = uid;
+    H.account = uid ? await H.store.myAccount().catch(() => ({ role: 'host', status: 'active' })) : { role: 'host', status: 'active' };
+    const nav = document.getElementById('navAdmin');
+    if (nav) nav.hidden = !H.isAdmin();
+    return H.account;
+  };
+  function suspended() {
+    const r = H.account.reason;
+    H.render(`<div class="card stack" style="max-width:520px;margin:2rem auto">
+      <h1>Your account is paused</h1>
+      <p>An InviteX admin has paused this account, so you cannot open or change invitations right now.${r ? ` Reason given: <b>${esc(r)}</b>.` : ''}</p>
+      <p class="muted small">If you think this is a mistake, contact the person who runs InviteX for you.</p>
+      <div class="row"><button class="btn" id="susOut">Sign out</button></div></div>`);
+    view.querySelector('#susOut').onclick = async () => { await H.store.signOut(); H.user = null; H.loadAccount(true); H.go('#/login'); };
+  }
   H.render = (html) => { view.innerHTML = html; window.scrollTo(0, 0); };
 
   /* ---------- shared bits ---------- */
@@ -151,7 +177,7 @@
     } else {
       badge.textContent = 'Production'; badge.className = 'mode-badge prod';
       H.user = await H.store.getUser();
-      H.store.sb.auth.onAuthStateChange((_e, session) => { H.user = session ? session.user : null; });
+      H.store.sb.auth.onAuthStateChange((_e, session) => { H.user = session ? session.user : null; if (!session) H.loadAccount(true); });
     }
     // Load every font the editor offers, so the font and design pickers show the real
     // typefaces (before, they fell back to the system font and looked fake).

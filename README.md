@@ -65,6 +65,8 @@ js/invite.js          Guest microsite renderer and RSVP form
 js/samples.js         The 4 sample invitations
 js/vendor/qrcode.js   QR generator (qrcode-generator 1.4.4, MIT, Kazuhiko Arase)
 supabase/schema.sql   Tables, RLS policies, guest RPC API, storage bucket & policies
+supabase/admin.sql    Admin page: roles, admin-only functions, paused accounts, activity log
+js/admin.js           Admin page (#/admin): Users, Invitations, Usage, Activity log
 tests/e2e.js          Playwright end-to-end test of all 13 required journeys
 tests/copy-*.{mjs,js} Writing studio tests: built-in writer, AI server step, studio in the browser
 js/copy/              Writing studio: built-in writer (engine + EN/HI/PA phrase banks) and studio screen

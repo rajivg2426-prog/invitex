@@ -488,7 +488,7 @@
       <nav class="hx-rail" aria-label="Dashboard">
         <a class="btn primary" href="#/new">${icon('plus')}Create invitation</a>
         <ul>${nav.map(([k, l, ic, href], i) => `<li><a href="${href}" data-jump class="${i === 0 ? 'on' : ''}">${icon(ic)}<span>${l}</span></a></li>`).join('')}</ul>
-        <ul class="hx-rail-sub"><li><a href="#/settings">${icon('spark')}<span>Settings</span></a></li><li><a href="#/help">${icon('open')}<span>Help</span></a></li></ul>
+        <ul class="hx-rail-sub">${H.isAdmin && H.isAdmin() ? `<li><a href="#/admin">${icon('users')}<span>Admin</span></a></li>` : ''}<li><a href="#/settings">${icon('spark')}<span>Settings</span></a></li><li><a href="#/help">${icon('open')}<span>Help</span></a></li></ul>
       </nav>
 
       <div class="hx-center">
