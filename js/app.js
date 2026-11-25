@@ -86,47 +86,7 @@
 
   // Home dashboard and #/new live in js/home.js
 
-  /* ---------- settings ---------- */
-  H.routes.settings = async (v) => {
-    const local = H.store.mode === 'local';
-    H.render(`<h1>Settings</h1>
-      <div class="card stack">
-        <h2>Data mode: ${local ? 'Demo / Local' : 'Production (Supabase)'}</h2>
-        ${local ? `<div class="notice warn"><b>Your data is stored only in this browser on this device</b> (IndexedDB). Guest links open only in this same browser, and RSVPs from other people's phones are <b>not</b> collected. To receive real RSVPs from guests, connect a Supabase project — see <a href="docs/DEPLOYMENT.md" target="_blank">docs/DEPLOYMENT.md</a>.</div>`
-          : `<div class="notice ok">Connected to Supabase. Signed in as <b>${esc(H.user && H.user.email)}</b>. Guests can open links from any device and RSVPs synchronise to your dashboard.</div><div class="row"><button class="btn" id="chk">🔌 Check connection</button><button class="btn" id="signOut">Sign out</button></div><div id="chkOut"></div>`}
-      </div>
-      ${local ? `<div class="card stack">
-        <h2>Backup &amp; restore</h2>
-        <p class="muted small">Download everything (invitations, guests, RSVPs, photos) as one file, or restore it on another browser.</p>
-        <div class="row"><button class="btn" id="exp">⬇ Download backup (.json)</button>
-        <label class="btn">⬆ Restore backup<input type="file" accept="application/json,.json" id="imp" hidden></label></div>
-      </div>
-      <div class="card stack">
-        <h2>Delete all local data</h2>
-        <p class="muted small">Removes every invitation, guest list, RSVP and uploaded file from this browser.</p>
-        <button class="btn danger" id="wipe">Delete everything</button>
-      </div>` : ''}`);
-    const so = v.querySelector('#signOut');
-    if (so) so.onclick = async () => { await H.store.signOut(); H.user = null; H.go('#/login'); };
-    const ck = v.querySelector('#chk');
-    if (ck) ck.onclick = async () => { const r = await H.store.checkConnection(); v.querySelector('#chkOut').innerHTML = `<div class="notice ${r.ok ? 'ok' : 'bad'}">${esc(r.msg)}</div>`; };
-    if (!local) return;
-    v.querySelector('#exp').onclick = async () => {
-      const data = await H.store.exportAll();
-      IX.download('invitex-backup-' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify(data), 'application/json');
-    };
-    v.querySelector('#imp').onchange = async (e) => {
-      const f = e.target.files[0];
-      if (!f) return;
-      try { await H.store.importAll(JSON.parse(await f.text())); IX.toast('Backup restored', 'ok'); H.go('#/'); } catch (err) { IX.toast(err.message, 'bad'); }
-    };
-    v.querySelector('#wipe').onclick = async () => {
-      if (!(await H.confirm('Delete all local data?', 'Every invitation, guest and RSVP in this browser will be erased. This cannot be undone.', 'Delete everything', true))) return;
-      await H.store.wipe();
-      location.hash = '#/';
-      location.reload();
-    };
-  };
+  // Settings (Account, Language, WhatsApp, Plan) live in js/settings.js
 
   /* ---------- login (production) ---------- */
   H.routes.login = async (v) => {
