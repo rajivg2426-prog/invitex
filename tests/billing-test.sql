@@ -148,7 +148,10 @@ select pg_temp.ok('exactly one unlock for the campaign', (select count(*) from p
 select pg_temp.ok('unlock is a paid one for ₹20 pointing at the payment',
   (select e.grant_type = 'paid' and e.amount_paise = 2000 and t.provider_payment_id = 'pay_A' from public.campaign_entitlements e join public.payment_transactions t on t.id = e.transaction_id where e.campaign_id = (select id from cid)));
 select pg_temp.ok('payment verified by both checkout and webhook', (select verified_via @> array['checkout','webhook'] from public.payment_transactions where provider_payment_id = 'pay_A'));
-select pg_temp.ok('webhook event ids are deduplicated', public._svc_webhook_seen('simulated', 'evt_1', 'payment.captured', true, '{}') and not public._svc_webhook_seen('simulated', 'evt_1', 'payment.captured', true, '{}'));
+select pg_temp.ok('a new webhook event is processed', public._svc_webhook_seen('simulated', 'evt_1', 'payment.captured', true, '{}'));
+select pg_temp.ok('an event that failed half-way is processed again', public._svc_webhook_seen('simulated', 'evt_1', 'payment.captured', true, '{}'));
+select public._svc_webhook_done('simulated', 'evt_1', 'unlocked');
+select pg_temp.ok('a processed webhook event is skipped when it arrives again', not public._svc_webhook_seen('simulated', 'evt_1', 'payment.captured', true, '{}'));
 select pg_temp.ok('a second captured payment on the paid campaign is reported as a duplicate',
   public._svc_payment_apply('simulated', 'order_SIM1', '{"id":"pay_C","status":"captured","amount":2000,"currency":"INR"}', 'webhook')->>'result' = 'duplicate');
 select pg_temp.ok('…flagged "refund due", still one unlock', (select flag from public.payment_transactions where provider_payment_id = 'pay_C') = 'duplicate_refund_due'

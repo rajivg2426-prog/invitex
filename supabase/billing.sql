@@ -763,7 +763,8 @@ begin
   return jsonb_build_object('result', 'ok', 'refunded_paise', v_total);
 end $$;
 
--- Webhook bookkeeping: returns false when this event id was seen before (so it is skipped).
+-- Webhook bookkeeping: false when this event id was already processed (so it is skipped).
+-- An event that arrived before but failed half-way is processed again (everything is idempotent).
 create or replace function public._svc_webhook_seen(p_provider text, p_event_id text, p_type text, p_valid boolean, p_payload jsonb) returns boolean
 language plpgsql security definer set search_path = public as $$
 declare v_id bigint;
@@ -771,7 +772,9 @@ begin
   insert into public.payment_webhook_events(provider, provider_event_id, event_type, signature_valid, payload)
   values (p_provider, p_event_id, left(p_type, 60), p_valid, p_payload)
   on conflict (provider, provider_event_id) do nothing returning id into v_id;
-  return v_id is not null;
+  if v_id is not null then return true; end if;
+  return exists (select 1 from public.payment_webhook_events where provider = p_provider and provider_event_id = p_event_id
+                 and processed_at is null and signature_valid);
 end $$;
 
 create or replace function public._svc_webhook_done(p_provider text, p_event_id text, p_result text) returns void
