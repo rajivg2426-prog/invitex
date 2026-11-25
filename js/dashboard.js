@@ -29,10 +29,13 @@
   };
   let D = null;
 
-  H.routes.dash = async (v, id, tab) => {
+  H.routes.dash = async (v, id, tab, sub) => {
     const inv = await H.store.getInvitation(id);
     if (!inv) return H.render('<div class="card"><h2>Invitation not found</h2><a class="btn" href="#/">Back</a></div>');
     D = { inv, tab: TABS.some((t) => t[0] === tab) ? tab : 'overview', filter: '', q: '' };
+    // deep links from the home dashboard: #/dash/<id>/responses/yes, #/dash/<id>/guests/pending
+    if (D.tab === 'responses' && ['yes', 'no', 'maybe'].includes(sub)) D.filter = sub;
+    if (D.tab === 'guests' && ['new', 'pending', 'opened', 'responded'].includes(sub)) D.gf = sub;
     await reload();
     const refresh = async () => { if (D && D.inv.id === inv.id) { await reload(); renderTab(); } };
     window.addEventListener('focus', refresh);
