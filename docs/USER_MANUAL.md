@@ -2,7 +2,7 @@
 
 InviteX lets a host make a digital invitation in three steps (Design, Fill your card, Share), send it on WhatsApp, and track who is coming. Guests never need an account; they open a link and reply with one tap.
 
-This manual is for hosts and for whoever runs InviteX for a team. **Part 1** walks through the app step by step. **Part 2** explains how several people use it. **Part 3** explains what an admin can and cannot do today.
+This manual is for hosts and for whoever runs InviteX for a team. **Part 1** walks through the app step by step. **Part 2** explains how several people use it. **Part 3** explains the in-app Admin page: how to switch it on, make yourself admin, and use it.
 
 - **App address:** https://rajivg2426-prog.github.io/invitex/
 - **Works on:** phone or computer, in any modern browser. No app to install.
@@ -160,6 +160,7 @@ Any number of people can use InviteX at the same time, each with their own accou
 | Host (any signed-in account) | Create, edit, publish, share and delete their own invitations; manage their own guests and replies; their own settings |
 | Another host | Cannot see or change your invitations, guests or replies |
 | Guest | Opens a published link, replies, changes their own reply. No account needed. Never sees other guests' phone numbers |
+| Admin (an account marked admin) | Everything a host can do, plus the **Admin** page: see every account and invitation, pause accounts, unpublish or delete invitations, give AI tries, see usage and the activity log (see Part 3) |
 | Supabase project owner | Everything, through the Supabase dashboard (see Part 3) |
 
 **What does not exist yet:** there are no teams, shared workspaces or co-hosts. Two people cannot both edit the same invitation from their own accounts. If two family members or two staff need to manage one event, today they must share one login. That works, but everyone on that login sees everything on it, and you cannot tell who changed what.
@@ -168,39 +169,80 @@ Any number of people can use InviteX at the same time, each with their own accou
 
 # Part 3. Admin control
 
-**InviteX has no admin role and no admin screen today.** Every signed-in account is an equal host. Inside the app, nobody can see all users, all invitations or all replies.
+InviteX has an **Admin page** inside the app. Only accounts marked **admin** can open it; everyone else is a normal **host** and sees only their own invitations. An admin's own "My invitations" page still shows only their own invitations: the Admin page is a separate place.
 
-What an admin can do today is done in the **Supabase dashboard** (supabase.com), by whoever owns the InviteX Supabase project. That dashboard has full access to everything, so only the owner should hold that login.
+The protection is in the database, not just the screen. A host who types the Admin address, or calls the admin functions directly, is refused by the database. The app never uses the Supabase secret (service) key.
 
-### What the Supabase owner can do today
+## 3.1 Switch it on (one time, about 5 minutes)
+
+You do this once, in the **Supabase dashboard** (supabase.com) for the InviteX project.
+
+**Step 1. Add the admin part to the database.**
+1. Open your project, then **SQL Editor** → **New query**.
+2. Open the file [`supabase/admin.sql`](../supabase/admin.sql) from the InviteX code, copy all of it, and paste it in.
+3. Press **Run**. You should see "Success. No rows returned". It is safe to run again later.
+
+This adds a role (admin or host) and a status (active or paused) to every account, the admin-only functions, the rules that lock out paused accounts, and the activity log. Existing accounts all start as active hosts.
+
+**Step 2. Make yourself the first admin.**
+You must have signed in to InviteX at least once with this email. In a new SQL Editor query, put in your own email and press **Run**:
+
+```sql
+update public.profiles set role = 'admin'
+ where user_id = (select id from auth.users where email = 'you@example.com');
+```
+
+It should say "1 row affected". If it says 0, check the spelling of the email under **Authentication → Users**.
+
+**Step 3. Open the Admin page.**
+Reload InviteX (or sign out and in). An **Admin** link appears in the top menu, next to Settings. On the home dashboard it is also in the left menu.
+
+After this, you never need SQL for roles: make other people admin from the Admin page itself.
+
+## 3.2 The Admin page
+
+The left menu has four screens. On a phone they appear as tabs across the top.
+
+**Users** lists every account: email, when they joined and last signed in, how many invitations (and how many are live), replies received, and AI tries used out of their allowance. Search by email. Press **Manage** on an account to:
+
+| Action | What happens |
+| --- | --- |
+| **Add tries** | Adds AI design tries to their allowance (1 to 1000). Add a note such as "bought a pack". One try paints up to 4 designs. |
+| **Pause account** | They can no longer open, change or create invitations, or use AI tries. When they sign in they see "Your account is paused" with the reason you type. Their guests' replies are kept. Tick **Also take their published invitations offline** to unpublish everything they have live at the same time. |
+| **Re-activate** | Undoes a pause. Invitations that were taken offline stay as drafts until they publish them again. |
+| **Make admin / Remove admin** | Gives or removes the whole Admin page. You are asked to confirm before making someone admin. |
+
+You cannot pause yourself or change your own role, so you can never lock yourself out. Another admin has to do that.
+
+**Invitations** lists every invitation from every account, with its owner, status, guests, replies and people coming. Filter by All, Published or Drafts, or search by title, link name or owner email.
+- **Open** shows the guest view of a published invitation.
+- **Unpublish** turns it back into a draft. Guests who open the link see that it is not available. The owner can publish it again.
+- **Delete** removes it for good, with its guest list, replies and uploaded photos. The owner is not told. This cannot be undone.
+
+Both ask for a reason, which goes in the activity log.
+
+**Usage** shows totals (accounts, invitations, replies, people coming, AI designs with an estimated cost in rupees) and a week-by-week table for the last 8 weeks: new accounts, invitations made, published, replies and AI designs. It also lists the five accounts that used the most AI designs. The cost is an estimate (about ₹3.5 per Google image, ₹5 per OpenAI image); your Google or OpenAI bill is the real figure.
+
+**Activity log** records every change made on the Admin page: what was done, to whom, by which admin, when, and the reason or note. Filter by Accounts or Invitations. Nobody can edit or delete log entries from the app.
+
+## 3.3 Still done in the Supabase dashboard
+
+A few things stay in Supabase because they are sign-in settings, not InviteX data:
 
 | Task | Where in the Supabase dashboard |
 | --- | --- |
-| See every account and when it last signed in | Authentication → Users |
 | Add a person directly, or email them an invite | Authentication → Users → Add user |
 | Send someone a password-reset or sign-in link | Authentication → Users → the user's ⋯ menu |
-| Remove an account | Authentication → Users → Delete user. Their invitations, guests and replies are deleted with it; uploaded photos may stay in Storage |
+| Remove an account completely | Authentication → Users → Delete user. Their invitations, guests and replies are deleted with it; uploaded photos may stay in Storage. Pausing from the Admin page is usually enough and can be undone. |
 | Stop strangers from signing up (invite-only) | Authentication → Sign In / Providers → turn off "Allow new users to sign up", then add people yourself |
-| See every invitation, guest list and reply | Table Editor → `invitations`, `guests`, `rsvps` |
-| Give someone more AI design tries | Table Editor → `ai_credits` → raise `tries_limit` for their row (default 3) |
-| Watch AI usage and cost | Table Editor → `ai_generations` (one row per AI request) |
 | Back up the data | Database → Backups (paid plans), or a scheduled export |
+| Look at raw rows | Table Editor (`invitations`, `guests`, `rsvps`, `ai_credits`, `profiles`, `admin_log`) |
 
-Menu names in the Supabase dashboard can shift slightly between versions. Edits made in the Table Editor skip the app's own checks, so change rows there only when you are sure.
+Menu names in the Supabase dashboard can shift slightly between versions. Edits made in the Table Editor skip the app's own checks and are not written to the activity log, so prefer the Admin page.
 
-### What an in-app admin feature would involve (proposal, not built)
+## 3.4 Not built yet: shared events (co-hosts)
 
-1. **Roles.** A small `profiles` table that marks each account as **admin** or **host**, and **active** or **suspended**. The first admin is set once in Supabase.
-2. **Database rules for admins.** New security rules that let an admin read every invitation and reply, while hosts stay limited to their own. A suspended host is blocked from using InviteX.
-3. **An Admin page** in the app, visible only to admins:
-   - **Users**: everyone who signed up, how many invitations each has, last active; suspend or re-activate; add AI tries.
-   - **Invitations**: every invitation with its owner and status; open it, unpublish it, or delete it.
-   - **Usage**: sign-ups, invitations published and replies per week, and AI cost.
-   - **Sign-up control**: open to everyone, or invite-only.
-4. **Activity log.** A record of every admin action (who, what, when), so changes can be traced.
-5. **Optional: shared events (co-hosts).** Let a host add another account to one invitation as **editor** or **viewer**, so a team can work on the same event without sharing a password.
-
-Items 1 to 4 are one focused piece of work; item 5 is a second one. Each needs a database update in Supabase plus app changes, and a test pass so that hosts still cannot see each other's data.
+Two people still cannot both edit the same invitation from their own accounts. A later update could let a host add another account to one invitation as **editor** or **viewer**, so a team can work on the same event without sharing a password.
 
 ---
 
@@ -216,7 +258,7 @@ Items 1 to 4 are one focused piece of work; item 5 is a second one. Each needs a
 
 **A guest replied by phone call.** Responses tab → **+ Add response manually**.
 
-**The AI painter says it is not switched on, or I am out of tries.** AI designs need the server setup in [AI_DESIGNS_SETUP.md](AI_DESIGNS_SETUP.md). For more tries, the Supabase owner raises `tries_limit` (Part 3).
+**The AI painter says it is not switched on, or I am out of tries.** AI designs need the server setup in [AI_DESIGNS_SETUP.md](AI_DESIGNS_SETUP.md). For more tries, an admin opens **Admin → Users → Manage → Add tries** (Part 3).
 
 **I see a yellow "Demo · Local" strip.** You are on a copy not connected to the database. Use the live app address instead.
 

@@ -183,6 +183,8 @@
 
     /* auth – local mode has a single device owner */
     async getUser() { return { id: 'local', email: 'This device' }; }
+    // roles and the Admin page need Production mode (Supabase); this device's owner is a plain host
+    async myAccount() { return { role: 'host', status: 'active', setup: false, local: true }; }
 
     /* invitations */
     async listInvitations() { return (await this.all('invitations')).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)); }
@@ -384,6 +386,22 @@
     async signUp(email, password) { return this._check(await this.sb.auth.signUp({ email, password, options: { emailRedirectTo: location.href.split('#')[0] } })); }
     async magicLink(email) { return this._check(await this.sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.href.split('#')[0] } })); }
     async signOut() { await this.sb.auth.signOut(); }
+
+    /* roles + admin (supabase/admin.sql). Every admin_* function checks, inside the
+     * database, that the caller is an active admin; the browser cannot skip that. */
+    async myAccount() {
+      const { data, error } = await this.sb.rpc('my_account');
+      if (error) return { role: 'host', status: 'active', setup: !/my_account|PGRST202|does not exist|not find/i.test((error.code || '') + ' ' + error.message), error: error.message };
+      return Object.assign({ role: 'host', status: 'active' }, data, { setup: true });
+    }
+    async admin(fn, args = {}) { return this._check(await this.sb.rpc('admin_' + fn, args)); }
+    async adminDeleteInvitation(id, ownerId, reason = '') {
+      // remove its uploaded photos first (admins may delete any invitation's files), then the invitation
+      const dir = `${ownerId}/${id}`;
+      const { data: files } = await this.sb.storage.from(this.bucket).list(dir, { limit: 1000 });
+      if (files && files.length) await this.sb.storage.from(this.bucket).remove(files.map((f) => `${dir}/${f.name}`));
+      return this.admin('delete_invitation', { p_id: id, p_reason: reason });
+    }
 
     _fromRow(row) { return row ? { ...row.data, id: row.id, slug: row.slug || '', status: row.status, published: row.published, publishedAt: row.published_at, updatedAt: row.updated_at, createdAt: row.created_at } : null; }
     async listInvitations() { return this._check(await this.sb.from('invitations').select('*').order('updated_at', { ascending: false })).map((r) => this._fromRow(r)); }

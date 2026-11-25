@@ -22,6 +22,7 @@ Opening `index.html` straight from the file system (`file://`) is not supported 
    - a guest API made of `SECURITY DEFINER` functions: `get_public_invitation`, `submit_rsvp`, `get_rsvp_by_edit_token`. These check the published status, expiry, password (bcrypt), RSVP deadline, per-guest and total capacity, and duplicates, and they return only safe fields. Guest phone numbers are never returned to guests.
    - host helpers `set_invitation_password` and `slug_available`
    - the public storage bucket `invite-media` (images, MP3 and MP4 only, 40 MB limit). Hosts can only write inside their own `<user-id>/` folder.
+   - Then, for the in-app **Admin page**, run `supabase/admin.sql` the same way and make yourself admin. The steps are in the user manual, Part 3.1.
 3. **Authentication → Providers**: keep Email enabled. Optionally turn off "Confirm email" while testing.
 4. **Authentication → URL configuration**: set the *Site URL* to your deployed address, for example `https://invites.example.com/`.
 
@@ -70,6 +71,9 @@ python3 -m http.server 8765 &          # from the invitex folder
 npm i playwright && node tests/e2e.js  # writes screenshots + results to tests/e2e-output
 # SQL tests (local Postgres):
 psql -f tests/supabase-stubs.sql && psql -d ivx -c 'create role service_role nologin' && psql -d ivx -f supabase/schema.sql && psql -d ivx -f tests/schema-test.sql && psql -d ivx -f tests/ai-credits-test.sql
+# Admin page: database rules, then the page itself (needs a local Postgres you can reach with psql)
+psql -d ivx -f supabase/admin.sql -f tests/admin-test.sql
+psql -f tests/supabase-stubs.sql && psql -d ivx -c 'create role service_role nologin' && psql -d ivx -f supabase/schema.sql -f supabase/admin.sql -f tests/admin-seed.sql && PGDATABASE=ivx node tests/admin-e2e.js
 # AI designs: server step and editor picker
 node tests/ai-function-test.mjs && node tests/ai-design-e2e.js
 ```

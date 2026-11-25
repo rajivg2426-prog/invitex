@@ -794,3 +794,48 @@ main:has(.hx3) { max-width: 1500px; }
 .hx-expect { margin: 0; display: grid; grid-template-columns: auto auto; justify-content: space-between; align-items: baseline; gap: .1rem .6rem; padding: .7rem .9rem; border-radius: 12px; background: var(--plum); color: var(--champagne); }
 .hx-expect span { font-size: 13px; } .hx-expect b { font: 600 1.5rem/1 var(--font); color: #fff; } .hx-expect small { grid-column: 1 / -1; font-size: 11.5px; opacity: .85; }
 .hx3 .hx-side { position: static; max-height: none; overflow: visible; padding-right: 0; }
+
+/* Admin page: same left menu as the home dashboard */
+main:has(.ax) { max-width: 1400px; }
+.ax { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 1.6rem; align-items: start; }
+.ax-main { display: grid; gap: 1.2rem; min-width: 0; }
+.ax-head h1 { margin: 0 0 .2rem; color: var(--plum); }
+.ax-head p { margin: 0; }
+.ax-who { display: grid; gap: .25rem; padding: 0 .4rem .7rem; border-bottom: 1px solid var(--line); }
+.ax-who small { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ax-badge { justify-self: start; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; background: var(--plum); color: var(--champagne); }
+.ax-tools { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+.ax-tools .hx-search { flex: 1 1 260px; max-width: 420px; }
+.ax-tbl td, .ax-tbl th { white-space: nowrap; vertical-align: middle; }
+.ax-tbl .acts { text-align: right; } .ax-tbl .acts .btn + .btn, .ax-tbl .acts .btn + a, .ax-tbl .acts a + .btn { margin-left: .3rem; }
+.ax-acc { display: grid; gap: .15rem; } .ax-acc > span { display: flex; gap: .3rem; flex-wrap: wrap; } .ax-acc > span:empty { display: none; }
+.ax-tbl tr.ax-off td { background: #fcf7f7; } .ax-tbl tr.ax-off .ax-acc b { color: var(--muted); }
+.ax-tbl tr.ax-now td { background: var(--plum-tint); }
+.ax-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem .9rem; margin: 0; }
+.ax-facts dt { font-size: 12px; color: var(--muted); } .ax-facts dd { margin: 0; font-weight: 600; font-size: 14px; }
+.ax-sec { border-top: 1px solid var(--line); padding-top: .9rem; display: grid; gap: .5rem; }
+.ax-sec h3 { margin: 0; font-size: 15px; } .ax-sec p { margin: 0; }
+.ax-log { list-style: none; margin: 0; padding: 0; display: grid; }
+.ax-log li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: .7rem; padding: .7rem .2rem; border-top: 1px solid #f3eee9; }
+.ax-log li:first-child { border-top: 0; }
+.ax-log li p { margin: 0; } .ax-log li p + p { margin-top: .15rem; }
+.ax-log-ic { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--plum-tint); color: var(--plum2); }
+.ax-log-ic .ic { width: 16px; height: 16px; }
+.ax-log li.bad .ax-log-ic { background: #f8e9ea; color: var(--bad); }
+.ax-log li.ax-empty { display: block; }
+@media (max-width: 1240px) { .ax .hx-rail { display: grid; } }
+@media (max-width: 900px) {
+  .ax { grid-template-columns: 1fr; gap: 1rem; }
+  .ax .hx-rail { position: static; display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; padding: .5rem; }
+  .ax .ax-who { display: none; }
+  .ax .hx-rail ul { display: flex; gap: .2rem; overflow-x: auto; scrollbar-width: none; }
+  .ax .hx-rail ul:first-of-type { flex: 1 1 100%; }
+  .ax .hx-rail a:not(.btn) { white-space: nowrap; border-left: 0; border-bottom: 3px solid transparent; padding: .45rem .65rem; }
+  .ax .hx-rail a.on { border-bottom-color: var(--gold); }
+  .ax .hx-rail-sub { border-top: 0; padding-top: 0 !important; display: none !important; }
+}
+@media (max-width: 560px) { .ax-facts { grid-template-columns: 1fr; } .ax-tools .hx-search { max-width: none; } }
+.ax-sec .btn, .ax-sec > div { justify-self: start; }
+@media (max-width: 900px) { .ax { grid-template-columns: minmax(0, 1fr); } .ax .hx-rail, .ax .hx-rail ul { min-width: 0; max-width: 100%; } }
+.topnav a { white-space: nowrap; }
+@media (max-width: 440px) { .topbar:has(#navAdmin:not([hidden])) .brand > span:not(.brand-mark) { display: none; } }
