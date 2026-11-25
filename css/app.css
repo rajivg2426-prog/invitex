@@ -695,6 +695,27 @@ tr[hidden] { display: none; }
 .sx-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
 @media (max-width: 640px) { .sx-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sx-actions .btn { flex: 1 1 40%; justify-content: center; } }
 
+/* WhatsApp preview: the card image with the short message under it, as the guest will see it. */
+.wa-prev { background: #efe7dd; border-radius: 14px; padding: .8rem; }
+.wa-bubble { position: relative; background: #fff; border-radius: 10px; padding: 4px 4px 1.3rem; max-width: 300px; margin-left: auto; box-shadow: 0 1px 1px rgba(0,0,0,.12); }
+.wa-bubble img { display: block; width: 100%; height: auto; border-radius: 7px; background: #f4efe8; aspect-ratio: 1080 / 1350; }
+.wa-text { font: 14px/1.4 system-ui, -apple-system, "Segoe UI", "Noto Sans Devanagari", "Noto Sans Gurmukhi", sans-serif; color: #111b21; padding: .4rem .45rem 0; overflow-wrap: anywhere; }
+.wa-link { color: #027eb5; }
+.wa-time { position: absolute; right: .55rem; bottom: .3rem; font-size: 11px; color: #667781; }
+
+/* Settings */
+.st { max-width: 880px; margin: 0 auto; }
+.st-head h1 { margin-bottom: .2rem; }
+.st .tabs a.tab { text-decoration: none; }
+#stBody { display: grid; gap: 1rem; }
+.st-wa { max-width: 380px; }
+.st-wa .wa-bubble { margin-left: 0; padding-top: .2rem; }
+.st-inc { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .4rem 1rem; }
+.st-inc li { padding-left: 1.4rem; position: relative; }
+.st-inc li::before { content: ''; position: absolute; left: .2rem; top: .45em; width: .55rem; height: .3rem; border: solid var(--ok, #1f8a5b); border-width: 0 0 2px 2px; transform: rotate(-45deg); }
+.st-plan { gap: .9rem; }
+.st-plan .lbl, .st .lbl { display: block; font-size: 13px; font-weight: 600; color: var(--muted); }
+#acc > div:last-child { align-self: end; }
 /* V2.2 home: three-column dashboard (menu · content · upcoming) */
 main:has(.hx3) { max-width: 1500px; }
 .hx3 { grid-template-columns: 200px minmax(0, 1fr) 320px; gap: 1.6rem; align-items: start; }

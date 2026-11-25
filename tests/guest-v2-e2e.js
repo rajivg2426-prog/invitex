@@ -113,7 +113,7 @@ const STUB = "window.INVITEX_CONFIG={SUPABASE_URL:'',SUPABASE_ANON_KEY:'',DEFAUL
   ok('personal WhatsApp messages use the same language', /सादर आमंत्रित/.test(await host.inputValue('#tpl')));
   await host.click('[data-tab=share]'); await host.waitForSelector('.sx-status');
   await host.click('label:has([name=msgLang][value=en])'); await host.waitForTimeout(300);
-  ok('back to English', /We are delighted/.test(await host.inputValue('#msgPrev')) && !/lang=/.test(await host.inputValue('#lnk')));
+  ok('back to English', /warmly invited/.test(await host.inputValue('#msgPrev')) && !/lang=/.test(await host.inputValue('#lnk')));
 
   ok('no page errors', errs.length === 0, errs.join(' | '));
   await b.close();

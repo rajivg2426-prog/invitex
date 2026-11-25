@@ -160,8 +160,16 @@
     });
   const reqP = (r) => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
 
+  const PREFS_KEY = 'ivx-prefs';
+  function readPrefs() { try { return JSON.parse(localStorage.getItem(PREFS_KEY)) || {}; } catch (e) { return {}; } }
+  function writePrefs(p) { try { localStorage.setItem(PREFS_KEY, JSON.stringify(p || {})); } catch (e) { /* storage blocked */ } }
+  model.prefs = readPrefs; // quick, synchronous read of the last saved preferences
+
   class LocalStore {
     constructor() { this.mode = 'local'; this.dbp = openDB(); this.urlCache = new Map(); }
+    // Host preferences (Settings page). Kept in this browser, like the rest of Demo/Local data.
+    async getPrefs() { return readPrefs(); }
+    async savePrefs(p) { writePrefs(p); return p; }
     async tx(store, mode = 'readonly') { const db = await this.dbp; return db.transaction(store, mode).objectStore(store); }
     async all(store, index, key) { const s = await this.tx(store); return reqP(index ? s.index(index).getAll(key) : s.getAll()); }
     async get(store, id) { const s = await this.tx(store); return reqP(s.get(id)); }
@@ -368,6 +376,9 @@
   class SupabaseStore {
     constructor(client) { this.mode = 'supabase'; this.sb = client; this.bucket = CFG.MEDIA_BUCKET || 'invite-media'; }
     _check({ data, error }) { if (error) throw new Error(error.message); return data; }
+    // Host preferences are saved on the host's own sign-in account (user metadata), so no table changes are needed.
+    async getPrefs() { const { data } = await this.sb.auth.getUser(); const p = (data.user && data.user.user_metadata && data.user.user_metadata.invitex_prefs) || readPrefs(); writePrefs(p); return p; }
+    async savePrefs(p) { this._check(await this.sb.auth.updateUser({ data: { invitex_prefs: p } })); writePrefs(p); return p; }
     async getUser() { const { data } = await this.sb.auth.getUser(); return data.user || null; }
     async signIn(email, password) { return this._check(await this.sb.auth.signInWithPassword({ email, password })); }
     async signUp(email, password) { return this._check(await this.sb.auth.signUp({ email, password, options: { emailRedirectTo: location.href.split('#')[0] } })); }
