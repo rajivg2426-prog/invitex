@@ -154,6 +154,17 @@ begin
   end if;
 end $$;
 
+-- Guest access hook. Here it lets every guest in. supabase/billing.sql replaces it
+-- with the paid-sharing lock (an invitation opens for guests once a sharing campaign
+-- is unlocked). It is created only when missing, so re-running this file never
+-- undoes the billing version.
+do $$ begin
+  if to_regprocedure('public._guest_access(uuid)') is null then
+    execute 'create function public._guest_access(p_invitation uuid) returns boolean language sql stable security definer set search_path = public as $f$ select true $f$';
+  end if;
+end $$;
+revoke all on function public._guest_access(uuid) from public, anon, authenticated;
+
 create or replace function public.get_public_invitation(p_slug text, p_password text default null, p_guest_token text default null)
 returns jsonb language plpgsql security definer set search_path = public, extensions as $$
 declare inv invitations; g guests; v_hash text;
@@ -162,6 +173,9 @@ begin
   if not found then return jsonb_build_object('status','not_found'); end if;
   if inv.expires_at is not null and inv.expires_at < current_date then
     return jsonb_build_object('status','expired','title', inv.published #>> '{text,en,title}');
+  end if;
+  if not public._guest_access(inv.id) then
+    return jsonb_build_object('status','not_open','title', inv.published #>> '{text,en,title}');
   end if;
   select password_hash into v_hash from invitation_secrets where invitation_id = inv.id;
   if v_hash is not null then
@@ -201,6 +215,7 @@ declare
 begin
   select * into inv from invitations where slug = lower(p_slug) and status = 'published';
   if not found then return jsonb_build_object('status','error','code','notFound'); end if;
+  if not public._guest_access(inv.id) then return jsonb_build_object('status','error','code','notOpen'); end if;
   select password_hash into v_hash from invitation_secrets where invitation_id = inv.id;
   if v_hash is not null and (p_password is null or crypt(p_password, v_hash) <> v_hash) then
     return jsonb_build_object('status','error','code','wrongPassword'); end if;

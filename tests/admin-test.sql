@@ -7,7 +7,8 @@ insert into auth.users(id, email) values
   ('c0000000-0000-0000-0000-00000000000c', 'host.c@example.com') on conflict do nothing;
 select 'profiles made by trigger', count(*) from public.profiles where user_id in ('a0000000-0000-0000-0000-00000000000a','b0000000-0000-0000-0000-00000000000b','c0000000-0000-0000-0000-00000000000c');
 -- the owner makes the first admin in the SQL editor
-update public.profiles set role = 'admin' where user_id = (select id from auth.users where email = 'admin@example.com');
+-- the owner makes themselves Super Admin (the first run of admin.sql does this for the oldest admin)
+update public.profiles set role = 'super_admin' where user_id = (select id from auth.users where email = 'admin@example.com');
 
 -- host B makes and publishes an invitation, gets a reply
 set role authenticated; select set_config('request.jwt.uid','b0000000-0000-0000-0000-00000000000b',false);
@@ -75,3 +76,11 @@ select 'log', a->>'admin_email', a->>'action', a->>'target_label', a->'details' 
 select 'log filter user.*', public.admin_activity(50,0,'user.')->'total';
 reset role;
 select 'rsvps left after delete', count(*) from rsvps where invitation_id = 'bbbbbbbb-0000-0000-0000-000000000001';
+
+-- Super Admin rules: a plain admin cannot make admins or touch the Super Admin, and the log is append-only
+set role authenticated; select set_config('request.jwt.uid','c0000000-0000-0000-0000-00000000000c',false);
+do $$ begin perform public.admin_set_role('b0000000-0000-0000-0000-00000000000b', 'admin'); raise exception 'FAIL: plain admin made an admin'; exception when insufficient_privilege then raise notice 'ok: only Super Admin makes admins'; end $$;
+do $$ begin perform public.admin_set_user_status('a0000000-0000-0000-0000-00000000000a', 'suspended'); raise exception 'FAIL: plain admin paused Super Admin'; exception when insufficient_privilege then raise notice 'ok: plain admin cannot pause the Super Admin'; end $$;
+select 'C is_super_admin', public.is_super_admin();
+reset role;
+do $$ begin update public.admin_log set action = 'x'; raise exception 'FAIL: log edited'; exception when insufficient_privilege then raise notice 'ok: admin_log is append-only'; end $$;
