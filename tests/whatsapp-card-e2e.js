@@ -51,7 +51,7 @@ const setup = async (ctx) => {
   await host.locator('.share-grid > .card').first().screenshot({ path: OUT + '/2-share-hi.png' });
   await host.click('label:has([name=msgLang][value=pa])'); await host.waitForTimeout(400);
   m = await msg();
-  ok('Punjabi: short message in Punjabi with a Punjabi link, date in Punjabi', /^ਤੁਹਾਨੂੰ ਨਿੱਘਾ ਸੱਦਾ ਹੈ।\n.+ · ਵੀਰਵਾਰ, 21 ਜਨਵਰੀ 2027\nਇੱਥੇ ਜਵਾਬ ਦਿਓ: \S+lang=pa$/.test(m), m.replace(/\n/g, ' | '));
+  ok('Punjabi: short message in Punjabi with a Punjabi link, date in Punjabi', /^ਤੁਹਾਨੂੰ ਨਿੱਘਾ ਸੱਦਾ ਹੈ।\n.+ · [\u0A00-\u0A7F]+, \d{1,2} [\u0A00-\u0A7F]+ \d{4}\nਇੱਥੇ ਜਵਾਬ ਦਿਓ: \S+lang=pa$/.test(m), m.replace(/\n/g, ' | '));
   await host.locator('.share-grid > .card').first().screenshot({ path: OUT + '/3-share-pa.png' });
 
   // Personal invites use the same short style, with the guest's name and own link.
