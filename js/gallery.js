@@ -23,6 +23,9 @@
     'campus-stars': { style: 'Academic', occ: ['school', 'community', 'farewell'], tags: 'school college university campus annual day graduation convocation stars academic maroon blue' },
     'sunset-farewell': { style: 'Warm & nostalgic', occ: ['farewell', 'anniversary', 'family'], tags: 'farewell retirement sunset golden hour dusk warm nostalgic goodbye send off' },
     'community-leaf': { style: 'Fresh & natural', occ: ['community', 'family', 'festival', 'school'], tags: 'community society gathering natural green leaf eco fresh earth simple friendly' },
+    'sage-garden': { style: 'Botanical watercolour', occ: ['wedding', 'engagement', 'reception', 'anniversary', 'housewarming', 'family'], tags: 'botanical greenery green sage leaves leaf olive willow watercolour watercolor garden nature ivory gold elegant minimal modern soft eucalyptus rose forest' },
+    'eucalyptus-garland': { style: 'Botanical garland', occ: ['wedding', 'engagement', 'reception', 'birthday', 'anniversary', 'housewarming', 'family'], tags: 'botanical greenery green sage eucalyptus garland leaves leaf watercolour watercolor garden nature silver olive cream terracotta boho rustic soft' },
+    'fern-meadow': { style: 'Botanical meadow', occ: ['wedding', 'engagement', 'anniversary', 'housewarming', 'family', 'community', 'farewell'], tags: 'botanical greenery green fern ferns meadow grass leaves leaf watercolour watercolor garden nature outdoor rustic moss linen blue fresh' },
     'minimal-ivory': { style: 'Minimal', occ: ['wedding', 'engagement', 'reception', 'birthday', 'anniversary', 'housewarming', 'religious', 'festival', 'family', 'corporate', 'conference', 'launch', 'school', 'farewell', 'community'], tags: 'minimal minimalist simple clean ivory white plain sage ink modern understated' },
   };
 
@@ -102,14 +105,14 @@
 
   /* ---------- font pairings ---------- */
   const FONT_PAIRS = [
-    { id: 'classic', name: 'Classic royal', fonts: { script: 'Great Vibes', head: 'Cormorant Garamond', body: 'Lora' }, for: ['royal-maroon', 'golden-anniversary', 'blush-rings', 'minimal-ivory'] },
-    { id: 'graceful', name: 'Graceful modern', fonts: { script: 'Parisienne', head: 'Playfair Display', body: 'Lato' }, for: ['blush-rings', 'golden-anniversary', 'sunset-farewell', 'minimal-ivory', 'royal-maroon'] },
+    { id: 'classic', name: 'Classic royal', fonts: { script: 'Great Vibes', head: 'Cormorant Garamond', body: 'Lora' }, for: ['royal-maroon', 'golden-anniversary', 'blush-rings', 'minimal-ivory', 'eucalyptus-garland', 'sage-garden'] },
+    { id: 'graceful', name: 'Graceful modern', fonts: { script: 'Parisienne', head: 'Playfair Display', body: 'Lato' }, for: ['blush-rings', 'golden-anniversary', 'sunset-farewell', 'minimal-ivory', 'royal-maroon', 'sage-garden', 'eucalyptus-garland', 'fern-meadow'] },
     { id: 'festive', name: 'Festive Indian', fonts: { script: 'Yatra One', head: 'Playfair Display', body: 'Mukta' }, for: ['himalayan-dham', 'griha-pravesh', 'saffron-puja', 'royal-maroon'] },
     { id: 'devotional', name: 'Devotional', fonts: { script: 'Yatra One', head: 'Tiro Devanagari Hindi', body: 'Mukta' }, for: ['saffron-puja', 'griha-pravesh', 'himalayan-dham'] },
-    { id: 'hand', name: 'Warm handwritten', fonts: { script: 'Kalam', head: 'Poppins', body: 'Nunito' }, for: ['community-leaf', 'confetti-party', 'sunset-farewell', 'campus-stars'] },
+    { id: 'hand', name: 'Warm handwritten', fonts: { script: 'Kalam', head: 'Poppins', body: 'Nunito' }, for: ['community-leaf', 'confetti-party', 'sunset-farewell', 'campus-stars', 'fern-meadow', 'eucalyptus-garland'] },
     { id: 'party', name: 'Party fun', fonts: { script: 'Pacifico', head: 'Baloo 2', body: 'Nunito' }, for: ['confetti-party', 'launch-burst', 'campus-stars'] },
     { id: 'business', name: 'Clean business', fonts: { script: 'Montserrat', head: 'Montserrat', body: 'Inter' }, for: ['corporate-slate', 'conference-night', 'launch-burst', 'minimal-ivory'] },
-    { id: 'editorial', name: 'Editorial', fonts: { script: 'Playfair Display', head: 'Playfair Display', body: 'Source Sans 3' }, for: ['corporate-slate', 'campus-stars', 'golden-anniversary', 'minimal-ivory'] },
+    { id: 'editorial', name: 'Editorial', fonts: { script: 'Playfair Display', head: 'Playfair Display', body: 'Source Sans 3' }, for: ['corporate-slate', 'campus-stars', 'golden-anniversary', 'minimal-ivory', 'fern-meadow', 'sage-garden'] },
     { id: 'tech', name: 'Tech launch', fonts: { script: 'Bebas Neue', head: 'Space Grotesk', body: 'Inter' }, for: ['conference-night', 'launch-burst'] },
   ];
   const pairsFor = (themeId) => {

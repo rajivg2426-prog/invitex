@@ -398,7 +398,7 @@
     return `<span class="mini mini-${t.motif}" style="--mbg:${p.bg};--mbg2:${p.bg2};--mtx:${p.text};--mac:${p.accent}" aria-hidden="true">
       ${mo.top ? `<span class="mini-top">${mo.top}</span>` : ''}
       ${mo.hero ? `<span class="mini-hero">${mo.hero}</span>` : ''}
-      ${mo.corner ? `<span class="mini-c tl">${mo.corner}</span><span class="mini-c tr">${mo.corner}</span>` : ''}
+      ${mo.corner ? ['tl', 'tr', 'bl', 'br'].filter((c) => (mo.corners ? IXT.cornerOn(mo, c) : c[0] === 't')).map((c) => `<span class="mini-c ${c}">${mo.corner}</span>`).join('') : ''}
       <span class="mini-txt"><small>You are invited</small><b style="font-family:'${t.fonts.script}',cursive">${esc(name)}</b><span class="mini-div">${mo.divider}</span><small>Sat · 14 Feb</small></span></span>`;
   }
 
@@ -409,7 +409,7 @@
     if (!W.galTab) W.galTab = IXGallery.TAB_FOR_CAT[inv.category] || 'all';
     const guide = body.querySelector('.step-guide')?.outerHTML || '';
     const cat = IXT.CATEGORIES.find((c) => c.id === inv.category);
-    const themeIds = Object.keys(IXT.THEMES).sort((a, b) => (a === cat.theme ? -1 : b === cat.theme ? 1 : 0));
+    const rank = (id) => (id === cat.theme ? 0 : IXT.THEMES[id].featured ? 1 : 2), themeIds = Object.keys(IXT.THEMES).sort((a, b) => rank(a) - rank(b));
     const th = IXT.THEMES[inv.theme];
     const name = M.txt(inv, inv.defaultLang, 'title') || SAMPLE_NAME[inv.category] || 'You are invited';
     const hasPic = !!inv.media.background;
@@ -421,7 +421,7 @@
         ${W.galTab === 'calligraphy' ? calligPanel(inv) : ''}<div class="design-grid" role="radiogroup" aria-label="Ready designs" ${W.galTab === 'calligraphy' ? 'hidden' : ''}>${themeIds.filter((id) => IXGallery.inTab(id, W.galTab)).map((id) => {
         const on = id === inv.theme && !hasPic && !calligOn(inv), t = IXT.THEMES[id], meta = IXGallery.META[id] || {};
         return `<div class="design-tile ${on ? 'on' : ''}"><button type="button" class="design-pick ${on ? 'on' : ''}" role="radio" aria-checked="${on}" data-theme-pick="${id}">
-          ${miniCard(id, inv, name)}<span class="dp-name">${esc(t.name.replace(' (blank)', ''))}<span class="dp-style">${esc(meta.style || '')}</span>${id === cat.theme ? '<small>Best for ' + esc(cat.name) + '</small>' : ''}</span>${on ? '<span class="dp-tick" aria-hidden="true">✓</span>' : ''}</button>
+          ${miniCard(id, inv, name)}<span class="dp-name">${esc(t.name.replace(' (blank)', ''))}<span class="dp-style">${esc(meta.style || '')}</span>${id === cat.theme ? '<small>Best for ' + esc(cat.name) + '</small>' : ''}</span>${t.featured ? '<span class="dp-rec">★ Recommended</span>' : ''}${on ? '<span class="dp-tick" aria-hidden="true">✓</span>' : ''}</button>
           <div class="dp-pals" role="group" aria-label="${esc(t.name)} colours">${t.palettes.map((p, i) => `<button type="button" class="dp-pal ${on && i === inv.paletteIndex ? 'on' : ''}" data-theme-pick="${id}" data-pal-pick="${i}" title="${esc(p.name)}" aria-label="${esc(t.name)}, ${esc(p.name)}"><i style="background:linear-gradient(135deg,${p.bg} 50%,${p.accent} 50%)"></i></button>`).join('')}</div></div>`;
       }).join('')}</div>`,
       own: `<p class="small muted" style="margin:0">Use a card someone designed for you, a painting or a photo. It fills the whole card and your names, date and place are written on top.</p>

@@ -1018,3 +1018,15 @@ main:has(.ax) { max-width: 1400px; }
 #cmBox:not(:empty) { margin-bottom: 1rem; }
 @media (max-width: 1020px) { #pvFull { display: none; } }
 @media (max-width: 560px) { .wiz-preview.open .pv-frame iframe { height: calc(100vh - 17rem); } .wiz-preview.open .pv-tools { flex-wrap: wrap; } }
+
+/* Recommended designs (botanical collection) */
+.dp-rec { position: absolute; top: 8px; left: 8px; z-index: 2; font-size: 11px; font-weight: 600; line-height: 1; padding: 5px 8px; border-radius: 999px; background: #4f6b47; color: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.18); pointer-events: none; }
+.mini-c.bl { top: auto; bottom: 0; left: 0; transform: scaleY(-1); } .mini-c.br { top: auto; bottom: 0; right: 0; transform: scale(-1,-1); }
+.mini-sprig .mini-c { width: 50%; }
+.mini-garland .mini-hero { inset: 0 0 auto 0; height: 30%; }
+.mini-garland .mini-c { width: 30%; }
+.mini-fern .mini-hero { height: 42%; }
+.mini-sprig, .mini-garland, .mini-fern { box-shadow: inset 0 0 0 5px var(--mbg), inset 0 0 0 6px color-mix(in srgb, var(--mac) 40%, transparent); }
+.hx-h { position: absolute; left: 0; right: 0; pointer-events: none; }
+.hx-h.top { top: 0; height: 40%; } .hx-h.bottom { bottom: 0; height: 45%; }
+.hx-h svg { width: 100%; height: 100%; }

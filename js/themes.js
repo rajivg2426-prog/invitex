@@ -134,6 +134,35 @@
         { name: 'Earth', bg: '#f7f1e8', bg2: '#eadfcd', surface: 'rgba(90,60,30,0.06)', text: '#3c2a17', muted: '#7a6650', accent: '#8d5a2b', accent2: '#4e7d4b', onAccent: '#fff' },
       ],
     },
+    /* Botanical collection (recommended): soft watercolour leaves, ivory paper, a thin gold frame */
+    'sage-garden': {
+      name: 'Sage Garden', motif: 'sprig', opener: 'envelope', featured: true,
+      fonts: { script: 'Allura', head: 'Cormorant Garamond', body: 'Lora' },
+      palettes: [
+        { name: 'Sage & Gold', bg: '#f7f3ea', bg2: '#ede6d7', surface: 'rgba(90,105,70,0.05)', text: '#3b4232', muted: '#707761', accent: '#5d6e4d', accent2: '#a98b55', gold: '#b39258', leaf: '#93a57d', leaf2: '#5f7150', onAccent: '#fff' },
+        { name: 'Eucalyptus Mist', bg: '#f3f5f2', bg2: '#e1e8e4', surface: 'rgba(50,80,80,0.05)', text: '#2e3c3c', muted: '#627271', accent: '#4d6d6e', accent2: '#ad9468', gold: '#ad9468', leaf: '#93aeaa', leaf2: '#56716f', onAccent: '#fff' },
+        { name: 'Rose Leaf', bg: '#faf3ef', bg2: '#f0e1da', surface: 'rgba(120,70,60,0.05)', text: '#4a3433', muted: '#866b66', accent: '#8a5d58', accent2: '#7f8b66', gold: '#b8935e', leaf: '#cfa29a', leaf2: '#8d9670', onAccent: '#fff' },
+        { name: 'Forest Night', bg: '#1f2a22', bg2: '#131b16', surface: 'rgba(240,230,200,0.05)', text: '#efe9da', muted: '#bfc1a8', accent: '#d2b77c', accent2: '#9db18a', gold: '#d2b77c', leaf: '#7d9470', leaf2: '#a9bb90', onAccent: '#1f2a22' },
+      ],
+    },
+    'eucalyptus-garland': {
+      name: 'Eucalyptus Garland', motif: 'garland', opener: 'fade', featured: true,
+      fonts: { script: 'Great Vibes', head: 'Playfair Display', body: 'Lato' },
+      palettes: [
+        { name: 'Silver Sage', bg: '#f6f6f1', bg2: '#e7e9e1', surface: 'rgba(60,80,70,0.05)', text: '#33403a', muted: '#6a7770', accent: '#557264', accent2: '#b59a66', gold: '#b59a66', leaf: '#9fb5aa', leaf2: '#5f7d6f', onAccent: '#fff' },
+        { name: 'Olive & Cream', bg: '#f9f4e8', bg2: '#efe5cf', surface: 'rgba(90,90,40,0.05)', text: '#3d3b26', muted: '#77735a', accent: '#6b6b3a', accent2: '#b0884a', gold: '#b0884a', leaf: '#a3a67a', leaf2: '#6b6f42', onAccent: '#fff' },
+        { name: 'Terracotta', bg: '#faf1e9', bg2: '#f0ddd0', surface: 'rgba(140,80,50,0.05)', text: '#47302a', muted: '#86675c', accent: '#a35d43', accent2: '#7d8f72', gold: '#c09a62', leaf: '#9eae93', leaf2: '#6f8063', onAccent: '#fff' },
+      ],
+    },
+    'fern-meadow': {
+      name: 'Fern Meadow', motif: 'fern', opener: 'curtain', featured: true,
+      fonts: { script: 'Parisienne', head: 'Cormorant Garamond', body: 'Lora' },
+      palettes: [
+        { name: 'Fresh Fern', bg: '#f5f6ee', bg2: '#e4e9d6', surface: 'rgba(60,90,40,0.05)', text: '#2f3a28', muted: '#66705a', accent: '#4f6b3c', accent2: '#b3955a', gold: '#b3955a', leaf: '#86a26c', leaf2: '#4f6b3c', onAccent: '#fff' },
+        { name: 'Moss & Linen', bg: '#f6f1e7', bg2: '#e9dfcc', surface: 'rgba(80,80,50,0.05)', text: '#3a3a2a', muted: '#74705a', accent: '#626a40', accent2: '#a88655', gold: '#a88655', leaf: '#99a073', leaf2: '#5d6740', onAccent: '#fff' },
+        { name: 'Blue Hour', bg: '#eef2f4', bg2: '#dbe3e8', surface: 'rgba(40,60,80,0.05)', text: '#25323d', muted: '#5d6b78', accent: '#3f5f73', accent2: '#a99067', gold: '#a99067', leaf: '#8aa3a6', leaf2: '#4d6b6d', onAccent: '#fff' },
+      ],
+    },
     'minimal-ivory': {
       name: 'Minimal Ivory (blank)', motif: 'minimal', opener: 'fade',
       fonts: { script: 'Cormorant Garamond', head: 'Cormorant Garamond', body: 'Inter' },
@@ -304,7 +333,89 @@
       <path d="M60 50 q6 -5 12 0 q6 -5 12 0 M200 35 q5 -4 10 0 q5 -4 10 0 M230 60 q4 -3 8 0 q4 -3 8 0" stroke="${p.text}" stroke-width="1.5" fill="none" opacity=".6"/></svg>`;
     return { hero, corner: '', divider: dividerSVG(p.accent) };
   };
+  /* ---------- Botanical watercolour motifs (sprig, garland, fern) ----------
+   Hand-built SVG leaves with two-tone "wet paint" fills and soft, slightly
+   uneven edges. Leaf colours come from palette.leaf / palette.leaf2. Filter ids
+   carry a palette key so several designs can sit on one page (gallery). */
+  const bkey = (p) => ('b' + String(p.bg + p.leaf + p.leaf2 + p.gold).replace(/[^0-9a-z]/gi, '')).slice(0, 24);
+  const wcDefs = (k) => `<defs><filter id="wc-${k}" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency=".045" numOctaves="2" seed="7" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="3.5" result="d"/><feGaussianBlur in="d" stdDeviation=".35"/></filter></defs>`;
+  const r1 = (n) => Math.round(n * 10) / 10;
+  // one watercolour leaf: base wash, a darker wash on one side of the vein, a pale vein
+  const wleaf = (x, y, len, w, rot, c, c2, op = 0.78) => {
+    const full = `M0 0 C${r1(len * 0.22)} ${r1(-w)} ${r1(len * 0.72)} ${r1(-w * 0.85)} ${len} 0 C${r1(len * 0.7)} ${r1(w * 0.8)} ${r1(len * 0.24)} ${r1(w * 0.95)} 0 0Z`;
+    const half = `M0 0 C${r1(len * 0.22)} ${r1(-w)} ${r1(len * 0.72)} ${r1(-w * 0.85)} ${len} 0 Q${r1(len * 0.5)} ${r1(-w * 0.12)} 0 0Z`;
+    return `<g transform="translate(${r1(x)} ${r1(y)}) rotate(${r1(rot)})"><path d="${full}" fill="${c}" opacity="${op}"/><path d="${half}" fill="${c2}" opacity=".38"/><path d="M${r1(len * 0.05)} 0 Q${r1(len * 0.5)} ${r1(-w * 0.1)} ${r1(len * 0.9)} 0" stroke="#fff" stroke-opacity=".35" stroke-width=".7" fill="none"/></g>`;
+  };
+  // round "coin" leaf (eucalyptus-like) on a short stalk
+  const coin = (x, y, r, rot, c, c2) => `<g transform="translate(${r1(x)} ${r1(y)}) rotate(${r1(rot)})"><path d="M0 0 L${r1(r * 0.5)} 0" stroke="${c2}" stroke-width=".8" opacity=".6"/><ellipse cx="${r1(r * 1.35)}" cy="0" rx="${r1(r)}" ry="${r1(r * 0.86)}" fill="${c}" opacity=".72" stroke="${c2}" stroke-opacity=".35" stroke-width=".7"/><ellipse cx="${r1(r * 1.15)}" cy="${r1(r * 0.18)}" rx="${r1(r * 0.62)}" ry="${r1(r * 0.5)}" fill="${c2}" opacity=".2"/><path d="M${r1(r * 0.5)} 0 L${r1(r * 2.1)} 0" stroke="#fff" stroke-opacity=".3" stroke-width=".6"/></g>`;
+  // points + angles along a quadratic stem
+  const qpt = (a, b, c, t) => { const u = 1 - t; return [u * u * a[0] + 2 * u * t * b[0] + t * t * c[0], u * u * a[1] + 2 * u * t * b[1] + t * t * c[1]]; };
+  const qang = (a, b, c, t) => { const dx = 2 * (1 - t) * (b[0] - a[0]) + 2 * t * (c[0] - b[0]), dy = 2 * (1 - t) * (b[1] - a[1]) + 2 * t * (c[1] - b[1]); return (Math.atan2(dy, dx) * 180) / Math.PI; };
+  // a stem with alternating slender leaves, shrinking towards the tip
+  const stem = (a, b, c, n, len, w, col, col2, sw = 1.3, spread = 42) => {
+    let s = `<path d="M${a.join(' ')} Q${b.join(' ')} ${c.join(' ')}" stroke="${col2}" stroke-width="${sw}" fill="none" opacity=".75" stroke-linecap="round"/>`;
+    for (let i = 1; i <= n; i++) {
+      const t = 0.12 + (0.86 * i) / n, [x, y] = qpt(a, b, c, t), ang = qang(a, b, c, t), k = 1 - t * 0.45;
+      s += wleaf(x, y, len * k, w * k, ang + (i % 2 ? -spread : spread), i % 3 ? col : col2, col2, 0.7 + (i % 2) * 0.1);
+    }
+    const ang = qang(a, b, c, 1);
+    return s + wleaf(c[0], c[1], len * 0.5, w * 0.5, ang, col, col2);
+  };
+  const berries = (pts, col) => pts.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${col}" opacity=".85"/><circle cx="${x - r * 0.3}" cy="${y - r * 0.3}" r="${r * 0.35}" fill="#fff" opacity=".45"/>`).join('');
+  const leafDivider = (c, l) => `<svg viewBox="0 0 200 24" aria-hidden="true"><path d="M8 12 H84 M116 12 H192" stroke="${c}" stroke-width=".9"/>${wleaf(100, 12, 16, 4.5, -150, l, c, 0.9)}${wleaf(100, 12, 16, 4.5, -30, l, c, 0.9)}<circle cx="100" cy="13" r="2" fill="${c}"/><circle cx="8" cy="12" r="1.4" fill="${c}"/><circle cx="192" cy="12" r="1.4" fill="${c}"/></svg>`;
+
+  // Sage Garden: willow-leaf sprays with gold berries in two opposite corners
+  M.sprig = (p) => {
+    const k = bkey(p), l = p.leaf || p.accent, l2 = p.leaf2 || p.accent2, g = p.gold || p.accent;
+    const corner = `<svg viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${wcDefs(k)}<g filter="url(#wc-${k})">
+      ${stem([-6, 160], [28, 74], [132, 20], 12, 44, 10, l, l2, 1.4, 40)}
+      ${stem([-4, 206], [40, 158], [82, 98], 8, 34, 8, l2, l, 1.2, 46)}
+      ${stem([-2, 70], [34, 44], [70, 6], 7, 30, 7, l, l2, 1.1, 48)}
+      <path d="M8 112 Q60 96 96 64" stroke="${g}" stroke-width=".8" fill="none" opacity=".8"/>
+      </g>${berries([[96, 64, 2.8], [90, 71, 2.2], [102, 71, 2], [72, 86, 1.8], [138, 18, 2.4], [132, 12, 1.8]], g)}</svg>`;
+    return { corner, hero: '', divider: leafDivider(g, l), corners: 'diagonal' };
+  };
+  // Eucalyptus Garland: a draped garland of round leaves across the top of the card
+  M.garland = (p) => {
+    const k = bkey(p), l = p.leaf || p.accent, l2 = p.leaf2 || p.accent2, g = p.gold || p.accent;
+    const A = [-10, 24], B = [200, 150], C = [410, 24];
+    let leaves = '';
+    for (let i = 0; i <= 30; i++) {
+      const t = i / 30, [x, y] = qpt(A, B, C, t), ang = qang(A, B, C, t), side = i % 2 ? -1 : 1, r = 7 + ((i * 7) % 5) - Math.abs(t - 0.5) * 3;
+      leaves += coin(x, y, r, ang + side * (60 + (i % 3) * 12), i % 4 ? l : l2, l2);
+      if (i % 3 === 0) leaves += wleaf(x, y, 24, 5, ang - side * 120, l2, l, 0.65);
+    }
+    const tail = (x, dir) => `${stem([x, 30], [x + dir * 6, 70], [x + dir * 16, 118], 6, 14, 4, l, l2, 0.9, 55)}`;
+    const hero = `<svg viewBox="0 0 400 190" preserveAspectRatio="xMidYMin meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${wcDefs(k)}<g filter="url(#wc-${k})">
+      <path d="M${A.join(' ')} Q${B.join(' ')} ${C.join(' ')}" stroke="${l2}" stroke-width="1.2" fill="none" opacity=".6"/>${leaves}${tail(18, 1)}${tail(382, -1)}</g>
+      <path d="M-10 18 Q200 140 410 18" stroke="${g}" stroke-width=".8" fill="none" stroke-dasharray="1 5" stroke-linecap="round"/>
+      ${berries([[200, 92, 3], [193, 86, 2.2], [207, 86, 2.2], [120, 72, 2], [280, 72, 2]], g)}</svg>`;
+    const corner = `<svg viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${wcDefs(k)}<g filter="url(#wc-${k})">${stem([-4, 120], [30, 60], [80, 20], 7, 0.1, 0.1, l, l2, 1)}${Array.from({ length: 7 }, (_, i) => { const t = 0.15 + i * 0.12, [x, y] = qpt([-4, 120], [30, 60], [80, 20], t); return coin(x, y, 8 - i * 0.6, qang([-4, 120], [30, 60], [80, 20], t) + (i % 2 ? -70 : 70), i % 2 ? l : l2, l2); }).join('')}</g></svg>`;
+    return { hero, corner, corners: 'bottom', divider: leafDivider(g, l), heroAt: 'top', thumb: 'top' };
+  };
+  // Fern Meadow: fern fronds and wild grasses rising from the two lower corners
+  M.fern = (p) => {
+    const k = bkey(p), l = p.leaf || p.accent, l2 = p.leaf2 || p.accent2, g = p.gold || p.accent;
+    const frond = (a, b, c, n, len, col) => {
+      let s = `<path d="M${a.join(' ')} Q${b.join(' ')} ${c.join(' ')}" stroke="${col}" stroke-width="1.2" fill="none" opacity=".8"/>`;
+      for (let i = 1; i < n; i++) {
+        const t = i / n, [x, y] = qpt(a, b, c, t), ang = qang(a, b, c, t), kk = Math.sin(Math.PI * (0.15 + t * 0.85)) * (1 - t * 0.5);
+        s += wleaf(x, y, len * kk + 3, 3.2 * kk + 1.4, ang - 78, col, l2, 0.72) + wleaf(x, y, len * kk + 3, 3.2 * kk + 1.4, ang + 78, col, l2, 0.72);
+      }
+      return s;
+    };
+    const grass = (x, h, bend, col) => `<path d="M${x} 300 Q${x + bend * 0.4} ${300 - h * 0.6} ${x + bend} ${300 - h}" stroke="${col}" stroke-width="1.4" fill="none" opacity=".7" stroke-linecap="round"/>`;
+    const side = `${frond([20, 305], [10, 200], [70, 120], 16, 26, l)}${frond([60, 305], [70, 230], [130, 190], 12, 20, l2)}${frond([-5, 300], [-10, 230], [12, 170], 10, 18, l2)}
+      ${grass(90, 70, 14, l2)}${grass(100, 55, -10, l)}${grass(108, 80, 22, l)}${grass(40, 150, 30, l2)}
+      ${berries([[134, 186, 2.6], [128, 192, 2], [72, 117, 2.4], [117, 222, 1.8]], g)}`;
+    const hero = `<svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${wcDefs(k)}<g filter="url(#wc-${k})">
+      <g>${side}</g><g transform="translate(400 0) scale(-1 1)">${side}</g></g></svg>`;
+    return { hero, corner: '', divider: leafDivider(g, l), thumb: 'bottom' };
+  };
   M.minimal = (p) => ({ corner: '', hero: '', divider: dividerSVG(p.accent) });
+
+  // which corners a design decorates: 'all' (default), 'diagonal' (top-left + bottom-right) or 'bottom'
+  const cornerOn = (mo, c) => (mo.corners === 'diagonal' ? c === 'tl' || c === 'br' : mo.corners === 'bottom' ? c[0] === 'b' : true);
 
   function dividerSVG(c) {
     return `<svg viewBox="0 0 200 20" aria-hidden="true"><path d="M0 10 H80 M120 10 H200" stroke="${c}" stroke-width="1"/><path d="M100 2 L108 10 L100 18 L92 10Z" fill="none" stroke="${c}" stroke-width="1.3"/><circle cx="100" cy="10" r="2.5" fill="${c}"/><circle cx="86" cy="10" r="1.6" fill="${c}"/><circle cx="114" cy="10" r="1.6" fill="${c}"/></svg>`;
@@ -382,5 +493,5 @@
     { id: 'thankyou', name: 'Thank-you closing' },
   ];
 
-  window.IXT = { CATEGORIES, THEMES, FONT_CHOICES, FONT_URL, STYLES, SECTIONS, fontStack, motif: (id, p) => (M[id] || M.minimal)(p), generateMessage, sampleArt };
+  window.IXT = { CATEGORIES, THEMES, FONT_CHOICES, FONT_URL, STYLES, SECTIONS, fontStack, motif: (id, p) => (M[id] || M.minimal)(p), cornerOn, generateMessage, sampleArt };
 })();

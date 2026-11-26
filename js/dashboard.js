@@ -573,19 +573,21 @@
     c.fillStyle = g; c.fillRect(0, 0, W, Hh);
     const loadSvg = (svg) => IX.loadImage('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.replace('<svg ', '<svg width="440" height="440" ')));
     const motif = IXT.motif(IXT.THEMES[inv.theme].motif, p);
-    if (motif.hero && !inv.media.cover) { try { const im = await loadSvg(motif.hero.replace('<svg ', '<svg preserveAspectRatio="xMidYMax slice" ')); c.globalAlpha = 0.9; c.drawImage(im, 0, Hh - 560, W, 560); c.globalAlpha = 1; } catch (e) { /* skip */ } }
+    if (motif.hero && motif.heroAt === 'top') { try { const im = await IX.loadImage('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(motif.hero.replace('<svg ', '<svg width="1080" height="513" '))); c.drawImage(im, 0, 0, W, W * 0.475); } catch (e) { /* skip */ } }
+    else if (motif.hero && !inv.media.cover) { try { const im = await loadSvg(motif.hero.replace('<svg ', '<svg preserveAspectRatio="xMidYMax slice" ')); c.globalAlpha = 0.9; c.drawImage(im, 0, Hh - 560, W, 560); c.globalAlpha = 1; } catch (e) { /* skip */ } }
     if (motif.corner && inv.design.decorations) {
       try {
         const im = await loadSvg(motif.corner);
         const s = 300;
-        c.drawImage(im, 0, 0, s, s);
-        c.save(); c.translate(W, 0); c.scale(-1, 1); c.drawImage(im, 0, 0, s, s); c.restore();
-        c.save(); c.translate(0, Hh); c.scale(1, -1); c.drawImage(im, 0, 0, s, s); c.restore();
-        c.save(); c.translate(W, Hh); c.scale(-1, -1); c.drawImage(im, 0, 0, s, s); c.restore();
+        const on = (k) => IXT.cornerOn(motif, k);
+        if (on('tl')) c.drawImage(im, 0, 0, s, s);
+        if (on('tr')) { c.save(); c.translate(W, 0); c.scale(-1, 1); c.drawImage(im, 0, 0, s, s); c.restore(); }
+        if (on('bl')) { c.save(); c.translate(0, Hh); c.scale(1, -1); c.drawImage(im, 0, 0, s, s); c.restore(); }
+        if (on('br')) { c.save(); c.translate(W, Hh); c.scale(-1, -1); c.drawImage(im, 0, 0, s, s); c.restore(); }
       } catch (e) { /* skip */ }
     }
     c.strokeStyle = p.accent; c.lineWidth = 3; c.strokeRect(40, 40, W - 80, Hh - 80); c.lineWidth = 1; c.strokeRect(56, 56, W - 112, Hh - 112);
-    let y = 150;
+    let y = motif.heroAt === 'top' ? 260 : 150;
     const coverUrl = await H.store.resolveMedia(inv.media.cover);
     if (coverUrl) {
       try {
@@ -597,7 +599,7 @@
         c.restore(); c.strokeStyle = p.accent; c.lineWidth = 3; c.beginPath(); c.moveTo(x - 10, y + w / 2); c.arc(x + w / 2, y + w / 2, w / 2 + 10, Math.PI, 0); c.lineTo(x + w + 10, y + h + 10); c.lineTo(x - 10, y + h + 10); c.closePath(); c.stroke();
         y += h + 60;
       } catch (e) { y = 260; }
-    } else y = 300;
+    } else y = motif.heroAt === 'top' ? 470 : 300;
     c.textAlign = 'center'; c.fillStyle = p.text;
     const fam = M.txt(inv, L, 'familyName');
     if (fam) { c.font = `600 30px "${f.head}", "Noto Sans Devanagari", "Noto Sans Gurmukhi", serif`; c.fillText(fam.toUpperCase(), W / 2, y); y += 70; }

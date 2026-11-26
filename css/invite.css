@@ -366,3 +366,25 @@ body.is-preview [data-edit][data-empty="1"]::before { content: 'Click to add tex
 .ix-callig-card { width: min(100%, 560px, calc((100svh - 4rem) * 0.714)); margin: 0 auto; }
 .ix-callig-card svg { display: block; width: 100%; height: auto; filter: drop-shadow(0 10px 26px rgba(40,25,10,.25)); }
 body.is-print .ix-callig-card svg { filter: none; }
+
+/* Botanical collection (Sage Garden, Eucalyptus Garland, Fern Meadow):
+   soft paper grain, a thin gold inner frame on the opening and closing, leaf art placement */
+body.motif-sprig, body.motif-garland, body.motif-fern { --paper: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .4 0 0 0 0 .3 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23p)'/%3E%3C/svg%3E");
+  background: var(--paper), radial-gradient(120% 80% at 50% 0%, var(--bg) 0%, var(--bg2) 100%) fixed, var(--bg2); }
+@media (min-width: 640px) {
+  body.layout-portrait.motif-sprig .ix-page, body.layout-portrait.motif-garland .ix-page, body.layout-portrait.motif-fern .ix-page { background: var(--paper), linear-gradient(180deg, var(--bg), var(--bg2)); }
+}
+:is(.motif-sprig, .motif-garland, .motif-fern) :is(.ix-hero, .ix-closing)::before { content: ''; position: absolute; inset: 14px; border: 1px solid color-mix(in srgb, var(--gold) 70%, transparent); pointer-events: none; z-index: 0; }
+:is(.motif-sprig, .motif-garland, .motif-fern) :is(.ix-hero, .ix-closing)::after { content: ''; position: absolute; inset: 19px; border: 1px solid color-mix(in srgb, var(--gold) 25%, transparent); pointer-events: none; z-index: 0; }
+:is(.motif-sprig, .motif-garland, .motif-fern) .ix-title { text-shadow: none; }
+:is(.motif-sprig, .motif-garland, .motif-fern) .ix-kicker { letter-spacing: .26em; font-weight: 500; }
+:is(.motif-sprig, .motif-garland, .motif-fern) .ix-datebar > span:first-child, :is(.motif-sprig, .motif-garland, .motif-fern) .ix-datebar > span:last-child { border-color: color-mix(in srgb, var(--gold) 75%, transparent); }
+.motif-sprig .ix-corner { width: clamp(130px, 40vw, 220px); }
+.motif-sprig .ix-hero .ix-corner.br, .motif-sprig .ix-closing .ix-corner.br { bottom: 0; }
+.motif-garland .ix-hero { padding-top: min(52vw, 300px); }
+.motif-garland .ix-hero-art { inset: 0 0 auto 0; height: auto; }
+.motif-garland .ix-hero-art svg { height: auto; display: block; }
+.motif-garland .ix-corner { width: clamp(90px, 26vw, 140px); opacity: .9; }
+.motif-fern .ix-hero-art { height: 44%; }
+.motif-fern .ix-hero { padding-bottom: min(30vh, 260px); }
+@media print { :is(.motif-sprig, .motif-garland, .motif-fern) :is(.ix-hero, .ix-closing)::before, :is(.motif-sprig, .motif-garland, .motif-fern) :is(.ix-hero, .ix-closing)::after { inset: 8px; } }

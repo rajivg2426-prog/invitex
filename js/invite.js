@@ -249,8 +249,10 @@
   // In the editor's preview, lines of text are tagged so the host can click and type on the card itself.
   const ed = (key) => (isPreview ? ` data-edit="${key}"` : '');
   const firstEvent = (inv) => (inv.events || []).find((e) => e.id === inv.mainEventId && e.date) || (inv.events || []).filter((e) => e.date).sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start))[0];
-  const deco = (ctx) => (ctx.inv.design.decorations && ctx.motif.corner ? `<div class="ix-corner tl" aria-hidden="true">${ctx.motif.corner}</div><div class="ix-corner tr" aria-hidden="true">${ctx.motif.corner}</div>` : '');
-  const decoB = (ctx) => (ctx.inv.design.decorations && ctx.motif.corner ? `<div class="ix-corner bl" aria-hidden="true">${ctx.motif.corner}</div><div class="ix-corner br" aria-hidden="true">${ctx.motif.corner}</div>` : '');
+  // Corner art: all four corners by default; botanical designs use two opposite corners or the bottom pair only.
+  const cornerSet = (ctx, list) => (ctx.inv.design.decorations && ctx.motif.corner ? list.filter((c) => IXT.cornerOn(ctx.motif, c)).map((c) => `<div class="ix-corner ${c}" aria-hidden="true">${ctx.motif.corner}</div>`).join('') : '');
+  const deco = (ctx) => cornerSet(ctx, ['tl', 'tr']);
+  const decoB = (ctx) => cornerSet(ctx, ['bl', 'br']);
   const divider = (ctx) => `<div class="ix-divider" aria-hidden="true">${ctx.motif.divider}</div>`;
   const sec = (id, inner, cls = '') => `<section class="ix-sec ix-sec-${id} reveal ${cls}" id="sec-${id}" aria-labelledby="h-${id}">${inner}</section>`;
   const h2 = (id, text) => `<h2 class="ix-h2" id="h-${id}">${esc(text)}</h2>`;
