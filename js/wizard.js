@@ -558,12 +558,17 @@
       const on = designOn(inv, id), t = IXT.THEMES[id], meta = G.META[id] || {}, fav = favs.includes(id);
       const pal = g.colours.length ? Math.max(0, G.palFor(id, g.colours)) : null;
       const picked = g.cmp.includes(id), full = g.cmp.length >= 3 && !picked;
-      return `<div class="design-tile ${on ? 'on' : ''}"><button type="button" class="design-pick ${on ? 'on' : ''}" role="radio" aria-checked="${on}" data-theme-pick="${id}" ${pal != null ? `data-pal-pick="${pal}"` : ''} aria-describedby="dd-${id}">
-          ${miniCard(id, inv, name, pal != null ? pal : on ? inv.paletteIndex : 0)}<span class="dp-name">${esc(t.name.replace(' (blank)', ''))}<span class="dp-style">${esc(meta.style || '')}</span><span class="dp-desc" id="dd-${id}">${esc(G.DESC[id] || '')}</span>${id === cat.theme ? '<small>Best for ' + esc(cat.name) + '</small>' : ''}</span>${on ? '<span class="dp-badge sel">✓ Selected</span>' : ''}</button>
-        <button type="button" class="dp-fav ${fav ? 'on' : ''}" data-fav="${id}" aria-pressed="${fav}" aria-label="${fav ? 'Remove from' : 'Save to'} favourites: ${esc(t.name)}" title="${fav ? 'In your favourites' : 'Save to favourites'}">${fav ? '♥' : '♡'}</button>
-        <div class="dp-tools"><button type="button" class="btn sm ghost" data-quick="${id}" ${pal != null ? `data-quick-pal="${pal}"` : ''}>👁 Quick look</button>
-          <label class="dp-cmp ${full ? 'off' : ''}" title="${full ? 'You can compare up to 3 designs' : 'Tick 2 or 3 designs to compare them'}"><input type="checkbox" data-cmp="${id}" ${picked ? 'checked' : ''} ${full ? 'disabled' : ''}> Compare</label></div>
-        <div class="dp-pals" role="group" aria-label="${esc(t.name)} colours">${t.palettes.map((p, i) => `<button type="button" class="dp-pal ${on && i === inv.paletteIndex ? 'on' : ''}" data-theme-pick="${id}" data-pal-pick="${i}" title="${esc(p.name)}" aria-label="${esc(t.name)}, ${esc(p.name)}"><i style="background:linear-gradient(135deg,${p.bg} 50%,${p.accent} 50%)"></i></button>`).join('')}</div></div>`;
+      return `<article class="design-tile ${on ? 'on' : ''}" aria-label="${esc(t.name)} design">
+        <button type="button" class="design-pick ${on ? 'on' : ''}" role="radio" aria-checked="${on}" data-theme-pick="${id}" ${pal != null ? `data-pal-pick="${pal}"` : ''} aria-describedby="dd-${id}">
+          <span class="dp-visual">${miniCard(id, inv, name, pal != null ? pal : on ? inv.paletteIndex : 0)}<span class="dp-visual-hint">Preview card</span></span>
+          <span class="dp-name">${esc(t.name.replace(' (blank)', ''))}<span class="dp-style">${esc(meta.style || '')}</span><span class="dp-desc" id="dd-${id}">${esc(G.DESC[id] || '')}</span>${id === cat.theme ? '<small>Best for ' + esc(cat.name) + '</small>' : ''}</span>
+          ${on ? '<span class="dp-badge sel">✓ Selected</span>' : ''}</button>
+        <div class="dp-card-actions">
+          <button type="button" class="dp-fav ${fav ? 'on' : ''}" data-fav="${id}" aria-pressed="${fav}" aria-label="${fav ? 'Remove from' : 'Save to'} favourites: ${esc(t.name)}" title="${fav ? 'In your favourites' : 'Save to favourites'}">${fav ? '♥' : '♡'}</button>
+          <button type="button" class="btn sm ghost dp-preview-btn" data-quick="${id}" ${pal != null ? `data-quick-pal="${pal}"` : ''} aria-label="Preview ${esc(t.name)}">◉ Preview design</button>
+          <label class="dp-cmp ${full ? 'off' : ''}" title="${full ? 'You can compare up to 3 designs' : 'Tick 2 or 3 designs to compare them'}"><input type="checkbox" data-cmp="${id}" ${picked ? 'checked' : ''} ${full ? 'disabled' : ''}> Compare</label>
+        </div>
+        <div class="dp-pals" role="group" aria-label="${esc(t.name)} colours">${t.palettes.map((p, i) => `<button type="button" class="dp-pal ${on && i === inv.paletteIndex ? 'on' : ''}" data-theme-pick="${id}" data-pal-pick="${i}" title="${esc(p.name)}" aria-label="${esc(t.name)}, ${esc(p.name)}"><i style="background:linear-gradient(135deg,${p.bg} 50%,${p.accent} 50%)"></i></button>`).join('')}</div></article>`;
     };
     return `<div class="gal-bar">
         <label class="gal-search"><span class="lbl">Find a design</span><span class="gal-search-box"><span aria-hidden="true">⌕</span><input class="input" id="galSearch" type="search" value="${esc(g.search || '')}" placeholder="Search by name, style or description" autocomplete="off"><button type="button" class="linkbtn" id="galSearchClear" ${g.search ? '' : 'hidden'} aria-label="Clear design search">Clear</button></span></label>
