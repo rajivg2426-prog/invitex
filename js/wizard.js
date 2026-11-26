@@ -62,10 +62,11 @@
           <div class="pv-tools"><div class="seg" role="group" aria-label="Preview size"><button type="button" data-pv="mobile" class="on" aria-pressed="true">📱 Mobile</button><button type="button" data-pv="desktop" aria-pressed="false">🖥 Desktop</button></div>
             <div class="pv-acts"><div class="pv-zoom" role="group" aria-label="Zoom"><button type="button" class="btn sm ghost iconbtn" data-zoom="-1" aria-label="Zoom out" title="Zoom out">−</button><span id="pvZoomVal" aria-live="polite">100%</span><button type="button" class="btn sm ghost iconbtn" data-zoom="1" aria-label="Zoom in" title="Zoom in">+</button></div>
               <button type="button" class="btn sm ghost iconbtn" id="pvFull" title="Full-screen preview" aria-label="Full-screen preview">⤢</button></div></div>
+          <div class="pv-context"><span class="pv-context-title">Guest-facing preview</span><span class="pv-context-tip">See how your invitation looks when guests open it. Switch pages or device size.</span></div>
           <div class="pv-pages" role="group" aria-label="Preview page"><button type="button" class="pv-arrow" data-pg-step="-1" aria-label="Previous page">‹</button>${PV_PAGES.map(([id, l]) => `<button type="button" class="pv-page" data-pg="${id}" aria-pressed="false">${l}</button>`).join('')}<button type="button" class="pv-arrow" data-pg-step="1" aria-label="Next page">›</button></div>
-          <div class="pv-frame" id="pvFrame"><iframe id="pvIframe" title="Live preview of the invitation" src="invite.html?preview=1"></iframe></div>
+          <div class="pv-frame" id="pvFrame"><iframe id="pvIframe" title="Live guest-facing preview of the invitation" src="invite.html?preview=1"></iframe></div>
           <div class="pv-note"><span id="pvSample" class="pv-sample" hidden>Sample names and dates are shown until you add yours.</span>
-            <span class="tiny muted">Live preview · RSVP is disabled here · <button type="button" class="linkbtn" id="replayOpen" title="Show the opening animation guests see first">▶ Play opening</button></span></div>
+            <span class="tiny muted">Live preview · RSVP is disabled here · <button type="button" class="linkbtn" id="replayOpen" title="Show the opening animation guests see first">▶ Play guest opening</button></span></div>
           <button class="btn pv-close" id="pvClose">✕ Close preview</button>
         </aside>
       </div>
