@@ -601,6 +601,16 @@ details.more-details[open]>summary,details.more-options[open]>summary{margin-bot
 @media (max-width: 380px) { .way small { display: none; } .design-grid { grid-template-columns: 1fr 1fr; gap: .55rem; } }
 @media (max-width: 560px) { .cat-chips { display: grid; grid-template-columns: 1fr 1fr; } .cat-chips .cat { border-radius: 12px; padding: .4rem .55rem; font-size: 12.5px; text-align: left; line-height: 1.2; } }
 
+/* InviteX V2 Phase 1: searchable gallery controls */
+.gal-search { display: grid; gap: .3rem; margin-bottom: .65rem; min-width: 0; }
+.gal-search-box { display: flex; align-items: center; gap: .45rem; min-width: 0; border: 1px solid var(--line); border-radius: 12px; background: #fff; padding: 0 .65rem; }
+.gal-search-box > span:first-child { color: var(--muted); font-size: 22px; line-height: 1; }
+.gal-search-box .input { border: 0; box-shadow: none; min-width: 0; flex: 1; background: transparent; }
+.gal-search-box .input:focus { outline: 0; box-shadow: none; }
+.gal-search-box:focus-within { border-color: var(--plum2); box-shadow: 0 0 0 3px rgba(75,29,58,.10); }
+.gal-search-box [hidden] { display: none !important; }
+@media (max-width: 560px) { .gal-search-box { min-height: 46px; } .gal-search-box .input { font-size: 16px; } }
+
 /* design studio: describe your card, occasion tabs, palette dots, font pairs, undo/redo */
 .describe { display: grid; gap: .5rem; padding: .9rem; border-radius: 14px; background: var(--ivory); border: 1px solid var(--champagne); }
 .describe .lbl { font-weight: 600; font-size: 13px; color: var(--ink2); }
