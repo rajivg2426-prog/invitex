@@ -49,6 +49,61 @@ const saved = (p) => p.evaluate(async () => { const id = location.hash.split('/'
   // the bottom bar never hides the last design card when scrolled to the end
   await p.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await p.waitForTimeout(400);
   ok('bottom bar does not cover the page end', await p.evaluate(() => { const f = document.querySelector('.wiz-foot').getBoundingClientRect(); const last = [...document.querySelectorAll('#stepBody > .card')].pop().getBoundingClientRect(); return last.bottom <= f.top + 1; }));
+  /* ---------- gallery: filters, favourites, recently viewed, quick look, compare, reset ---------- */
+  await p.evaluate(() => window.scrollTo(0, 0));
+  ok('occasion is a menu, not a sideways strip', (await p.locator('#galOcc').count()) === 1 && (await p.locator('.gal-tab').count()) === 0);
+  ok('occasion menu lists every occasion', (await p.locator('#galOcc option').count()) >= 15);
+  await p.selectOption('#galOcc', 'all'); await p.waitForTimeout(200);
+  ok('All shows the 14 ready designs', (await p.locator('.design-tile').count()) === 14 && /14 designs/.test(await p.innerText('.gal-sum')));
+  ok('each card has a name, description, favourite, quick look and compare', (await p.locator('.design-tile .dp-desc').count()) === 14 && (await p.locator('.design-tile [data-fav]').count()) === 14 && (await p.locator('.design-tile [data-quick]').count()) === 14 && (await p.locator('.design-tile [data-cmp]').count()) === 14);
+  ok('the chosen design shows a Selected badge', (await p.locator('.design-tile.on .dp-badge').innerText()).includes('Selected'));
+  await p.click('[data-gstyle=modern]'); await p.waitForTimeout(200);
+  const modern = await p.locator('.design-pick').evaluateAll((els) => els.map((e) => e.dataset.themePick));
+  ok('Style: Modern hides traditional designs', modern.length > 0 && modern.length < 14 && !modern.includes('saffron-puja') && modern.includes('corporate-slate'), modern.join());
+  await p.click('[data-gcol=blue]'); await p.waitForTimeout(200);
+  const blue = await p.locator('.design-pick').evaluateAll((els) => els.map((e) => [e.dataset.themePick, e.dataset.palPick]));
+  ok('Colour: Blue narrows further and shows each design in its blue colours', blue.length > 0 && blue.length < modern.length && blue.every(([, pal]) => pal != null), JSON.stringify(blue));
+  await p.click('[data-gcol=pink]'); await p.click('[data-gstyle=modern]'); await p.click('[data-gstyle=vintage]'); await p.click('[data-gstyle=luxury]'); await p.click('[data-gcol=blue]'); await p.click('[data-gcol=pink]'); await p.click('[data-gcol=green]'); await p.waitForTimeout(200);
+  const nGreen = await p.locator('.design-tile').count();
+  await p.click('[data-gfav]'); await p.waitForTimeout(200);
+  ok('empty state explains no match and offers Show all', (await p.locator('.gal-empty').count()) === 1, 'tiles before ' + nGreen);
+  await p.click('#galClear2'); await p.waitForTimeout(200);
+  ok('Show all designs clears every filter', (await p.locator('.design-tile').count()) === 14 && (await p.locator('.gal-bar .chip.on').count()) === 0);
+  await p.click('[data-fav="golden-anniversary"]'); await p.waitForTimeout(200);
+  ok('heart saves a favourite', (await p.getAttribute('[data-fav="golden-anniversary"]', 'aria-pressed')) === 'true');
+  await p.selectOption('#galSort', 'fav'); await p.waitForTimeout(200);
+  ok('Favourites first puts it at the top', (await p.locator('.design-pick').first().getAttribute('data-theme-pick')) === 'golden-anniversary');
+  // quick look: opens a large preview without choosing the design
+  await p.click('[data-quick="golden-anniversary"]'); await p.waitForSelector('.ql-modal iframe');
+  const ql = p.frameLocator('.ql-modal iframe');
+  await ql.locator('body.motif-leaves').waitFor({ timeout: 5000 });
+  ok('Quick look shows that design large with the host names', /Meera & Dev/.test(await ql.locator('#sec-opening').innerText()));
+  await p.click('.ql-pal >> nth=1'); await p.waitForTimeout(600);
+  ok('Quick look can switch its colours', (await ql.locator('html').evaluate((e) => getComputedStyle(e).getPropertyValue('--bg').trim())) === '#141414');
+  ok('Quick look did not change the card', (await saved(p)).theme === 'blush-rings');
+  await p.click('.ql-modal [data-a="1"]'); await p.waitForTimeout(800);
+  let st = await p.evaluate(async () => { const i = await H.store.getInvitation(location.hash.split('/')[2]); return [i.theme, i.paletteIndex]; });
+  ok('Use this design from quick look chooses it in the colour shown', st[0] === 'golden-anniversary' && st[1] === 1, st.join('/'));
+  ok('recently viewed lists it', (await p.locator('.recent-chip[data-quick="golden-anniversary"]').count()) === 1);
+  // compare
+  await p.check('[data-cmp="royal-maroon"]'); await p.check('[data-cmp="blush-rings"]'); await p.check('[data-cmp="minimal-ivory"]');
+  ok('compare allows up to three', (await p.locator('[data-cmp]:disabled').count()) === 11 && /3<\/b> of 3|3 of 3/.test(await p.innerText('.cmp-tray')));
+  await p.click('#cmpGo'); await p.waitForSelector('.cmp-modal');
+  ok('compare shows three designs with colours, fonts and style', (await p.locator('.cmp-col').count()) === 3 && (await p.locator('.cmp-col .ql-facts').first().innerText()).includes('Fonts'));
+  await p.screenshot({ path: OUT + '/4-compare.png' });
+  await p.click('[data-cmp-use="1"]'); await p.waitForTimeout(800);
+  ok('Use this one picks it and clears the compare list', (await saved(p)).theme === 'blush-rings' && (await p.locator('.cmp-tray').count()) === 0);
+  // reset design
+  await p.evaluate(async () => { const i = await H.store.getInvitation(location.hash.split('/')[2]); i.design.fonts.script = 'Pacifico'; await H.store.saveInvitation(i); });
+  await p.reload(); await p.waitForSelector('#designCard'); await p.waitForTimeout(800);
+  await p.click('#resetDesign'); await p.click('.modal [data-a="1"]'); await p.waitForTimeout(900);
+  const fonts = await p.evaluate(async () => (await H.store.getInvitation(location.hash.split('/')[2])).design.fonts.script);
+  ok('Reset design puts back the original fonts', fonts === 'Parisienne', fonts);
+  // remembered on this device
+  await p.click('[data-gcol=gold]'); await p.waitForTimeout(200);
+  const p2 = await ctx.newPage(); await p2.goto(BASE + 'index.html#/new/anniversary'); await p2.waitForSelector('#designCard'); await p2.waitForTimeout(800);
+  ok('favourites and filters are remembered for the next invitation', (await p2.locator('[data-gcol=gold].on').count()) === 1 && (await p2.locator('[data-fav="golden-anniversary"][aria-pressed=true]').count()) === 1);
+  await p2.close();
   /* ---------- phone ---------- */
   for (const [name, dev] of [['phone', devices['iPhone 13']], ['tablet', { viewport: { width: 820, height: 1180 } }]]) {
     const c2 = await b.newContext(dev); await c2.route(/js\/config\.js/, stub);

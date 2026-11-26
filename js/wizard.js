@@ -68,6 +68,9 @@
     const iframe = document.getElementById('pvIframe');
     const onMsg = (e) => {
       if (e.origin !== location.origin) return;
+      // only the main preview talks to the editor (quick look and compare have their own previews)
+      const main = document.getElementById('pvIframe');
+      if (!main || e.source !== main.contentWindow) return;
       if (e.data?.type === 'ix-preview-ready') { W.ready = true; pushPreview(); }
       if (e.data?.type === 'ix-preview-lang') W.pvLang = e.data.lang;
       if (e.data?.type === 'ix-preview-opened') W.pvOpener = false;
@@ -393,8 +396,8 @@
     }));
   }
   // A small drawing of a ready design, built from the same colours and illustrations as the real card.
-  function miniCard(id, inv, name) {
-    const t = IXT.THEMES[id], p = t.palettes[id === inv.theme ? inv.paletteIndex : 0] || t.palettes[0], mo = IXT.motif(t.motif, p);
+  function miniCard(id, inv, name, pal) {
+    const t = IXT.THEMES[id], p = t.palettes[pal != null ? pal : id === inv.theme ? inv.paletteIndex : 0] || t.palettes[0], mo = IXT.motif(t.motif, p);
     return `<span class="mini mini-${t.motif}" style="--mbg:${p.bg};--mbg2:${p.bg2};--mtx:${p.text};--mac:${p.accent}" aria-hidden="true">
       ${mo.top ? `<span class="mini-top">${mo.top}</span>` : ''}
       ${mo.hero ? `<span class="mini-hero">${mo.hero}</span>` : ''}
@@ -407,6 +410,7 @@
     if (W.bgUrl === undefined) { W.bgUrl = ''; if (inv.media.background) H.store.resolveMedia(inv.media.background).then((u) => { W.bgUrl = u || ''; if (W.step === 1 && u) step1(body); }); }
     if (!W.way) W.way = calligOn(inv) ? 'callig' : inv.design.aiArt ? 'ai' : inv.media.background ? 'own' : 'ready';
     if (!W.galTab) W.galTab = IXGallery.TAB_FOR_CAT[inv.category] || 'all';
+    if (!W.gal) { const pr = (window.IXPicks && IXPicks.prefs()) || {}; W.gal = { styles: Array.isArray(pr.styles) ? pr.styles : [], colours: Array.isArray(pr.colours) ? pr.colours : [], sort: pr.sort || 'rec', favOnly: false, cmp: [], open: false }; }
     const guide = body.querySelector('.step-guide')?.outerHTML || '';
     const cat = IXT.CATEGORIES.find((c) => c.id === inv.category);
     const themeIds = Object.keys(IXT.THEMES).sort((a, b) => (a === cat.theme ? -1 : b === cat.theme ? 1 : 0));
@@ -416,14 +420,7 @@
     const picNote = hasPic && W.way === 'ready'
       ? `<p class="notice small" style="margin:0">Your own picture is on the card now. Tap a ready design below to use it instead.</p>` : '';
     const panels = {
-      ready: `${picNote}${describeBox()}
-        <div class="gal-tabs" role="tablist" aria-label="Occasion">${IXGallery.TABS.filter(([t]) => t === 'all' || t === 'calligraphy' || themeIds.some((id) => IXGallery.inTab(id, t))).map(([t, l]) => `<button type="button" role="tab" aria-selected="${t === W.galTab}" class="gal-tab ${t === W.galTab ? 'on' : ''}" data-gal-tab="${t}">${esc(l)}</button>`).join('')}</div>
-        ${W.galTab === 'calligraphy' ? calligPanel(inv) : ''}<div class="design-grid" role="radiogroup" aria-label="Ready designs" ${W.galTab === 'calligraphy' ? 'hidden' : ''}>${themeIds.filter((id) => IXGallery.inTab(id, W.galTab)).map((id) => {
-        const on = id === inv.theme && !hasPic && !calligOn(inv), t = IXT.THEMES[id], meta = IXGallery.META[id] || {};
-        return `<div class="design-tile ${on ? 'on' : ''}"><button type="button" class="design-pick ${on ? 'on' : ''}" role="radio" aria-checked="${on}" data-theme-pick="${id}">
-          ${miniCard(id, inv, name)}<span class="dp-name">${esc(t.name.replace(' (blank)', ''))}<span class="dp-style">${esc(meta.style || '')}</span>${id === cat.theme ? '<small>Best for ' + esc(cat.name) + '</small>' : ''}</span>${on ? '<span class="dp-tick" aria-hidden="true">✓</span>' : ''}</button>
-          <div class="dp-pals" role="group" aria-label="${esc(t.name)} colours">${t.palettes.map((p, i) => `<button type="button" class="dp-pal ${on && i === inv.paletteIndex ? 'on' : ''}" data-theme-pick="${id}" data-pal-pick="${i}" title="${esc(p.name)}" aria-label="${esc(t.name)}, ${esc(p.name)}"><i style="background:linear-gradient(135deg,${p.bg} 50%,${p.accent} 50%)"></i></button>`).join('')}</div></div>`;
-      }).join('')}</div>`,
+      ready: `${picNote}${describeBox()}${galleryPanel(inv, themeIds, cat, name, hasPic)}`,
       own: `<p class="small muted" style="margin:0">Use a card someone designed for you, a painting or a photo. It fills the whole card and your names, date and place are written on top.</p>
         ${W.bgUrl ? `<div class="own-done"><div class="own-prev" style="background-image:url('${esc(W.bgUrl)}')" role="img" aria-label="Your card picture"></div>
             <div class="stack" style="gap:.6rem"><b>✓ Your picture is on the card</b>
@@ -449,7 +446,8 @@
       <h2>3. Colours &amp; shape</h2>
       <div class="swatches" role="radiogroup" aria-label="Colour theme">${th.palettes.map((p, i) => `<button type="button" class="swatch ${i === inv.paletteIndex ? 'on' : ''}" role="radio" aria-checked="${i === inv.paletteIndex}" data-pal="${i}"><i style="background:linear-gradient(135deg,${p.bg} 50%,${p.accent} 50%)"></i>${esc(p.name)}</button>`).join('')}</div>
       <div class="seg" role="radiogroup" aria-label="Card shape">${[['portrait', 'Tall (best for phones)'], ['landscape', 'Wide'], ['square', 'Square']].map(([l, n]) => `<label><input type="radio" name="layout" value="${l}" ${inv.layout === l ? 'checked' : ''}>${n}</label>`).join('')}</div>
-      <p class="tiny muted" style="margin:0">You can fine-tune fonts and colours later in step 2.</p>
+      <div class="row between" style="gap:.5rem"><p class="tiny muted" style="margin:0">You can fine-tune fonts and colours later in step 2.</p>
+        <button type="button" class="btn sm ghost" id="resetDesign" title="Put back this design's own fonts and colours">↺ Reset design</button></div>
     </div>`;
     body.querySelectorAll('[data-way]').forEach((b) => (b.onclick = () => { W.way = b.dataset.way; step1(body); }));
     const artIn = body.querySelector('#artIn');
@@ -485,14 +483,123 @@
       if (inv.media.background) removePicture();
       setTheme(b.dataset.themePick);
       if (b.dataset.palPick != null) { inv.paletteIndex = +b.dataset.palPick; Object.assign(inv.design, { textColor: '', bgColor: '', accentColor: '' }); }
+      if (window.IXPicks) IXPicks.viewed(b.dataset.themePick);
       changed(); step1(body);
     }));
-    body.querySelectorAll('[data-gal-tab]').forEach((b) => (b.onclick = () => { W.galTab = b.dataset.galTab; step1(body); }));
+    wireGallery(body);
+    const rs = body.querySelector('#resetDesign');
+    if (rs) rs.onclick = async () => {
+      if (!(await H.confirm('Reset this design?', `Fonts and colours go back to how “${esc(th.name.replace(' (blank)', ''))}” was designed. Your words, photos and dates stay. You can undo this.`, 'Reset design'))) return;
+      const pal = inv.paletteIndex; setTheme(inv.theme); inv.paletteIndex = pal; inv.design.fontScale = 1;
+      changed(); step1(body); IX.toast('Design reset to the original fonts and colours.', 'ok');
+    };
     wireDescribe(body);
-    if (W.way === 'callig' || W.galTab === 'calligraphy') wireCallig(body);
+    if (W.way === 'callig' || (W.way === 'ready' && (W.galTab === 'calligraphy' || W.gal.styles.includes('calligraphy')))) wireCallig(body);
     body.querySelectorAll('[data-pal]').forEach((b) => (b.onclick = () => { inv.paletteIndex = +b.dataset.pal; Object.assign(inv.design, { textColor: '', bgColor: '', accentColor: '' }); changed(); step1(body); }));
     body.querySelectorAll('input[name=layout]').forEach((r) => (r.onchange = () => { inv.layout = r.value; changed(); }));
     renderAi(body);
+  }
+  /* ---------- the ready-design gallery ----------
+   * Occasion menu, style and colour chips that wrap (no hidden sideways strip), sorting,
+   * favourites, recently viewed, quick look and compare. Filters are remembered on this device. */
+  const SORTS = [['rec', 'Recommended'], ['recent', 'Recently viewed'], ['fav', 'Favourites first'], ['az', 'Name A–Z']];
+  const designOn = (inv, id) => id === inv.theme && !inv.media.background && !calligOn(inv);
+  // The invitation as it would look with another design, for quick look and compare (never saved).
+  function previewWith(themeId, pal) {
+    const inv = IX.deepClone(W.inv), t = IXT.THEMES[themeId];
+    inv.theme = themeId; inv.paletteIndex = pal || 0; inv.design.fonts = { ...t.fonts };
+    Object.assign(inv.design, { textColor: '', bgColor: '', accentColor: '', aiArt: '' });
+    inv.media.background = ''; if (inv.calligraphy) inv.calligraphy.active = false;
+    withSamples(inv, inv.defaultLang);
+    return inv;
+  }
+  function galleryPanel(inv, themeIds, cat, name, hasPic) {
+    const G = IXGallery, g = W.gal, P = window.IXPicks;
+    const f = { occ: W.galTab === 'calligraphy' ? 'all' : W.galTab, styles: g.styles.filter((x) => x !== 'calligraphy'), colours: g.colours };
+    const showCallig = W.galTab === 'calligraphy' || g.styles.includes('calligraphy');
+    const onlyCallig = W.galTab === 'calligraphy' || (g.styles.length === 1 && g.styles[0] === 'calligraphy');
+    const favs = P ? P.favs() : [], recent = P ? P.recent().filter((id) => IXT.THEMES[id]) : [];
+    let ids = onlyCallig ? [] : themeIds.filter((id) => G.matches(id, f) && (!g.favOnly || favs.includes(id)));
+    const rank = (list, id) => { const i = list.indexOf(id); return i < 0 ? 99 : i; };
+    if (g.sort === 'recent') ids.sort((a, b) => rank(recent, a) - rank(recent, b));
+    if (g.sort === 'fav') ids.sort((a, b) => (favs.includes(b) ? 1 : 0) - (favs.includes(a) ? 1 : 0));
+    if (g.sort === 'az') ids.sort((a, b) => IXT.THEMES[a].name.localeCompare(IXT.THEMES[b].name));
+    const nFilters = g.styles.length + g.colours.length + (g.favOnly ? 1 : 0);
+    const chip = (attr, val, label, on, extra = '') => `<button type="button" class="chip ${on ? 'on' : ''}" ${attr}="${val}" aria-pressed="${on}">${extra}${esc(label)}</button>`;
+    const count = ids.length + (showCallig ? IXC_COUNT() : 0);
+    const tile = (id) => {
+      const on = designOn(inv, id), t = IXT.THEMES[id], meta = G.META[id] || {}, fav = favs.includes(id);
+      const pal = g.colours.length ? Math.max(0, G.palFor(id, g.colours)) : null;
+      const picked = g.cmp.includes(id), full = g.cmp.length >= 3 && !picked;
+      return `<div class="design-tile ${on ? 'on' : ''}"><button type="button" class="design-pick ${on ? 'on' : ''}" role="radio" aria-checked="${on}" data-theme-pick="${id}" ${pal != null ? `data-pal-pick="${pal}"` : ''} aria-describedby="dd-${id}">
+          ${miniCard(id, inv, name, pal != null ? pal : on ? inv.paletteIndex : 0)}<span class="dp-name">${esc(t.name.replace(' (blank)', ''))}<span class="dp-style">${esc(meta.style || '')}</span><span class="dp-desc" id="dd-${id}">${esc(G.DESC[id] || '')}</span>${id === cat.theme ? '<small>Best for ' + esc(cat.name) + '</small>' : ''}</span>${on ? '<span class="dp-badge sel">✓ Selected</span>' : ''}</button>
+        <button type="button" class="dp-fav ${fav ? 'on' : ''}" data-fav="${id}" aria-pressed="${fav}" aria-label="${fav ? 'Remove from' : 'Save to'} favourites: ${esc(t.name)}" title="${fav ? 'In your favourites' : 'Save to favourites'}">${fav ? '♥' : '♡'}</button>
+        <div class="dp-tools"><button type="button" class="btn sm ghost" data-quick="${id}" ${pal != null ? `data-quick-pal="${pal}"` : ''}>👁 Quick look</button>
+          <label class="dp-cmp ${full ? 'off' : ''}" title="${full ? 'You can compare up to 3 designs' : 'Tick 2 or 3 designs to compare them'}"><input type="checkbox" data-cmp="${id}" ${picked ? 'checked' : ''} ${full ? 'disabled' : ''}> Compare</label></div>
+        <div class="dp-pals" role="group" aria-label="${esc(t.name)} colours">${t.palettes.map((p, i) => `<button type="button" class="dp-pal ${on && i === inv.paletteIndex ? 'on' : ''}" data-theme-pick="${id}" data-pal-pick="${i}" title="${esc(p.name)}" aria-label="${esc(t.name)}, ${esc(p.name)}"><i style="background:linear-gradient(135deg,${p.bg} 50%,${p.accent} 50%)"></i></button>`).join('')}</div></div>`;
+    };
+    return `<div class="gal-bar">
+        <div class="gal-row">
+          <label class="gal-sel"><span class="lbl">Occasion</span><select class="input" id="galOcc">${G.TABS.filter(([t]) => t === 'all' || t === 'calligraphy' || themeIds.some((id) => G.inTab(id, t))).map(([t, l]) => `<option value="${t}" ${t === W.galTab ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
+          <label class="gal-sel"><span class="lbl">Sort by</span><select class="input" id="galSort">${SORTS.map(([v, l]) => `<option value="${v}" ${v === g.sort ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+          <button type="button" class="btn sm gal-more" id="galMore" aria-expanded="${!!g.open}" aria-controls="galFilters">⚙ Filters${nFilters ? ` (${nFilters})` : ''}</button>
+        </div>
+        <div class="gal-filters ${g.open ? 'open' : ''}" id="galFilters">
+          <div class="chip-row" role="group" aria-label="Design style"><span class="lbl">Style</span>${G.STYLES.map(([v, l]) => chip('data-gstyle', v, l, g.styles.includes(v))).join('')}</div>
+          <div class="chip-row" role="group" aria-label="Colours"><span class="lbl">Colour</span>${G.COLOURS_F.map(([v, l, c]) => chip('data-gcol', v, l, g.colours.includes(v), `<i class="chip-sw" style="background:${c}" aria-hidden="true"></i>`)).join('')}${chip('data-gfav', '1', 'Favourites only', g.favOnly, '<span aria-hidden="true">♥ </span>')}</div>
+        </div>
+        <div class="gal-sum" aria-live="polite"><b>${count} design${count === 1 ? '' : 's'}</b>${nFilters || W.galTab !== 'all' ? ' <button type="button" class="linkbtn" id="galClear">Show all designs</button>' : ''}<span class="tiny muted">Every design works in English, हिन्दी and ਪੰਜਾਬੀ.</span></div>
+      </div>
+      ${recent.length ? `<div class="gal-recent"><span class="lbl">Recently viewed</span><div class="gal-recent-row">${recent.slice(0, 6).map((id) => { const t = IXT.THEMES[id], p = t.palettes[0]; return `<button type="button" class="recent-chip" data-quick="${id}"><i style="background:linear-gradient(135deg,${p.bg} 50%,${p.accent} 50%)" aria-hidden="true"></i>${esc(t.name.replace(' (blank)', ''))}</button>`; }).join('')}</div></div>` : ''}
+      ${g.cmp.length ? `<div class="cmp-tray" role="status"><span>Comparing <b>${g.cmp.length}</b> of 3: ${g.cmp.map((id) => esc(IXT.THEMES[id].name.replace(' (blank)', ''))).join(', ')}</span><span class="row" style="gap:.4rem"><button type="button" class="btn sm primary" id="cmpGo" ${g.cmp.length < 2 ? 'disabled title="Tick one more design"' : ''}>Compare side by side</button><button type="button" class="linkbtn" id="cmpClear">Clear</button></span></div>` : ''}
+      ${showCallig ? `<div class="stack">${onlyCallig ? '' : '<h3 class="gal-h">Calligraphy & handwritten</h3>'}${calligPanel(inv)}</div>${onlyCallig ? '' : '<h3 class="gal-h">Ready designs</h3>'}` : ''}
+      ${onlyCallig ? '' : ids.length ? `<div class="design-grid" role="radiogroup" aria-label="Ready designs">${ids.map(tile).join('')}</div>`
+        : `<div class="gal-empty"><p><b>No designs match these filters.</b></p><p class="small muted">Try fewer colours or styles, or look at every design.</p><button type="button" class="btn sm" id="galClear2">Show all designs</button></div>`}`;
+  }
+  const IXC_COUNT = () => (window.IXC ? IXC.styles.STYLES.length : 0);
+  function wireGallery(body) {
+    const g = W.gal, P = window.IXPicks, again = () => { if (P) P.setPrefs({ styles: g.styles, colours: g.colours, sort: g.sort }); step1(body); };
+    const toggle = (list, v) => (list.includes(v) ? list.filter((x) => x !== v) : list.concat(v));
+    const occ = body.querySelector('#galOcc'); if (occ) occ.onchange = () => { W.galTab = occ.value; step1(body); };
+    const so = body.querySelector('#galSort'); if (so) so.onchange = () => { g.sort = so.value; again(); };
+    const more = body.querySelector('#galMore'); if (more) more.onclick = () => { g.open = !g.open; step1(body); body.querySelector('#galMore')?.focus(); };
+    body.querySelectorAll('[data-gstyle]').forEach((b) => (b.onclick = () => { g.styles = toggle(g.styles, b.dataset.gstyle); again(); body.querySelector(`[data-gstyle="${b.dataset.gstyle}"]`)?.focus(); }));
+    body.querySelectorAll('[data-gcol]').forEach((b) => (b.onclick = () => { g.colours = toggle(g.colours, b.dataset.gcol); again(); body.querySelector(`[data-gcol="${b.dataset.gcol}"]`)?.focus(); }));
+    body.querySelectorAll('[data-gfav]').forEach((b) => (b.onclick = () => { g.favOnly = !g.favOnly; step1(body); body.querySelector('[data-gfav]')?.focus(); }));
+    body.querySelectorAll('#galClear, #galClear2').forEach((b) => (b.onclick = () => { g.styles = []; g.colours = []; g.favOnly = false; W.galTab = 'all'; again(); }));
+    body.querySelectorAll('[data-fav]').forEach((b) => (b.onclick = () => {
+      if (!P) return;
+      const on = P.toggleFav(b.dataset.fav);
+      IX.toast(on ? 'Saved to your favourites on this device.' : 'Removed from favourites.');
+      step1(body); body.querySelector(`[data-fav="${b.dataset.fav}"]`)?.focus();
+    }));
+    const pick = async (id, pal) => {
+      const inv = W.inv;
+      // same checks as tapping the card itself
+      if (inv.media.background && !inv.design.aiArt && !(await H.confirm('Use this ready design?', 'Your own picture will be taken off the card. You can upload it again any time.', 'Use ready design'))) return;
+      if (calligOn(inv) && !(await H.confirm('Use this ready design?', 'Your calligraphy design will be taken off the card. It is kept, so you can switch back from the Calligraphy choice any time.', 'Use ready design'))) return;
+      if (inv.calligraphy) inv.calligraphy.active = false;
+      if (inv.media.background) removePicture();
+      setTheme(id); inv.paletteIndex = pal || 0;
+      if (P) P.viewed(id);
+      changed(); step1(body);
+      IX.toast(`“${IXT.THEMES[id].name.replace(' (blank)', '')}” is on your card.`, 'ok');
+    };
+    body.querySelectorAll('[data-quick]').forEach((b) => (b.onclick = () => {
+      if (!P) return;
+      const id = b.dataset.quick, pal = b.dataset.quickPal != null ? +b.dataset.quickPal : designOn(W.inv, id) ? W.inv.paletteIndex : 0;
+      P.quickLook({ themeId: id, pal, build: previewWith, onUse: pick, isOn: (x) => designOn(W.inv, x) }).then(() => { if (W.step === 1 && !document.querySelector('.modal-bg')) step1(body); });
+    }));
+    body.querySelectorAll('[data-cmp]').forEach((c) => (c.onchange = () => {
+      g.cmp = c.checked ? g.cmp.concat(c.dataset.cmp).slice(0, 3) : g.cmp.filter((x) => x !== c.dataset.cmp);
+      step1(body); body.querySelector(`[data-cmp="${c.dataset.cmp}"]`)?.focus();
+    }));
+    const cc = body.querySelector('#cmpClear'); if (cc) cc.onclick = () => { g.cmp = []; step1(body); };
+    const cg = body.querySelector('#cmpGo');
+    if (cg) cg.onclick = () => P && P.compare({
+      items: g.cmp.map((id) => ({ id, pal: g.colours.length ? Math.max(0, IXGallery.palFor(id, g.colours)) : designOn(W.inv, id) ? W.inv.paletteIndex : 0 })),
+      build: previewWith, onUse: (id, pal) => { g.cmp = []; pick(id, pal); },
+    });
   }
   /* "Describe your card": finds the closest ready designs and colours for a few words,
    * and can hand the same words to the AI painter. */

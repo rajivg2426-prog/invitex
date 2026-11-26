@@ -13,14 +13,14 @@ const stub = r => r.fulfill({ status: 200, contentType: 'text/javascript', body:
   const inv = () => p.waitForTimeout(1000).then(() => p.evaluate(async () => { const id = location.hash.split('/')[2]; const i = await H.store.getInvitation(id); return { theme: i.theme, pal: i.paletteIndex, fonts: i.design.fonts, bg: i.media.background, cat: i.category }; }));
   await p.goto(BASE + 'index.html#/new/wedding'); await p.waitForSelector('#designCard');
   // gallery
-  const tabs = await p.locator('.gal-tab').allInnerTexts();
-  ok('gallery has occasion tabs incl. Reception, Festivals, Family gatherings, Conferences', ['Reception', 'Festivals', 'Family gatherings', 'Conferences', 'Product launches', 'School & college'].every(t => tabs.includes(t)), tabs.join(', '));
-  ok('opens on the Wedding tab for a wedding', (await p.locator('.gal-tab.on').innerText()) === 'Wedding');
+  const tabs = await p.locator('#galOcc option').allInnerTexts();
+  ok('gallery occasion menu has Reception, Festivals, Family gatherings, Conferences', ['Reception', 'Festivals', 'Family gatherings', 'Conferences', 'Product launches', 'School & college'].every(t => tabs.includes(t)), tabs.join(', '));
+  ok('opens on Wedding for a wedding', (await p.inputValue('#galOcc')) === 'wedding');
   const wed = await p.locator('.design-tile').count();
-  await p.click('.gal-tab >> text=Corporate');
+  await p.selectOption('#galOcc', 'corporate');
   const corp = await p.locator('.design-tile [data-theme-pick]:not([data-pal-pick])').evaluateAll(els => els.map(e => e.dataset.themePick));
   ok('Corporate tab shows business designs, not wedding ones', corp.includes('corporate-slate') && !corp.includes('royal-maroon'), corp.join());
-  await p.click('.gal-tab >> text=All');
+  await p.selectOption('#galOcc', 'all');
   ok('All tab shows every design', await p.locator('.design-tile').count() === 14 && wed < 14, 'wedding tab ' + wed);
   ok('each design shows its style and colour choices', await p.locator('.design-tile .dp-style').count() === 14 && await p.locator('.dp-pal').count() >= 30);
   await p.click('[data-theme-pick="blush-rings"][data-pal-pick="1"]'); await p.waitForTimeout(300);
