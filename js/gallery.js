@@ -27,7 +27,7 @@
   };
 
   const TABS = [
-    ['all', 'All'], ['wedding', 'Wedding'], ['engagement', 'Engagement'], ['reception', 'Reception'], ['birthday', 'Birthday'],
+    ['all', 'All'], ['calligraphy', 'Calligraphy & Handwritten'], ['wedding', 'Wedding'], ['engagement', 'Engagement'], ['reception', 'Reception'], ['birthday', 'Birthday'],
     ['anniversary', 'Anniversary'], ['housewarming', 'Housewarming'], ['religious', 'Religious'], ['festival', 'Festivals'], ['family', 'Family gatherings'],
     ['corporate', 'Corporate'], ['conference', 'Conferences'], ['launch', 'Product launches'], ['school', 'School & college'], ['farewell', 'Retirement & farewell'], ['community', 'Community'],
   ];

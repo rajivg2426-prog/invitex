@@ -41,20 +41,48 @@ Your work saves by itself ("All changes saved" under the title). The ↶ and ↷
 ### 2.1 Design
 
 1. **What are you celebrating?** Tap the occasion (14 choices, from Wedding to Community Function).
-2. **How would you like to design your card?** Pick one of three ways:
+2. **How would you like to design your card?** Pick one of four ways:
    - **Ready designs**: tap a design, then one of its colour dots. Designs are grouped by occasion, and the best one for your event is marked. Not sure? Type a few words in **Describe the card you want** (for example "royal maroon and gold") and InviteX shows the closest matches.
    - **Your own design**: upload a card someone made for you, a painting or a photo (JPG, PNG or WebP). It fills the whole card and your names, date and place are written on top. Choose **Full picture** or a softer look.
    - **Design with AI**: pick a style (Royal, Floral, Temple, Minimal, Mehndi, Pichwai, Birthday or Corporate) and colours, then tap **Paint 4 designs**. Wait about half a minute and tap the one you like. Each account gets 3 free tries; a try that fails is not counted.
+   - **Calligraphy**: a card that looks professionally handwritten. Pick one of 10 styles (also under the **Calligraphy & Handwritten** tab of Ready designs) and **Calligraphy Studio** opens. See *Calligraphy Studio* below.
 3. **Colours & shape**: fine-tune colours and pick **Portrait** (best for WhatsApp), landscape or square.
 4. Tap **Next: Fill your card**.
 
 ![Step 1, Design](screenshots/manual/02-design.png)
 
+### Calligraphy Studio
+
+Calligraphy Studio is a full-screen editor for handwritten-style wedding cards. Everything you change shows on the card at once and is saved automatically.
+
+- **Words** (left): heading, bride's and groom's names, the line under the names, parents, date, time, venue, reception, your message, RSVP details and closing blessings. Names are written exactly as you type them. Leave a line empty to leave it off the card.
+- **Need the words?** At the top of Words, pick a writing style (Royal, Romantic, Traditional, Formal, Poetic, Elegant or Minimal) or tap **✨ Write with Copy Studio**. The same writing studio as in step 2 opens beside the card, in English, Hindi or Punjabi. **Preview on card** shows a version on your calligraphy card without saving it; **Use** puts the heading, line under the names, message and blessing on the card. A line you typed yourself in Calligraphy Studio is never replaced: you get a short note saying it was kept.
+- **Four matching pages**: the buttons above the card switch between **Cover** (names, cover line, date and town), **Main card**, **Events** (every event with its date and place; add or remove events here and they also change on the RSVP page and calendar links) and **RSVP** (reply-by date, contact, and once the invitation is published, a QR code that opens it). All four use the same paper, inks and lettering. Untick **Include this page** to leave one out of the set.
+- **Style**: 10 starting styles, from *Royal English Calligraphy* (broad-nib italic with red-brown decorated capitals on torn cotton paper) to *Luxury Black Ink*. Changing style keeps your words. Choose how the names sit (stacked, staggered, side by side or arched), plain names or large or decorated initials, and the card size (5 × 7 in or A5).
+- **Fonts**: 33 licensed calligraphy fonts in groups (Copperplate, Spencerian, Roundhand, Gothic, formal, flowing, signature, minimalist, romantic) plus Hindi and Punjabi fonts. Tap a line on the card first to choose its font. Hindi and Punjabi words always use a font made for those scripts; English calligraphy fonts are never forced onto them. Punjabi fonts are traditional lettering, because no freely licensed handwritten Gurmukhi calligraphy font exists yet.
+- **Ink**: a separate ink for each name, the initials, heading, message, details and flourishes. Gold, bronze and copper have an on-screen shimmer. Printed, they are a warm gold colour from an ordinary printer: this is gold-coloured ink, not metallic foil.
+- **Flourishes**: tap one to add it, drag to move, use the square handle to resize and the round handle to turn. Flourishes dropped on your words slide off them automatically. **Restore original layout** (also in the ⋯ menu) puts flourishes and positions back without touching your words.
+- **Paper**: 8 papers (handmade ivory, parchment, cotton rag and more), your own paper colour, texture, pattern, grain, torn edges, border and decorative corners. On dark paper, inks that would be hard to read are swapped for light ones.
+- **The card** (centre): tap any line or flourish to change it in the right-hand panel: font, size, letter spacing, line height, width, alignment and ink. Undo and redo are at the top (Ctrl+Z / Ctrl+Y on a computer).
+- **On a phone** the tools are in the bar at the bottom and open as sheets, so the card stays in view.
+- **⋯ menu**: Duplicate design (makes a copy to edit), Stop using calligraphy (goes back to a ready design; your calligraphy design is kept).
+
+- **⬇ Download** (top bar, also **✒ Download calligraphy card** on the invitation's dashboard):
+  - **Picture of this page**, PNG or JPG: 1500 × 2100 pixels for a 5 × 7 in card (300 dpi), right for WhatsApp and for printing at home.
+  - **All pages as pictures**: one PNG per page in a ZIP file.
+  - **PDF**: every page that is switched on, to share, email or print at home.
+  - **Print file for a print shop**: a PDF with 3 mm extra paper on every side (bleed) and crop marks, so the cut edge has no white line. Give this file to the printer.
+  - Pages are drawn again at full size from your design, never screenshotted. Lettering is made from the licensed font files as sharp outlines (Hindi and Punjabi letters join exactly as on screen), flourishes stay sharp at any size, and the paper texture is printed at 300 dpi.
+  - Gold, bronze and copper print as a gold colour from an ordinary printer. This is not metallic foil. If you want real foil, ask your print shop and give them the print file.
+  - Downloads use the language shown at the top of the studio, and never include the faint sample names: add the names first.
+
+The guest page shows your calligraphy main card at the top, with the RSVP, venue and the rest below it as before (the guest page already has its own events and RSVP sections, so the other pages are for the printed and downloaded set).
+
 ### 2.2 Fill your card
 
 1. **Words on your card**: fill in the lines from top to bottom (small top line, names, line under the names, welcome message). Use the **English / हिन्दी / ਪੰਜਾਬੀ** tabs to write each language. Tip: you can also click any line on the card preview and type there.
 2. **Want help with the wording?** Tap **✦ Write my wording** to open the Writing studio:
-   - Pick a writing style (Traditional, Heartfelt, Royal, Elegant, Spiritual, Modern and more), a length (Short for WhatsApp, Standard, Detailed) and how many versions.
+   - Pick a writing style (Traditional, Heartfelt, Royal, Elegant, Poetic, Spiritual, Modern and more), a length (Short for WhatsApp, Standard, Detailed) and how many versions.
    - Tap **Write versions**. You get 3 to 5 full versions side by side.
    - On any line: **↻** gives a new wording, **✎** lets you edit it, **Aa** makes it Shorter, Longer, More emotional, More formal, More personal, or Proofreads it, and **+ Mix** takes that line into your mix.
    - Tap **Choose** on the version you like, then **Use**. Nothing on your card changes until you press **Use**, and **↶ Undo last change** brings your old wording back.

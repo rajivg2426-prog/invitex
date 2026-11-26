@@ -62,6 +62,7 @@ export const STYLES: Record<string, string> = {
   formal: 'Formal and professional: clear, courteous, precise; no slang, no emotion overload.',
   premium: 'Exclusive and premium: intimate, select, understated luxury; the guest is one of a chosen few.',
   family: 'Family-oriented and warm: the whole family welcoming the guest\'s whole family; elders and children; homely warmth.',
+  poetic: 'Poetic and lyrical: gentle imagery (lamplight, music, rivers, a first page), measured rhythm, no rhyme forced, never flowery to the point of vagueness; every line still says something real.',
 };
 
 export const LENGTHS: Record<string, string> = {

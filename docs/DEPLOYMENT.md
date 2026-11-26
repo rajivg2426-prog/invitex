@@ -81,4 +81,7 @@ psql -f tests/supabase-stubs.sql && psql -d ivx -c 'create role service_role nol
 sh tests/run-billing-sql.sh && node tests/payments-function-test.mjs && node tests/billing-e2e.mjs
 # AI designs: server step and editor picker
 node tests/ai-function-test.mjs && node tests/ai-design-e2e.js
+# Calligraphy Studio (no server needed; see docs/CALLIGRAPHY_STUDIO.md)
+node tests/calligraphy-e2e.js && node tests/calligraphy-pages-e2e.js && node tests/calligraphy-export-e2e.js
 ```
+Calligraphy downloads load `js/vendor/harfbuzz/harfbuzz.wasm`. Most hosts already serve `.wasm` files as `application/wasm`; if yours does not, add that type (the downloads still work without it, a little slower).

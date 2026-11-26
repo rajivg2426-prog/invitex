@@ -36,6 +36,7 @@
     { id: 'formal', tones: ['refined'], label: { en: 'Formal', hi: 'औपचारिक', pa: 'ਰਸਮੀ' }, hint: 'Professional and clear' },
     { id: 'premium', tones: ['refined'], label: { en: 'Exclusive', hi: 'विशिष्ट', pa: 'ਵਿਸ਼ੇਸ਼' }, hint: 'Premium and select' },
     { id: 'family', tones: ['warm'], label: { en: 'Family & warm', hi: 'पारिवारिक', pa: 'ਪਰਿਵਾਰਕ' }, hint: 'Close-knit and loving' },
+    { id: 'poetic', tones: ['warm', 'refined'], label: { en: 'Poetic', hi: 'काव्यात्मक', pa: 'ਕਾਵਿਕ' }, hint: 'Lyrical and full of imagery' },
   ];
   const STYLE = Object.fromEntries(STYLES.map((s) => [s.id, s]));
   const LENGTHS = [
@@ -53,7 +54,7 @@
   };
   const CATEGORIES = Object.keys(GROUP);
   // styles that do not suit a group are not offered for it
-  const HIDE = { work: ['traditional', 'spiritual', 'family'], sacred: ['playful'] };
+  const HIDE = { work: ['traditional', 'spiritual', 'family', 'poetic'], sacred: ['playful'] };
   // first = default; the rest are shown first in the list
   const RECOMMENDED = {
     wedding: ['traditional', 'heartfelt', 'royal', 'elegant'], engagement: ['heartfelt', 'elegant', 'joyful', 'royal'],

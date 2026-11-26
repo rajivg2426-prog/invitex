@@ -45,7 +45,7 @@
       <div class="dash-head">
         <div><h1 style="margin:0">${esc(H.title(inv))}</h1>
           <div class="row small muted"><span class="pill ${inv.status}">${inv.status === 'published' ? '● Published' : 'Draft – not visible to guests'}</span>${inv.slug ? `<a target="_blank" rel="noopener" href="${esc(IX.inviteUrl(inv.slug))}">${esc(IX.inviteUrl(inv.slug))}</a>` : ''}</div></div>
-        <div class="row no-print"><button class="btn sm" id="refresh">Refresh</button><a class="btn sm" href="#/edit/${esc(inv.id)}/1">Edit invitation</a><button class="btn sm danger" id="delInv">Delete</button></div>
+        <div class="row no-print"><button class="btn sm" id="refresh">Refresh</button><a class="btn sm" href="#/edit/${esc(inv.id)}/1">Edit invitation</a>${inv.calligraphy && inv.calligraphy.active !== false && window.IXC && IXC.exporter ? `<a class="btn sm" id="callDl" href="#/calligraphy/${esc(inv.id)}/download" title="PNG, JPG and PDF of your calligraphy card">✒ Download calligraphy card</a>` : ''}<button class="btn sm danger" id="delInv">Delete</button></div>
       </div>
       ${inv.status !== 'published' ? `<div class="notice warn" style="margin-bottom:1rem">This invitation is a draft. <a href="#/edit/${esc(inv.id)}/6">Publish it</a> to get a shareable link.</div>` : ''}
       ${IX.isProduction ? '' : '<div class="notice warn no-print" style="margin-bottom:1rem"><b>Demo/Local mode:</b> this dashboard only shows RSVPs submitted in <b>this browser</b>. Responses from guests on other phones are not collected until Production mode is configured.</div>'}

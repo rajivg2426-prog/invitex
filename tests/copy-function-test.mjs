@@ -46,7 +46,7 @@ const p = buildPrompt(cleanRequest(BODY({ lang: 'hi', style: 'royal', avoid: ['W
 ok('prompt names the occasion, style, language and facts', /wedding/i.test(p.system + p.user) && /Aarav & Diya/.test(p.user) && /Hindi/i.test(p.system + p.user) && /royal/i.test(p.system + p.user));
 ok('prompt forbids inventing details and religion when none chosen', /invent/i.test(p.system) && /do not use deity names/i.test(p.user));
 ok('prompt passes the lines to avoid', /We cordially invite you/.test(p.user));
-ok('12 styles and 14 occasions known to the server', Object.keys(STYLES).length === 12 && Object.keys(OCCASIONS).length === 14);
+ok('13 styles and 14 occasions known to the server, matching the app', Object.keys(STYLES).length === 13 && Object.keys(OCCASIONS).length === 14);
 ok('schema: full versions, or lines for one section', schemaFor('').required[0] === 'versions' && schemaFor('welcome').required[0] === 'lines' && schemaFor('message').properties.lines.items.type === 'array');
 ok('provider order: env setting, only those with keys', providerOrder({ GEMINI_API_KEY: 'g', OPENAI_API_KEY: 'o' }).join() === 'google,openai' && providerOrder({ OPENAI_API_KEY: 'o', ANTHROPIC_API_KEY: 'a', AI_TEXT_PROVIDERS: 'anthropic,openai' }).join() === 'anthropic,openai' && providerOrder({}).length === 0);
 ok('JSON is read even inside a code fence', parseJson('```json\n{"a":1}\n```').a === 1 && parseJson('Sure! {"a":2} hope that helps').a === 2 && parseJson('nope') === null);
