@@ -104,6 +104,39 @@ const saved = (p) => p.evaluate(async () => { const id = location.hash.split('/'
   const p2 = await ctx.newPage(); await p2.goto(BASE + 'index.html#/new/anniversary'); await p2.waitForSelector('#designCard'); await p2.waitForTimeout(800);
   ok('favourites and filters are remembered for the next invitation', (await p2.locator('[data-gcol=gold].on').count()) === 1 && (await p2.locator('[data-fav="golden-anniversary"][aria-pressed=true]').count()) === 1);
   await p2.close();
+  /* ---------- five guided steps, autosave, no lost work ---------- */
+  await p.goto(BASE + 'index.html#/new/engagement'); await p.waitForSelector('#designCard'); await p.waitForTimeout(800);
+  ok('five steps: Design, Personalise, Style, Preview, Share', (await p.locator('.step-tab').allInnerTexts()).map((t) => t.replace(/^\d\s*/, '').trim()).join(',') === 'Design,Personalise,Style,Preview,Share');
+  await p.click('#nextBtn'); await p.waitForSelector('#tf-title');
+  ok('Next says where it goes', /Style/.test(await p.innerText('#nextBtn')));
+  await p.fill('#tf-title', 'Ananya & Kabir'); await p.fill('#tf-hostName', 'The Rao family');
+  await p.click('#nextBtn'); await p.waitForSelector('#secList');
+  ok('step 3 Style has colours, calligraphy, fonts and sections together', (await p.locator('[data-spal]').count()) >= 2 && (await p.locator('.style-callig').count()) === 1 && (await p.locator('.pair').count()) === 3);
+  ok('steps 3 and 4 can be skipped to Share', (await p.locator('#skipShare').count()) === 1);
+  await p.click('[data-spal="1"]'); await p.waitForTimeout(300);
+  await p.click('#nextBtn'); await p.waitForSelector('.pvs-pages');
+  ok('step 4 Preview lists the pages and a ready check', (await p.locator('.pvs-page').count()) === 4 && (await p.locator('.ready-list, .ready-ok').count()) === 1);
+  await p.click('[data-pvs=rsvp]'); await p.waitForTimeout(1000);
+  ok('step 4 page buttons move the preview', (await p.getAttribute('[data-pg=rsvp]', 'aria-pressed')) === 'true');
+  await p.click('#nextBtn'); await p.waitForSelector('#slug');
+  ok('step 5 is Share', /Publish/.test(await p.innerText('#nextBtn')));
+  await p.click('[data-step="2"]'); await p.waitForSelector('#tf-title');
+  ok('going back keeps what was typed', (await p.inputValue('#tf-title')) === 'Ananya & Kabir' && (await p.inputValue('#tf-hostName')) === 'The Rao family');
+  await p.waitForTimeout(1200);
+  ok('save status shows Saved', /Saved/.test(await p.innerText('#saveState')));
+  let st2 = await p.evaluate(async () => { const i = await H.store.getInvitation(location.hash.split('/')[2]); return [i.text.en.title, i.paletteIndex]; });
+  ok('autosave stored the words and the colour choice', st2[0] === 'Ananya & Kabir' && st2[1] === 1, st2.join('/'));
+  // a failed save says so and offers Retry
+  await p.evaluate(() => { window.__realSave = H.store.saveInvitation; H.store.saveInvitation = () => Promise.reject(new Error('offline')); });
+  await p.fill('#tf-subtitle', 'Save the date'); await p.waitForTimeout(1500);
+  ok('a failed save shows Not saved with Retry', /Not saved/.test(await p.innerText('#saveState')) && (await p.locator('#retrySave').count()) === 1);
+  await p.evaluate(() => { H.store.saveInvitation = window.__realSave; });
+  await p.click('#retrySave'); await p.waitForTimeout(800);
+  ok('Retry saves it', /Saved/.test(await p.innerText('#saveState')) && (await p.evaluate(async () => (await H.store.getInvitation(location.hash.split('/')[2])).text.en.subtitle)) === 'Save the date');
+  const idNow = await p.evaluate(() => location.hash.split('/')[2]);
+  await p.goto(BASE + 'index.html#/'); await p.waitForTimeout(500);
+  await p.goto(BASE + 'index.html#/edit/' + idNow + '/share'); await p.waitForSelector('#slug');
+  ok('Share links from home and dashboard open step 5', (await p.getAttribute('.step-tab.on', 'data-step')) === '5');
   /* ---------- phone ---------- */
   for (const [name, dev] of [['phone', devices['iPhone 13']], ['tablet', { viewport: { width: 820, height: 1180 } }]]) {
     const c2 = await b.newContext(dev); await c2.route(/js\/config\.js/, stub);

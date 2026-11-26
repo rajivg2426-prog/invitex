@@ -68,8 +68,9 @@ const ok = (t, cond, note = '') => { results.push([t, !!cond, note]); console.lo
   await host.click('#fpMessage > summary'); await host.waitForSelector('#rte');
   const msgHtml = await host.locator('#rte').innerHTML();
   ok('TEST 1b: writing studio asks first and keeps the text the host typed', /Main message/.test(askTxt) && msgHtml.includes('We joyfully invite you') && (await host.inputValue('#tf-hostName')) === 'The Malhotra & Sethi Families');
-  await host.click('#fpLook > summary'); await host.waitForSelector('#secList');
-  await host.click('#nextBtn'); await host.waitForSelector('#slug');
+  await host.click('#nextBtn'); await host.waitForSelector('#secList'); // step 3: style
+  await host.click('#nextBtn'); await host.waitForSelector('.pvs-pages'); // step 4: preview
+  await host.click('#nextBtn'); await host.waitForSelector('#slug'); // step 5: share
   await host.fill('#slug', 'kabir-ananya');
   await host.waitForSelector('text=Available', { timeout: 5000 });
   await host.waitForTimeout(900);
@@ -178,7 +179,7 @@ const ok = (t, cond, note = '') => { results.push([t, !!cond, note]); console.lo
   await host.fill('#tf-title', 'Kabir & Ananya – Forever'); await host.fill('[data-ev="0.start"]', '18:30');
   await host.waitForTimeout(1200);
   await mob.reload(); const before = await mob.locator('.ix-title').first().innerText();
-  await host.click('[data-step="3"]'); await host.waitForSelector('text=edits that guests cannot see');
+  await host.click('[data-step="5"]'); await host.waitForSelector('text=edits that guests cannot see');
   await host.click('#nextBtn'); await host.waitForSelector('text=Guests are seeing the latest version');
 await mob.reload(); await mob.waitForSelector('.ix-title'); const after = await mob.locator('.ix-title').first().innerText();
   const tm = await mob.locator('.ix-datebar').innerText();
@@ -195,7 +196,7 @@ await mob.reload(); await mob.waitForSelector('.ix-title'); const after = await 
   await host.click('[data-cat=corporate]'); await host.click('[data-pal="1"]'); await host.click('label:has(input[name=layout][value=landscape])');
   await host.click('[data-step="2"]'); await host.waitForSelector('#tf-title');
   await host.fill('#tf-title', 'Q1 Leadership Offsite'); await host.fill('[data-ev="0.date"]', '2027-03-10'); await host.fill('[data-ev="0.start"]', '10:00'); await host.fill('[data-ev="0.venue"]', 'Taj Lands End'); await host.fill('[data-ev="0.city"]', 'Mumbai');
-  await host.click('[data-step="3"]'); await host.fill('#slug', 'q1-offsite'); await host.waitForSelector('text=Available'); await host.waitForTimeout(900);
+  await host.click('[data-step="5"]'); await host.fill('#slug', 'q1-offsite'); await host.waitForSelector('text=Available'); await host.waitForTimeout(900);
   await host.click('#nextBtn'); await host.waitForSelector('text=Guests are seeing the latest version');
   const inv2 = host.url().match(/edit\/([^/]+)/)[1];
   const corp = await ctx.newPage(); await corp.goto(BASE + 'invite.html?i=q1-offsite'); await corp.waitForSelector('#main');
@@ -217,7 +218,7 @@ await mob.reload(); await mob.waitForSelector('.ix-title'); const after = await 
   await mob.goto(BASE + 'invite.html?i=kabir-ananya'); await mob.click('#openBtn');
   await host.goto(BASE + 'index.html#/edit/' + invId + '/2'); await host.waitForSelector('.more-details'); await host.click('.more-details > summary'); await host.waitForSelector('[data-langtoggle=hi]');
   await host.check('[data-langtoggle=hi]'); await host.waitForSelector('[data-lt=hi]'); await host.click('[data-lt=hi]'); await host.fill('#tf-title', 'कबीर और अनन्या'); await host.waitForTimeout(1000);
-  await host.click('[data-step="3"]'); await host.click('#nextBtn'); await host.waitForSelector('text=Guests are seeing the latest version');
+  await host.click('[data-step="5"]'); await host.click('#nextBtn'); await host.waitForSelector('text=Guests are seeing the latest version');
   await mob.reload(); await mob.click('#openBtn'); await mob.click('[data-lang=hi]'); await mob.waitForTimeout(400);
   const hiTitle = await mob.locator('.ix-title').first().innerText(); const hiBtn = await mob.locator('.ix-submit').innerText();
   await mob.screenshot({ path: OUT + '/t13-hindi.png' });

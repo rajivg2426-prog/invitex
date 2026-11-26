@@ -2,14 +2,18 @@
 (function () {
   'use strict';
   const IX = window.IX, M = IX.model, esc = IX.esc, H = window.H;
-  const STEPS = ['Design', 'Fill your card', 'Share'];
+  const STEPS = ['Design', 'Personalise', 'Style', 'Preview', 'Share'];
   const NSTEPS = STEPS.length;
   // One line per step telling the host what to do here and what comes next.
   const STEP_HELP = [
-    'Pick what you are celebrating, then choose a ready design, upload your own, or let AI paint one. You can change this later.',
-    'Choose a message style, then fill in the names, date and place. Tip: you can also click any line on the card preview and type right there.',
-    'Pick your link name, publish, and send it on WhatsApp.',
+    'Choose your design: a ready design, your own picture, AI or calligraphy. The preview shows it straight away. You can change it any time.',
+    'Add the names, date, place, photos and family details. Tip: you can also click any line on the card preview and type right there.',
+    'Optional: change fonts, colours, decorations and which parts appear. Skip this if you like the design as it is.',
+    'Check every page as your guests will see it: the cover, the invitation, events and RSVP, on a phone or a computer.',
+    'Pick your link name, publish, and send it on WhatsApp. You get a link and a QR code, and replies arrive in your RSVP dashboard.',
   ];
+  // Steps that can be skipped straight to Share.
+  const SKIPPABLE = [3, 4];
   // Friendly list of event locations for the time zone (the full world list was confusing).
   const TZ_CHOICES = [
     ['Asia/Kolkata', 'India'], ['Asia/Kathmandu', 'Nepal'], ['Asia/Dubai', 'UAE / Dubai'], ['Asia/Riyadh', 'Saudi Arabia / Kuwait / Qatar'],
@@ -35,20 +39,21 @@
     const inv = await H.store.getInvitation(id);
     if (!inv) { H.render('<div class="card"><h2>Invitation not found</h2><a class="btn" href="#/">Back</a></div>'); return; }
     normalise(inv);
-    W = { inv, step: IX.clamp(IX.int(step, 1), 1, NSTEPS), lang: inv.defaultLang, pv: 'mobile', pvLang: null, saving: false, ready: false, pvOpener: false, pvZoom: 1, pvPage: 'cover' };
+    W = { inv, step: step === 'share' ? NSTEPS : IX.clamp(IX.int(step, 1), 1, NSTEPS), lang: inv.defaultLang, pv: 'mobile', pvLang: null, saving: false, ready: false, pvOpener: false, pvZoom: 1, pvPage: 'cover' };
     H.render(`
       <div class="wiz-head">
-        <div><h1 id="wTitle">${esc(H.title(inv))}</h1><span class="save-state" id="saveState" aria-live="polite">All changes saved</span></div>
+        <div><h1 id="wTitle">${esc(H.title(inv))}</h1><span class="tiny muted">Every change is saved automatically.</span></div>
         <div class="row"><div class="hist" role="group" aria-label="Undo and redo"><button type="button" class="btn sm ghost iconbtn" id="undoBtn" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>${H.icon ? H.icon('undo') : '↶'}</button><button type="button" class="btn sm ghost iconbtn" id="redoBtn" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" disabled>${H.icon ? H.icon('redo') : '↷'}</button></div>
           <span class="pill ${inv.status}" id="wStatus"></span><a class="btn sm" href="#/dash/${esc(inv.id)}">📊 RSVP dashboard</a></div>
       </div>
       <div class="wiz">
         <div class="wiz-main">
-          <nav class="steps" aria-label="Steps">${STEPS.map((s, i) => `<button type="button" class="step-tab" data-step="${i + 1}"><span class="n">${i + 1}</span>${esc(s)}</button>`).join('')}</nav>
+          <nav class="steps" aria-label="Steps">${STEPS.map((s, i) => `<button type="button" class="step-tab" data-step="${i + 1}"><span class="n">${i + 1}</span><span class="sl">${esc(s)}</span></button>`).join('')}</nav>
           <div id="stepBody"></div>
           <div class="wiz-foot no-print">
             <button class="btn" id="prevBtn" aria-label="Back">←<span class="lbl-long"> Back</span></button>
-            <button class="btn ghost" id="draftBtn" aria-label="Save draft">💾<span class="lbl-long"> Save draft</span></button>
+            <button class="btn ghost" id="draftBtn" aria-label="Save draft" data-state="saved">💾<span class="lbl-long"> Save draft</span></button>
+            <span class="save-state" id="saveState" role="status" aria-live="polite" data-state="saved">✓ Saved</span>
             <button class="btn foot-pv" id="fabPv" aria-label="Preview your card">👁<span class="lbl-long"> Preview</span></button>
             <button class="btn primary" id="nextBtn">Next →</button>
           </div>
@@ -75,7 +80,7 @@
       if (e.data?.type === 'ix-preview-lang') W.pvLang = e.data.lang;
       if (e.data?.type === 'ix-preview-opened') W.pvOpener = false;
       if (e.data?.type === 'ix-preview-page') pvMarkPage(PV_PAGES.find((p) => p[2].includes(e.data.id))?.[0] || W.pvPage);
-      if (e.data?.type === 'ix-preview-goto-done' && !e.data.found) IX.toast('That page is turned off on this card. You can turn it on in step 2.');
+      if (e.data?.type === 'ix-preview-goto-done' && !e.data.found) IX.toast('That page is turned off on this card. You can turn it on in step 3, Style.');
       // typing directly on the card in the preview
       if (e.data?.type === 'ix-edit') {
         const { key, lang, value } = e.data;
@@ -105,10 +110,10 @@
     v.querySelectorAll('[data-step]').forEach((b) => (b.onclick = () => goStep(+b.dataset.step)));
     v.querySelector('#prevBtn').onclick = () => goStep(W.step - 1);
     v.querySelector('#nextBtn').onclick = () => (W.step < NSTEPS ? goStep(W.step + 1) : publish());
-    v.querySelector('#draftBtn').onclick = async () => { await save(); IX.toast('Draft saved', 'ok'); };
+    v.querySelector('#draftBtn').onclick = async () => { if (await save()) IX.toast('Draft saved', 'ok'); };
     v.querySelectorAll('[data-pv]').forEach((b) => (b.onclick = () => {
       W.pv = b.dataset.pv;
-      v.querySelectorAll('[data-pv]').forEach((x) => x.classList.toggle('on', x === b));
+      v.querySelectorAll('[data-pv]').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', x === b); });
       document.getElementById('pvFrame').classList.toggle('desktop', W.pv === 'desktop');
     }));
     v.querySelector('#replayOpen').onclick = () => { W.pvOpener = true; pvMarkPage('cover'); pushPreview(); };
@@ -223,29 +228,39 @@
   };
   const debouncedPreview = IX.debounce(pushPreview, 250);
   const debouncedSave = IX.debounce(() => save(), 700);
+  /* Save status beside Save draft: Saving…, ✓ Saved at 4:12 pm, or ⚠ Not saved with Retry. */
+  function setSave(state, text) {
+    const st = document.getElementById('saveState'), db = document.getElementById('draftBtn');
+    if (db) { db.dataset.state = state; db.title = text; db.setAttribute('aria-label', 'Save draft. ' + text); }
+    if (!st) return;
+    st.dataset.state = state;
+    st.innerHTML = esc(text) + (state === 'failed' ? ' <button type="button" class="linkbtn" id="retrySave">Retry</button>' : '');
+    const r = st.querySelector('#retrySave'); if (r) r.onclick = () => save();
+  }
   async function save() {
-    if (!W || W.saving) { if (W) W.pendingSave = true; return; }
+    if (!W || W.saving) { if (W) W.pendingSave = true; return true; }
     W.saving = true;
-    const st = document.getElementById('saveState');
-    if (st) st.textContent = 'Saving…';
+    setSave('saving', 'Saving…');
+    let ok = true;
     try {
       const saved = await H.store.saveInvitation(W.inv);
       if (saved && saved.id !== W.inv.id) { W.inv.id = saved.id; history.replaceState(null, '', `#/edit/${saved.id}/${W.step}`); }
       W.dirty = false;
-      if (st) st.textContent = 'All changes saved · ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      setSave('saved', '✓ Saved ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
     } catch (e) {
-      if (st) st.textContent = '⚠ Not saved: ' + e.message;
-      IX.toast(e.message, 'bad', 5000);
+      ok = false;
+      setSave('failed', '⚠ Not saved: ' + (e.message || 'connection problem'));
+      IX.toast('Your last change was not saved. Tap Retry. ' + (e.message || ''), 'bad', 6000);
     }
     W.saving = false;
     updateStatus();
-    if (W.pendingSave) { W.pendingSave = false; save(); }
+    if (W.pendingSave) { W.pendingSave = false; return save(); }
+    return ok;
   }
   function changed(rerenderTitle = true, preview = true) {
     W.dirty = true;
     histSoon();
-    const st = document.getElementById('saveState');
-    if (st) st.textContent = 'Unsaved changes…';
+    setSave('pending', 'Saving soon…');
     if (rerenderTitle) { const t = document.getElementById('wTitle'); if (t) t.textContent = H.title(W.inv); }
     debouncedSave();
     if (preview) debouncedPreview();
@@ -323,7 +338,7 @@
     s.textContent = W.inv.status === 'published' ? (dirty ? 'Published · unpublished edits' : '● Published') : 'Draft';
   }
 
-  function goStep(n) {
+  function goStep(n, keepScroll) {
     if (n < 1 || n > NSTEPS) return;
     W.step = n;
     history.replaceState(null, '', `#/edit/${W.inv.id}/${n}`);
@@ -335,10 +350,15 @@
     updateStatus();
     if (n < NSTEPS) nb.textContent = `Next: ${STEPS[n]} →`;
     const body = document.getElementById('stepBody');
-    [null, step1, stepFill, step6][n](body);
-    body.insertAdjacentHTML('afterbegin', `<div class="step-guide"><span class="sg-n">Step ${n} of ${NSTEPS}</span><span>${esc(STEP_HELP[n - 1])}</span></div>`);
+    [null, step1, stepFill, stepStyle, stepPreview, step6][n](body);
+    body.insertAdjacentHTML('afterbegin', `<div class="step-guide"><span class="sg-n">Step ${n} of ${NSTEPS}: ${esc(STEPS[n - 1])}</span><span>${esc(STEP_HELP[n - 1])}</span>${SKIPPABLE.includes(n) ? '<button type="button" class="linkbtn sg-skip" id="skipShare">Skip to Share →</button>' : ''}</div>`);
+    const sk = body.querySelector('#skipShare'); if (sk) sk.onclick = () => goStep(NSTEPS);
+    // the page buttons follow the step: Preview opens on the cover
+    if (n === 4) pvGoto('cover');
+    // anything typed is saved before moving on, so going back and forth never loses work
+    if (W.dirty) debouncedSave();
     document.querySelector('.step-tab.on')?.scrollIntoView({ block: 'nearest', inline: 'center' });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (!keepScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   // generic binding for [data-k]
@@ -446,7 +466,7 @@
       <h2>3. Colours &amp; shape</h2>
       <div class="swatches" role="radiogroup" aria-label="Colour theme">${th.palettes.map((p, i) => `<button type="button" class="swatch ${i === inv.paletteIndex ? 'on' : ''}" role="radio" aria-checked="${i === inv.paletteIndex}" data-pal="${i}"><i style="background:linear-gradient(135deg,${p.bg} 50%,${p.accent} 50%)"></i>${esc(p.name)}</button>`).join('')}</div>
       <div class="seg" role="radiogroup" aria-label="Card shape">${[['portrait', 'Tall (best for phones)'], ['landscape', 'Wide'], ['square', 'Square']].map(([l, n]) => `<label><input type="radio" name="layout" value="${l}" ${inv.layout === l ? 'checked' : ''}>${n}</label>`).join('')}</div>
-      <div class="row between" style="gap:.5rem"><p class="tiny muted" style="margin:0">You can fine-tune fonts and colours later in step 2.</p>
+      <div class="row between" style="gap:.5rem"><p class="tiny muted" style="margin:0">You can fine-tune fonts and colours in step 3, Style.</p>
         <button type="button" class="btn sm ghost" id="resetDesign" title="Put back this design's own fonts and colours">↺ Reset design</button></div>
     </div>`;
     body.querySelectorAll('[data-way]').forEach((b) => (b.onclick = () => { W.way = b.dataset.way; step1(body); }));
@@ -777,10 +797,9 @@
     body.innerHTML = `
       <div id="fpWords"></div>
       ${panel('fpPhotos', '＋', 'Photos, logo &amp; music', g === 'corp' ? 'Optional: speaker or company photos, logo, background music' : 'Optional: couple or family photos, gallery, logo, music, voice message')}
-      ${panel('fpMessage', '✎', 'Main invitation message', 'Already written in your chosen style – open to read or change it')}
-      ${panel('fpLook', '◐', 'Fonts, colours &amp; sections', 'Optional: fine-tune the look and choose which parts appear')}`;
+      ${panel('fpMessage', '✎', 'Main invitation message', 'Already written in your chosen style – open to read or change it')}`;
     step3(body.querySelector('#fpWords'));
-    const renderers = { fpPhotos: step2, fpMessage: step4, fpLook: step5 };
+    const renderers = { fpPhotos: step2, fpMessage: step4 };
     body.querySelectorAll('.fill-panel').forEach((d) => {
       d.addEventListener('toggle', () => { if (d.open && !d.dataset.drawn) { d.dataset.drawn = '1'; renderers[d.id](d.querySelector('.fp-body')); } });
     });
@@ -1216,6 +1235,46 @@
   }
 
   /* ---------- Step 6: settings & publish ---------- */
+  /* ---------- Step 3: style ----------
+   * Colour theme, calligraphy, fonts, colours, decorations and sections, all on one page. */
+  function stepStyle(body) {
+    const inv = W.inv, th = IXT.THEMES[inv.theme], callig = calligOn(inv);
+    body.innerHTML = `<div class="card stack"><h2>Colour theme</h2>
+        ${inv.media.background ? '<p class="small muted" style="margin:0">Your own picture is the background. The colour theme sets the text and accent colours on top of it.</p>' : ''}
+        <div class="swatches" role="radiogroup" aria-label="Colour theme">${th.palettes.map((p, i) => `<button type="button" class="swatch ${i === inv.paletteIndex ? 'on' : ''}" role="radio" aria-checked="${i === inv.paletteIndex}" data-spal="${i}"><i style="background:linear-gradient(135deg,${p.bg} 50%,${p.accent} 50%)"></i>${esc(p.name)}</button>`).join('')}</div>
+      </div>
+      <div class="card stack style-callig"><h2>Calligraphy</h2>
+        ${callig ? `<p class="small muted" style="margin:0">Your card uses handwritten calligraphy. Change its fonts, inks, paper and flourishes in Calligraphy Studio.</p><a class="btn primary" href="#/calligraphy/${esc(inv.id)}">✒ Open Calligraphy Studio</a>`
+          : `<p class="small muted" style="margin:0">Want names in artistic handwriting with flourishes and paper texture? Choose a calligraphy style in step 1.</p><button type="button" class="btn" id="toCallig">✒ See calligraphy styles</button>`}
+      </div>
+      <div id="styleLook"></div>`;
+    body.querySelectorAll('[data-spal]').forEach((b) => (b.onclick = () => { inv.paletteIndex = +b.dataset.spal; Object.assign(inv.design, { textColor: '', bgColor: '', accentColor: '' }); changed(); goStep(3, true); }));
+    const tc = body.querySelector('#toCallig'); if (tc) tc.onclick = () => { W.way = 'callig'; goStep(1); setTimeout(() => document.getElementById('designCard')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 80); };
+    step5(body.querySelector('#styleLook'));
+  }
+  /* ---------- Step 4: preview ----------
+   * The whole card as guests will see it, page by page, plus a short "ready to share?" check. */
+  function stepPreview(body) {
+    const inv = W.inv, issues = readiness(inv).filter(([, t]) => !/link name/.test(t));
+    const pages = PV_PAGES.map(([id, l]) => `<button type="button" class="pvs-page" data-pvs="${id}"><b>${l}</b><small>${{ cover: 'The first screen with names and date', invite: 'Welcome, family and your message', events: 'Each event, time and place, with directions', rsvp: 'How guests reply' }[id]}</small></button>`).join('');
+    body.innerHTML = `<div class="card stack"><h2>See every page</h2>
+        <p class="small muted" style="margin:0">Tap a page to see it in the preview${matchMedia('(max-width: 1020px)').matches ? '' : ' on the right'}. Switch between phone and computer at the top of the preview.</p>
+        <div class="pvs-pages">${pages}</div>
+        <div class="row" style="gap:.5rem;flex-wrap:wrap"><button type="button" class="btn" id="pvsGuest">▶ Open as a guest sees it</button><button type="button" class="btn ghost" id="pvsDesk">🖥 Computer view</button><button type="button" class="btn ghost" id="pvsMob">📱 Phone view</button></div>
+      </div>
+      <div class="card stack"><h2>Ready to share?</h2>
+        ${issues.length ? `<ul class="ready-list">${issues.map(([k, t]) => `<li class="${k}">${k === 'bad' ? '⚠' : 'ℹ'} ${esc(t)}</li>`).join('')}</ul>
+          <div class="row" style="gap:.5rem"><button type="button" class="btn" data-back="2">← Back to Personalise</button></div>`
+          : '<p class="ready-ok">✓ Names, date, place and message are all in. You can share it next.</p>'}
+        <p class="tiny muted" style="margin:0">Guests can reply on the card. Their answers arrive in your RSVP dashboard after you publish.</p>
+      </div>`;
+    const small = () => matchMedia('(max-width: 1020px)').matches;
+    body.querySelectorAll('[data-pvs]').forEach((b) => (b.onclick = () => { pvGoto(b.dataset.pvs); if (small()) document.getElementById('fabPv').click(); }));
+    body.querySelector('#pvsGuest').onclick = () => { W.pvOpener = true; pvMarkPage('cover'); pushPreview(); document.getElementById(small() ? 'fabPv' : 'pvFull').click(); };
+    body.querySelector('#pvsDesk').onclick = () => document.querySelector('[data-pv=desktop]').click();
+    body.querySelector('#pvsMob').onclick = () => document.querySelector('[data-pv=mobile]').click();
+    body.querySelectorAll('[data-back]').forEach((b) => (b.onclick = () => goStep(+b.dataset.back)));
+  }
   function readiness(inv) {
     const issues = [];
     if (!M.txt(inv, inv.defaultLang, 'title')) issues.push(['bad', 'Add an event title (step 2).']);

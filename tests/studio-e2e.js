@@ -72,8 +72,7 @@ const stub = r => r.fulfill({ status: 200, contentType: 'text/javascript', body:
   const still = await p.evaluate(async (r) => !!(await H.store.resolveMedia(r)), ref);
   ok('undo puts the removed picture back (file kept)', back.bg === ref && still);
   // font pairs
-  await p.click('.step-tab[data-step="2"]'); await p.waitForTimeout(400);
-  await p.click('#fpLook summary');
+  await p.click('.step-tab[data-step="3"]'); await p.waitForTimeout(400);
   await p.waitForSelector('.pair');
   ok('three font pairings suggested for the design', await p.locator('.pair').count() === 3);
   const pid = await p.locator('.pair').nth(1).getAttribute('data-pair');
