@@ -244,4 +244,5 @@ await mob.reload(); await mob.waitForSelector('.ix-title'); const after = await 
   console.log('\nERRORS:\n' + (errs.join('\n') || 'none'));
   fs.writeFileSync(OUT + '/results.json', JSON.stringify({ results, errs }, null, 1));
   await browser.close();
+  if (results.some(([, passed]) => !passed) || errs.length) process.exitCode = 1;
 })().catch(async e => { console.error('CRASH', e.message.split('\n')[0]); console.log(errs.join('\n')); process.exit(1); });
