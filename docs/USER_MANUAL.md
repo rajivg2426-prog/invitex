@@ -55,7 +55,9 @@ Your work saves by itself ("All changes saved" under the title). The ↶ and ↷
 
 Calligraphy Studio is a full-screen editor for handwritten-style wedding cards. Everything you change shows on the card at once and is saved automatically.
 
-- **Words** (left): heading, bride's and groom's names, parents, date, time, venue, reception, your message, RSVP details and closing blessings. Names are written exactly as you type them. Leave a line empty to leave it off the card.
+- **Words** (left): heading, bride's and groom's names, the line under the names, parents, date, time, venue, reception, your message, RSVP details and closing blessings. Names are written exactly as you type them. Leave a line empty to leave it off the card.
+- **Need the words?** At the top of Words, pick a writing style (Royal, Romantic, Traditional, Formal, Poetic, Elegant or Minimal) or tap **✨ Write with Copy Studio**. The same writing studio as in step 2 opens beside the card, in English, Hindi or Punjabi. **Preview on card** shows a version on your calligraphy card without saving it; **Use** puts the heading, line under the names, message and blessing on the card. A line you typed yourself in Calligraphy Studio is never replaced: you get a short note saying it was kept.
+- **Four matching pages**: the buttons above the card switch between **Cover** (names, cover line, date and town), **Main card**, **Events** (every event with its date and place; add or remove events here and they also change on the RSVP page and calendar links) and **RSVP** (reply-by date, contact, and once the invitation is published, a QR code that opens it). All four use the same paper, inks and lettering. Untick **Include this page** to leave one out of the set.
 - **Style**: 10 starting styles, from *Royal English Calligraphy* (broad-nib italic with red-brown decorated capitals on torn cotton paper) to *Luxury Black Ink*. Changing style keeps your words. Choose how the names sit (stacked, staggered, side by side or arched), plain names or large or decorated initials, and the card size (5 × 7 in or A5).
 - **Fonts**: 33 licensed calligraphy fonts in groups (Copperplate, Spencerian, Roundhand, Gothic, formal, flowing, signature, minimalist, romantic) plus Hindi and Punjabi fonts. Tap a line on the card first to choose its font. Hindi and Punjabi words always use a font made for those scripts; English calligraphy fonts are never forced onto them. Punjabi fonts are traditional lettering, because no freely licensed handwritten Gurmukhi calligraphy font exists yet.
 - **Ink**: a separate ink for each name, the initials, heading, message, details and flourishes. Gold, bronze and copper have an on-screen shimmer. Printed, they are a warm gold colour from an ordinary printer: this is gold-coloured ink, not metallic foil.
@@ -65,13 +67,13 @@ Calligraphy Studio is a full-screen editor for handwritten-style wedding cards. 
 - **On a phone** the tools are in the bar at the bottom and open as sheets, so the card stays in view.
 - **⋯ menu**: Duplicate design (makes a copy to edit), Stop using calligraphy (goes back to a ready design; your calligraphy design is kept).
 
-The guest page shows your calligraphy card at the top, with the RSVP, venue and the rest below it as before. Downloads (high-resolution PNG and JPG, multi-page and print PDFs) and matching extra pages arrive in the next updates.
+The guest page shows your calligraphy main card at the top, with the RSVP, venue and the rest below it as before (the guest page already has its own events and RSVP sections, so the other pages are for the printed and downloaded set). Downloads (high-resolution PNG and JPG, multi-page and print PDFs) arrive in the next update.
 
 ### 2.2 Fill your card
 
 1. **Words on your card**: fill in the lines from top to bottom (small top line, names, line under the names, welcome message). Use the **English / हिन्दी / ਪੰਜਾਬੀ** tabs to write each language. Tip: you can also click any line on the card preview and type there.
 2. **Want help with the wording?** Tap **✦ Write my wording** to open the Writing studio:
-   - Pick a writing style (Traditional, Heartfelt, Royal, Elegant, Spiritual, Modern and more), a length (Short for WhatsApp, Standard, Detailed) and how many versions.
+   - Pick a writing style (Traditional, Heartfelt, Royal, Elegant, Poetic, Spiritual, Modern and more), a length (Short for WhatsApp, Standard, Detailed) and how many versions.
    - Tap **Write versions**. You get 3 to 5 full versions side by side.
    - On any line: **↻** gives a new wording, **✎** lets you edit it, **Aa** makes it Shorter, Longer, More emotional, More formal, More personal, or Proofreads it, and **+ Mix** takes that line into your mix.
    - Tap **Choose** on the version you like, then **Use**. Nothing on your card changes until you press **Use**, and **↶ Undo last change** brings your old wording back.

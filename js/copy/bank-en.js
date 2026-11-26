@@ -296,5 +296,19 @@
     return [`We will gather on ${w}${p ? ' at ' + p : ''}.`, `Please keep ${w} free${p ? '; we will be at ' + p : ''}.`, `${w.charAt(0).toUpperCase() + w.slice(1)} is the day${p ? ', and ' + p + ' is the place' : ''}.`][v % 3];
   };
 
+  // Poetic: lyrical and image-rich (light, song, rivers, the first page), measured and unhurried
+  B.style.poetic = {
+    top: [['Two hearts, one song', '@love'], ['Where two paths become one', '@love #journey'], ['Beneath a sky of blessings', '#bless'], ['A lamp, a door, a welcome', '@home #home'],
+      ['Of light and gathering', '@gather @party'], ['In the hush of prayer', '@sacred'], ['Another year, another verse', '@party']],
+    sub: [['will write the first page of their forever, and hope you will be there', '@love #journey'], ['invite you to the day their two stories become one', '@love #together'], ['ask you to be near when the music begins', '@love'],
+      ['Come, let the day be written with you in it', '@home @sacred @gather @party'], ['A celebration as warm as lamplight awaits you', '@home @gather @party']],
+    open: ['Some days arrive like a song you have always known.', ['As the evening softens into gold, a new chapter begins.', '#journey'],
+      ['Like rivers meeting the sea, two families come together.', '@love #family'], ['Every lamp is lit, every garland strung, every heart ready.', '@love @home @gather @sacred']],
+    invite: [['{host} would be honoured to have you among the lights and the laughter.', '@love @home @gather @party'], ['Come and be a verse in the story we are writing today.', '#memory'],
+      ['We would love you beside us when the first notes play.', '@love @party @gather'], ['{host} would be glad of your company on this gentle, golden day.', '']],
+    close: [['Your presence will be the brightest line of our day.', '#presence'], 'Come, and let the moment be complete.', ['May the day hold you as warmly as you have held us.', '#heart']],
+    thanks: [['For every blessing you bring, our hearts say thank you.', '#gratitude'], 'Thank you for being part of our song.', ['With a love that words can only begin to tell.', '#heart']],
+  };
+
   (root.IXCopyBanks = root.IXCopyBanks || {}).en = B;
 })(typeof window !== 'undefined' ? window : globalThis);

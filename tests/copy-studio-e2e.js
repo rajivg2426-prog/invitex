@@ -31,7 +31,7 @@ const ok = (t, c, n = '') => { if (!c) fails++; console.log((c ? 'PASS ' : 'FAIL
 
   /* --- 2. built-in writer (no AI in demo mode) and honest labels --- */
   await p.click('#openStudio'); await p.waitForSelector('#csGen');
-  ok('12 styles offered for a wedding', (await p.locator('.cs-style').count()) === 12);
+  ok('13 styles offered for a wedding', (await p.locator('.cs-style').count()) === 13);
   ok('demo mode says the built-in writer is used', /Built-in writer/.test(await p.locator('#csWho').innerText()));
   await p.click('[data-csstyle=royal]');
   await p.click('#csGen'); await p.waitForSelector('.cs-card');

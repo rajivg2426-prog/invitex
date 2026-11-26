@@ -9,11 +9,12 @@
   const IXC = (window.IXC = window.IXC || {});
 
   /* Words used by the studio. "bind" keys live in inv.text[lang]; date, time and venue come from the first event. */
-  const TEXT_KEYS = ['heading', 'bride', 'groom', 'brideParents', 'groomParents', 'message', 'reception', 'rsvpNote', 'blessing'];
+  const TEXT_KEYS = ['heading', 'bride', 'groom', 'underNames', 'brideParents', 'groomParents', 'message', 'reception', 'rsvpNote', 'blessing', 'coverLine', 'eventsTitle', 'rsvpTitle'];
   const FIELDS = [
     { key: 'heading', label: 'Invitation heading', hint: 'The line above the names', multi: true },
     { key: 'bride', label: "Bride's name", hint: 'Written exactly as you type it' },
     { key: 'groom', label: "Groom's name", hint: 'Written exactly as you type it' },
+    { key: 'underNames', label: 'Line under the names', hint: 'Optional. Copy Studio can write it for you', multi: true },
     { key: 'brideParents', label: "Bride's parents", hint: 'For example: Daughter of Mrs Lata & Mr Vijay Rangam' },
     { key: 'groomParents', label: "Groom's parents", hint: 'For example: Son of Mrs Neha & Mr Arun Kumar' },
     { key: 'date', label: 'Wedding date', type: 'date', event: 'date' },
@@ -26,6 +27,21 @@
     { key: 'rsvpNote', label: 'RSVP details', hint: 'For example: Kindly reply by 1st August · Anita 98765 43210', multi: true },
     { key: 'blessing', label: 'Closing blessings', multi: true },
   ];
+  // Words for the other pages of the set (cover, events, RSVP). Pages each have their own lines.
+  const PAGE_FIELDS = [
+    { key: 'coverLine', label: 'Line on the cover', hint: 'Shown above the names on the cover', multi: true },
+    { key: 'eventsTitle', label: 'Title of the events page' },
+    { key: 'rsvpTitle', label: 'Title of the RSVP page' },
+  ];
+  // Starting words for those lines; used until the host types their own (an empty line hides it).
+  const PAGE_DEFAULTS = {
+    en: { coverLine: 'Together with their families', eventsTitle: 'Order of Celebrations', rsvpTitle: 'Kindly Reply' },
+    hi: { coverLine: 'शुभ विवाह', eventsTitle: 'मांगलिक कार्यक्रम', rsvpTitle: 'कृपया उत्तर दें' },
+    pa: { coverLine: 'ਸ਼ੁਭ ਵਿਆਹ', eventsTitle: 'ਸਮਾਗਮਾਂ ਦਾ ਵੇਰਵਾ', rsvpTitle: 'ਕਿਰਪਾ ਕਰਕੇ ਜਵਾਬ ਦਿਓ' },
+  };
+  /* The four matching pages. The main card is always included; the others can be switched off. */
+  const PAGES = [['cover', 'Cover'], ['main', 'Main card'], ['events', 'Events'], ['rsvp', 'RSVP']];
+  const pagesOn = (cal) => PAGES.map(([id]) => id).filter((id) => id === 'main' || !cal.pages || cal.pages[id] !== false);
   // Starting words, written into empty lines when a style is first chosen.
   const DEFAULTS = {
     en: { heading: 'We joyfully request the honour of your presence\nas we are wed', blessing: 'With the blessings of our families', rsvpNote: 'Kindly reply at your earliest convenience' },
@@ -181,5 +197,5 @@
     }
   }
 
-  IXC.styles = { TEXT_KEYS, FIELDS, DEFAULTS, SAMPLES, SIZES, STYLES, STYLE, NAME_LAYOUTS, INITIALS, newDesign, applyStyle, restoreLayout, fillWords, syncTitle };
+  IXC.styles = { TEXT_KEYS, FIELDS, PAGE_FIELDS, PAGE_DEFAULTS, PAGES, pagesOn, DEFAULTS, SAMPLES, SIZES, STYLES, STYLE, NAME_LAYOUTS, INITIALS, newDesign, applyStyle, restoreLayout, fillWords, syncTitle };
 })();

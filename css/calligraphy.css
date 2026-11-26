@@ -135,3 +135,31 @@ body.ixc-on #view { padding: 0; max-width: none; margin: 0; }
 .callig-on { display: grid; grid-template-columns: 160px 1fr; gap: 1rem; align-items: center; }
 @media (max-width: 520px) { .callig-on { grid-template-columns: 120px 1fr; } }
 body.ixc-on #ix-toasts, body.ixc-on .ix-toast { pointer-events: none; }
+
+/* the four pages */
+.ixc-pages { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: .3rem; margin: 0 auto .6rem; max-width: 100%; }
+.ixc-pages button { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: .35rem .8rem; font: 600 12.5px var(--font); color: var(--ink2); cursor: pointer; min-height: 34px; }
+.ixc-pages button small { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: #f1e9f0; color: var(--plum); font-size: 10.5px; margin-right: 2px; }
+.ixc-pages button.on { background: var(--plum); border-color: var(--plum); color: #fff; }
+.ixc-pages button.on small { background: #fff; }
+.ixc-pages button.off { opacity: .6; }
+.ixc-pages button em { font-style: normal; font-weight: 500; }
+.ixc-pageon { font-size: 12.5px; margin-left: .3rem; }
+
+/* writing help */
+.ixc-ai { border: 1px solid #e6d9e4; background: #fbf7fa; border-radius: 12px; padding: .7rem .75rem; display: grid; gap: .45rem; }
+.ixc-ai p { margin: 0; }
+.ixc-wstyles { display: flex; flex-wrap: wrap; gap: .3rem; }
+.ixc-wstyles button { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: .3rem .65rem; font: 500 12.5px var(--font); cursor: pointer; color: var(--ink); min-height: 32px; }
+.ixc-wstyles button.on { border-color: var(--plum); color: var(--plum); box-shadow: 0 0 0 1px var(--plum); }
+.ixc-ev { border: 1px solid var(--line); border-radius: 12px; padding: .5rem .7rem .7rem; display: grid; gap: .55rem; margin: 0; min-width: 0; }
+.ixc-ev legend { font-weight: 700; font-size: 13px; padding: 0 .3rem; display: flex; align-items: center; gap: .3rem; }
+
+/* Copy Studio drawer: over the tool panels, the card stays in view */
+@media (min-width: 900px) {
+  .ixc.copy-open .ixc-body { grid-template-columns: min(600px, 48vw) minmax(0, 1fr); }
+  .ixc.copy-open .ixc-right { display: none; }
+}
+.ixc-copy { position: fixed; top: 52px; left: 0; bottom: 0; width: min(600px, 48vw); z-index: 30; background: #fff; border-right: 1px solid var(--line); box-shadow: 16px 0 40px rgba(43,16,34,.10); }
+.ixc-copy-box { height: 100%; overflow: auto; padding: .9rem 1rem 2rem; }
+@media (max-width: 899px) { .ixc-copy { top: 0; bottom: 0; width: 100%; z-index: 60; } .ixc-pages button { padding: .3rem .55rem; font-size: 12px; } .ixc-pageon { width: 100%; text-align: center; } }

@@ -14,8 +14,41 @@
   const TABS = [['words', '✎', 'Words'], ['style', '❖', 'Style'], ['fonts', 'Aa', 'Fonts'], ['ink', '●', 'Ink'], ['orn', '❦', 'Flourishes'], ['paper', '▭', 'Paper']];
   const INK_ROLES = [['bride', "Bride's name"], ['groom', "Groom's name"], ['initials', 'Decorated initials'], ['heading', 'Heading'], ['main', 'Main message'], ['details', 'Event details'], ['flourish', 'Flourishes'], ['amp', 'The “&”']];
   const LANG_NAME = { en: 'English', hi: 'हिन्दी', pa: 'ਪੰਜਾਬੀ' };
-  const TEXT_IDS = ['heading', 'parents', 'message', 'when', 'reception', 'venue', 'rsvp', 'blessing'];
-  const FIELD_OF = { heading: ['heading'], parents: ['brideParents', 'groomParents'], message: ['message'], when: ['date', 'start'], reception: ['reception'], venue: ['venue', 'address', 'city'], rsvp: ['rsvpNote'], blessing: ['blessing'], names: ['bride', 'groom'] };
+  const base = (id) => IXC.baseOf(id || '');
+  // which words each item on the card shows: t:<text key>, e<n>:<event field>, s:deadline, c:<contact field>
+  const FIELD_OF = { heading: ['t:heading'], names: ['t:bride', 't:groom'], underNames: ['t:underNames'], parents: ['t:brideParents', 't:groomParents'], message: ['t:message'], when: ['e0:date', 'e0:start'], reception: ['t:reception'],
+    venue: ['e0:venue', 'e0:address', 'e0:city'], rsvp: ['t:rsvpNote'], blessing: ['t:blessing'], coverLine: ['t:coverLine'], shortDate: ['e0:date'], city: ['e0:city'], eventsTitle: ['t:eventsTitle'],
+    rsvpTitle: ['t:rsvpTitle'], rsvpBy: ['s:deadline'], contact: ['c:name', 'c:phone'], rsvpLink: [], qr: [] };
+  const specsOf = (id) => { const b = base(id), m = /^ev(\d+)([nd])$/.exec(b); return m ? (m[2] === 'n' ? [`e${m[1]}:name`] : ['date', 'start', 'venue', 'city'].map((k) => `e${m[1]}:${k}`)) : FIELD_OF[b] || []; };
+  const EV_LABEL = { name: 'Event name', date: 'Date', start: 'Time', venue: 'Venue', address: 'Venue address', city: 'Town or city' };
+  /** One editable line: label, input type and where its words live. */
+  function fieldOf(spec) {
+    const [src, k] = spec.split(':'), inv = S.inv;
+    if (src === 't') {
+      const f = ST.FIELDS.concat(ST.PAGE_FIELDS).find((x) => x.key === k) || { key: k, label: k };
+      const pd = (ST.PAGE_DEFAULTS[S.lang] || ST.PAGE_DEFAULTS.en)[k];
+      return { ...f, spec, get: () => { const v = (inv.text[S.lang] || {})[k]; return v == null && pd != null ? pd : k === 'message' ? IXC.htmlText(v || '') : v || ''; },
+        set: (v) => { inv.text[S.lang] = inv.text[S.lang] || {}; inv.text[S.lang][k] = k === 'message' ? IX.esc(v).replace(/\n/g, '<br>') : v; } };
+    }
+    if (src === 's') return { spec, key: k, label: 'Reply by', type: 'date', hint: 'Also closes RSVP after this date', get: () => inv.settings.rsvpDeadline || '', set: (v) => { inv.settings.rsvpDeadline = v; } };
+    if (src === 'c') return { spec, key: k, label: k === 'name' ? 'Contact name' : 'Contact phone', type: k === 'phone' ? 'tel' : '', get: () => (inv.contact || {})[k] || '', set: (v) => { inv.contact = inv.contact || {}; inv.contact[k] = v; } };
+    const n = +src.slice(1), first = ST.FIELDS.find((x) => x.event === k);
+    return { spec, key: k, label: n === 0 && first ? first.label : EV_LABEL[k] || k, type: first && first.type, multi: k === 'address',
+      get: () => (inv.events[n] || {})[k] || '', set: (v) => { inv.events[n] = inv.events[n] || IX.model.newEvent('Wedding Ceremony'); inv.events[n][k] = v; } };
+  }
+  function fieldHtml(spec, pre, cls) {
+    const f = fieldOf(spec), v = f.get(), id = pre + (/^(t|e0):/.test(spec) ? f.key : spec.replace(/\W/g, '-'));
+    const nm = f.key === 'bride' || f.key === 'groom';
+    const input = f.multi ? `<textarea class="input" id="${id}" ${cls}="${spec}" rows="${f.key === 'message' ? 4 : 2}" lang="${S.lang}">${esc(v)}</textarea>`
+      : `<input class="input" id="${id}" ${cls}="${spec}" type="${f.type || 'text'}" value="${esc(v)}" lang="${f.type ? '' : S.lang}" ${nm ? 'spellcheck="false" autocomplete="off"' : ''}>`;
+    return `<div class="field"><label for="${id}">${esc(f.label)}</label>${input}${f.hint ? `<span class="hint">${esc(f.hint)}</span>` : ''}</div>`;
+  }
+  function wireFields(root, cls) {
+    root.querySelectorAll(`[${cls}]`).forEach((inp) => (inp.oninput = () => {
+      fieldOf(inp.getAttribute(cls)).set(inp.value);
+      changed({ fonts: FN.scriptOf(inp.value) !== 'latn' });
+    }));
+  }
 
   /** Turn calligraphy on for an invitation with a style, and open the studio. */
   async function start(inv, styleId) {
@@ -48,7 +81,8 @@
     const cal = inv.calligraphy;
     cal.el = cal.el || {}; cal.added = cal.added || []; cal.removed = cal.removed || []; cal.orn = cal.orn || {};
     cal.active = true;
-    S = { inv, lang: inv.defaultLang || 'en', tab: 'words', sel: null, zoom: 1, sheet: false, hist: { past: [], future: [], last: snap(inv) }, saved: true };
+    inv.contact = inv.contact || { name: '', phone: '' }; inv.settings = inv.settings || {};
+    S = { inv, lang: inv.defaultLang || 'en', tab: 'words', sel: null, zoom: 1, sheet: false, pageId: 'main', preview: null, hist: { past: [], future: [], last: snap(inv) }, saved: true };
     document.body.classList.add('ixc-on');
     H.cleanup.push(() => { document.body.classList.remove('ixc-on'); window.removeEventListener('keydown', keys); window.removeEventListener('resize', fitZoom); S = null; });
     window.addEventListener('keydown', keys);
@@ -58,10 +92,21 @@
     ro.observe(document.getElementById('ixStage'));
     H.cleanup.push(() => ro.disconnect());
     wireTop();
-    renderLeft(); renderRight();
+    renderLeft(); renderRight(); renderPageBar();
     await paint(true);
     fitZoom();
   };
+
+  /* ---------------- the four pages ---------------- */
+  function renderPageBar() {
+    const bar = document.getElementById('ixPages'); if (!bar) return;
+    const cal = S.inv.calligraphy, on = ST.pagesOn(cal);
+    bar.innerHTML = ST.PAGES.map(([id, name], i) => `<button type="button" role="tab" data-page="${id}" aria-selected="${id === S.pageId}" class="${id === S.pageId ? 'on' : ''} ${on.includes(id) ? '' : 'off'}"><small>${i + 1}</small> ${esc(name)}${on.includes(id) ? '' : ' <em>(off)</em>'}</button>`).join('')
+      + (S.pageId === 'main' ? '' : `<label class="ixc-check ixc-pageon"><input type="checkbox" id="ixPageOn" ${on.includes(S.pageId) ? 'checked' : ''}> Include this page</label>`);
+    bar.querySelectorAll('[data-page]').forEach((b) => (b.onclick = () => { if (b.dataset.page === S.pageId) return; S.pageId = b.dataset.page; S.sel = null; renderPageBar(); renderLeft(); renderRight(); paint(true); }));
+    const t = bar.querySelector('#ixPageOn');
+    if (t) t.onchange = () => { cal.pages = { ...(cal.pages || {}), [S.pageId]: t.checked }; renderPageBar(); changed(); };
+  }
 
   function shell() {
     const inv = S.inv;
@@ -87,6 +132,7 @@
           <div class="ixc-panel" id="ixPanel"></div>
         </aside>
         <main class="ixc-stage" id="ixStage">
+          <div class="ixc-pages" id="ixPages" role="tablist" aria-label="Pages"></div>
           <div class="ixc-warn" id="ixWarn" hidden></div>
           <div class="ixc-canvas" id="ixCanvas"><div class="ixc-card" id="ixCard"></div><div class="ixc-sel" id="ixSel" hidden><span class="h-rot" data-h="rot" title="Turn"></span><span class="h-size" data-h="size" title="Resize"></span></div></div>
           <p class="ixc-tip tiny muted">Tap any line or flourish on the card to change it. Drag to move it.</p>
@@ -104,7 +150,7 @@
     const id = ++painting;
     if (loadFonts) await FN.ensure(IXC.fontsNeeded(S.inv, S.lang));
     if (!S || id !== painting) return;
-    const r = IXC.draw(S.inv, { lang: S.lang, editing: true, placeholders: true, uid: 'ixs' });
+    const r = IXC.draw(S.preview ? previewInv() : S.inv, { page: S.pageId, lang: S.lang, editing: true, placeholders: true, uid: 'ixs' });
     const card = document.getElementById('ixCard');
     if (!card) return;
     card.innerHTML = r.svg;
@@ -139,7 +185,7 @@
   const status = (t) => { const el = document.getElementById('ixStatus'); if (el) el.textContent = t; };
 
   /* ---------------- undo / redo ---------------- */
-  function snap(inv) { return JSON.stringify({ c: inv.calligraphy, t: inv.text, e: inv.events && inv.events[0] }); }
+  function snap(inv) { return JSON.stringify({ c: inv.calligraphy, t: inv.text, e: inv.events, k: inv.contact, d: (inv.settings || {}).rsvpDeadline || '' }); }
   let histT = 0;
   function histSoon() { clearTimeout(histT); histT = setTimeout(histRecord, 450); }
   function histRecord() {
@@ -152,9 +198,12 @@
   }
   function histApply(s) {
     const o = JSON.parse(s);
-    S.inv.calligraphy = o.c; S.inv.text = o.t; if (o.e) S.inv.events[0] = o.e;
+    S.inv.calligraphy = o.c; S.inv.text = o.t;
+    if (Array.isArray(o.e)) S.inv.events = o.e; else if (o.e) S.inv.events[0] = o.e;
+    if (o.k) S.inv.contact = o.k;
+    S.inv.settings.rsvpDeadline = o.d || '';
     S.sel = null;
-    renderLeft(); renderRight(); paint(true); histButtons();
+    renderLeft(); renderRight(); renderPageBar(); paint(true); histButtons();
     S.saved = false; status('Saving…'); saveSoon();
   }
   function undo() { histRecord(); const h = S.hist; if (!h.past.length) return; h.future.push(h.last); h.last = h.past.pop(); histApply(h.last); IX.toast('Undone'); }
@@ -226,7 +275,7 @@
   }
 
   /* ---------------- selection on the card ---------------- */
-  const isOrn = (id) => /^(orn-|corner-|add-)/.test(id || '');
+  const isOrn = (id) => /^(orn-|corner-|add-)/.test(base(id));
   const elOf = (id) => (S.inv.calligraphy.el[id] = S.inv.calligraphy.el[id] || {});
   const addedOf = (id) => S.inv.calligraphy.added.find((a) => a.id === id);
   function unit() { const svg = document.querySelector('#ixCard svg'); return svg ? S.page.W / svg.getBoundingClientRect().width : 1; }
@@ -273,7 +322,7 @@
     const r = g && g.getBoundingClientRect();
     const cxs = r ? r.left + r.width / 2 : x0, cys = r ? r.top + r.height / 2 : y0;
     let moved = false;
-    const kind = id === 'names' ? 'names' : isOrn(id) ? 'orn' : 'text';
+    const kind = base(id) === 'names' ? 'names' : isOrn(id) ? 'orn' : 'text';
     const onMove = (ev) => {
       const dx = (ev.clientX - x0) * u, dy = (ev.clientY - y0) * u;
       if (!moved && Math.abs(dx) + Math.abs(dy) < 3 * u) return;
@@ -334,10 +383,12 @@
       return fs.length ? `<optgroup label="${esc(gl)}">${fs.map((f) => `<option value="${esc(f.name)}" ${f.name === cur ? 'selected' : ''}>${esc(f.name)}</option>`).join('')}</optgroup>` : '';
     }).join('')).join('');
   }
-  const textOf = (id) => IXC.words(S.inv, S.lang, false).w[id] || '';
+  const textOf = (id) => IXC.words(S.inv, S.lang, false).w[base(id)] || '';
+  // the names share one set of lettering settings on every page; only their position is per page
+  const setOf = (id) => (base(id) === 'names' ? 'names' : id);
   function curFont(id, sc) {
-    const cal = S.inv.calligraphy, st = ST.STYLE[cal.style], o = cal.el[id] || {};
-    const role = id === 'names' ? 'names' : { heading: 'heading', parents: 'small', message: 'main', when: 'details', reception: 'details', venue: 'details', rsvp: 'small', blessing: 'main' }[id];
+    const cal = S.inv.calligraphy, st = ST.STYLE[cal.style], o = cal.el[setOf(id)] || {};
+    const role = IXC.roleOf(id);
     const disp = role === 'names' || role === 'heading';
     if (sc === 'deva') return o.fontHi || st.indic.deva[disp ? 'display' : 'text'];
     if (sc === 'guru') return o.fontPa || st.indic.guru[disp ? 'display' : 'text'];
@@ -358,29 +409,89 @@
     ({ words: wireWords, style: wireStyle, fonts: wireFonts, ink: wireInk, orn: wireOrn, paper: wirePaper }[S.tab])(p);
   }
 
-  function fieldVal(f) {
-    if (f.event) return (S.inv.events[0] || {})[f.event] || '';
-    return ((S.inv.text[S.lang] || {})[f.key]) || '';
+  const WORD_STYLES = [['royal', 'Royal'], ['heartfelt', 'Romantic'], ['traditional', 'Traditional'], ['formal', 'Formal'], ['poetic', 'Poetic'], ['elegant', 'Elegant'], ['modern', 'Minimal']];
+  function pageSpecs() {
+    const p = S.pageId, inv = S.inv;
+    if (p === 'cover') return ['t:coverLine', 't:bride', 't:groom', 'e0:date', 'e0:city'];
+    if (p === 'rsvp') return ['t:rsvpTitle', 't:rsvpNote', 's:deadline', 'c:name', 'c:phone'];
+    if (p === 'events') return ['t:eventsTitle'];
+    return ST.FIELDS.map((f) => (f.event ? 'e0:' + f.event : 't:' + f.key));
   }
   function panelWords() {
-    return `<p class="tiny muted">Type your words here. Names are written exactly as you type them. Leave a line empty to leave it off the card.</p>
-      ${ST.FIELDS.map((f) => {
-        const v = f.key === 'message' ? IXC.htmlText(fieldVal(f)) : fieldVal(f);
-        const id = 'ixf-' + f.key;
-        const input = f.multi ? `<textarea class="input" id="${id}" data-field="${f.key}" rows="${f.key === 'message' ? 4 : 2}" lang="${S.lang}">${esc(v)}</textarea>`
-          : `<input class="input" id="${id}" data-field="${f.key}" type="${f.type || 'text'}" value="${esc(v)}" lang="${f.type ? '' : S.lang}" ${f.key === 'bride' || f.key === 'groom' ? 'spellcheck="false" autocomplete="off"' : ''}>`;
-        return `<div class="field"><label for="${id}">${esc(f.label)}</label>${input}${f.hint ? `<span class="hint">${esc(f.hint)}</span>` : ''}</div>`;
-      }).join('')}
-      ${S.inv.events[0] && S.inv.events[0].date ? '' : '<p class="tiny muted">Date and time are shared with the RSVP page and calendar links.</p>'}`;
+    const p = S.pageId, inv = S.inv, cs = window.IXStudio ? IXStudio.notes(inv).style : '';
+    const ai = window.IXStudio && (p === 'main' || p === 'cover') ? `<div class="ixc-ai">
+        <b>Need the words?</b>
+        <p class="tiny muted">Pick a writing style and Copy Studio writes the heading, the line under the names, the message and the blessing. Lines you typed yourself are kept unless you choose to replace them.</p>
+        <div class="ixc-wstyles" role="radiogroup" aria-label="Writing style">${WORD_STYLES.map(([id, l]) => `<button type="button" role="radio" aria-checked="${cs === id}" class="${cs === id ? 'on' : ''}" data-wstyle="${id}">${l}</button>`).join('')}</div>
+        <button type="button" class="btn sm primary" id="ixCopy">✨ Write with Copy Studio</button></div>` : '';
+    const evs = p === 'events' ? inv.events.map((e, n) => `<fieldset class="ixc-ev"><legend>Event ${n + 1}${inv.events.length > 1 ? ` <button type="button" class="btn sm ghost" data-evdel="${n}" aria-label="Remove event ${n + 1}">✕</button>` : ''}</legend>
+        ${['name', 'date', 'start', 'venue', 'city'].map((k) => fieldHtml(`e${n}:${k}`, 'ixf-', 'data-field')).join('')}</fieldset>`).join('') + '<button type="button" class="btn sm" id="ixEvAdd">＋ Add an event</button><p class="tiny muted">Events are shared with the RSVP page and the calendar links.</p>' : '';
+    const intro = { main: 'Type your words here. Names are written exactly as you type them. Leave a line empty to leave it off the card.', cover: 'The cover shows the names, the date and the town. Leave a line empty to leave it off.',
+      events: 'Every event of your wedding, in order. Each one gets its own name, date and place.', rsvp: 'How guests reply. Once the invitation is published, a QR code to your invitation page appears on this page.' }[p];
+    return `${ai}<p class="tiny muted">${intro}</p>${pageSpecs().map((sp) => fieldHtml(sp, 'ixf-', 'data-field')).join('')}${evs}
+      ${p === 'main' && !(inv.events[0] && inv.events[0].date) ? '<p class="tiny muted">Date and time are shared with the RSVP page and calendar links.</p>' : ''}`;
   }
   function wireWords(p) {
-    p.querySelectorAll('[data-field]').forEach((inp) => (inp.oninput = () => {
-      const f = ST.FIELDS.find((x) => x.key === inp.dataset.field);
-      if (f.event) { S.inv.events[0] = S.inv.events[0] || IX.model.newEvent('Wedding Ceremony'); S.inv.events[0][f.event] = inp.value; }
-      else { S.inv.text[S.lang] = S.inv.text[S.lang] || {}; S.inv.text[S.lang][f.key] = f.key === 'message' ? IX.esc(inp.value).replace(/\n/g, '<br>') : inp.value; }
-      const sc = FN.scriptOf(inp.value);
-      changed({ fonts: sc !== 'latn' });
+    wireFields(p, 'data-field');
+    p.querySelectorAll('[data-wstyle]').forEach((b) => (b.onclick = () => { IXStudio.notes(S.inv).style = b.dataset.wstyle; openCopy(); }));
+    const c = p.querySelector('#ixCopy'); if (c) c.onclick = () => openCopy();
+    const add = p.querySelector('#ixEvAdd'); if (add) add.onclick = () => { S.inv.events.push(IX.model.newEvent('')); changed({ left: true }); };
+    p.querySelectorAll('[data-evdel]').forEach((b) => (b.onclick = async () => {
+      const n = +b.dataset.evdel, e = S.inv.events[n];
+      if ((e.name || e.date || e.venue) && !(await H.confirm('Remove this event?', `“${e.name || 'Event ' + (n + 1)}” is removed from the invitation, the RSVP page and the calendar links. You can undo this.`, 'Remove'))) return;
+      S.inv.events.splice(n, 1); changed({ left: true });
     }));
+  }
+
+  /* ---------------- Copy Studio (the writer) inside the calligraphy studio ---------------- */
+  // Copy Studio lines → calligraphy lines (the main message is the same line in both)
+  const FROM_COPY = { heading: 'familyName', underNames: 'subtitle', blessing: 'thankyou' };
+  function previewInv() {
+    const t = IX.deepClone(S.inv), { fields, lang } = S.preview, l = lang || S.lang;
+    t.text[l] = t.text[l] || {};
+    Object.entries(FROM_COPY).forEach(([ck, fk]) => { if (fields[fk] != null) t.text[l][ck] = fields[fk]; });
+    if (fields.message != null) t.text[l].message = fields.message;
+    return t;
+  }
+  /** After Copy Studio writes: carry its new lines onto the card, but never over a line the host typed in this studio. */
+  function takeCopy() {
+    const inv = S.inv, cal = inv.calligraphy, kept = [];
+    cal.fromCopy = cal.fromCopy || {};
+    inv.languages.forEach((l) => {
+      const t = inv.text[l]; if (!t) return;
+      const prev = (cal.fromCopy[l] = cal.fromCopy[l] || {});
+      Object.entries(FROM_COPY).forEach(([ck, fk]) => {
+        const src = t[fk] || '';
+        if (!src || src === prev['src_' + ck]) return;
+        prev['src_' + ck] = src;
+        const cur = t[ck] || '', def = (ST.DEFAULTS[l] || {})[ck];
+        if (!cur || cur === prev[ck] || cur === def) { t[ck] = src; prev[ck] = src; } else kept.push(IXC.labelOf(ck).toLowerCase());
+      });
+    });
+    if (kept.length) IX.toast(`Kept your own ${[...new Set(kept)].join(' and ')}. Tap the line to change it.`, '', 4500);
+  }
+  function openCopy() {
+    if (!window.IXStudio) return;
+    closeCopy();
+    const ov = document.createElement('div');
+    ov.className = 'ixc-copy'; ov.id = 'ixCopyOv';
+    ov.innerHTML = '<div class="ixc-copy-box" role="dialog" aria-label="Copy Studio"><div id="ixCopyEl"></div></div>';
+    document.getElementById('ixc').appendChild(ov);
+    document.getElementById('ixc').classList.add('copy-open');
+    if (S.pageId !== 'main') { S.pageId = 'main'; renderPageBar(); paint(false); }
+    IXStudio.open(ov.querySelector('#ixCopyEl'), {
+      inv: S.inv, lang: S.lang, langs: LANG_NAME, H, store: H.store,
+      changed: () => { takeCopy(); changed({ left: true, right: true }); },
+      preview: (fields, lang) => { S.preview = fields && (!lang || lang === S.lang) ? { fields, lang } : null; paint(false); },
+      close: () => closeCopy(),
+    });
+    ov.querySelector('.ixc-copy-box').scrollTop = 0;
+  }
+  function closeCopy() {
+    const ov = document.getElementById('ixCopyOv'); if (ov) ov.remove();
+    const root = document.getElementById('ixc'); if (root) root.classList.remove('copy-open');
+    if (S && S.preview) { S.preview = null; paint(false); }
+    if (S) renderLeft();
   }
 
   const thumbs = new Map();
@@ -414,12 +525,14 @@
     });
   }
 
+  const namesId = () => (S.pageId === 'main' ? 'names' : S.pageId + ':names');
+  const fontTarget = () => (S.sel && !isOrn(S.sel) && base(S.sel) !== 'qr' ? S.sel : namesId());
   function panelFonts() {
-    const id = S.sel && !isOrn(S.sel) ? S.sel : 'names';
-    const txt = id === 'names' ? [textOf('bride'), textOf('groom')].join(' ') : textOf(id);
+    const id = fontTarget();
+    const txt = base(id) === 'names' ? [textOf('bride'), textOf('groom')].join(' ') : textOf(id);
     const scs = ['latn', 'deva', 'guru'].filter((sc) => sc === 'latn' ? FN.scriptOf(txt) === 'latn' || FN.hasScript(txt, 'latn') : FN.hasScript(txt, sc));
     if (!scs.length) scs.push('latn');
-    return `<p class="tiny muted">Choosing for: <b>${esc(IXC.LABELS[id])}</b>. Tap another line on the card to choose for it.</p>
+    return `<p class="tiny muted">Choosing for: <b>${esc(IXC.labelOf(id))}</b>. Tap another line on the card to choose for it.</p>
       ${scs.map((sc) => `<h3 class="ixc-h">${sc === 'latn' ? 'English lettering' : sc === 'deva' ? 'Hindi lettering' : 'Punjabi lettering'}</h3>
         ${sc === 'guru' ? '<p class="tiny muted">Punjabi fonts here are traditional lettering. A truly handwritten Gurmukhi calligraphy font is not available with a free licence.</p>' : ''}
         ${FN.CATEGORIES.map((c) => {
@@ -429,6 +542,7 @@
         }).join('')}`).join('')}`;
   }
   function sample(id, sc) {
+    id = base(id) === 'names' ? 'names' : id;
     if (sc === 'deva') return id === 'names' ? (FN.hasScript(textOf('bride'), 'deva') ? textOf('bride') : 'राघवी') : 'शुभ विवाह';
     if (sc === 'guru') return id === 'names' ? (FN.hasScript(textOf('bride'), 'guru') ? textOf('bride') : 'ਰਾਘਵੀ') : 'ਸ਼ੁਭ ਵਿਆਹ';
     if (id === 'names') return textOf('bride') && FN.scriptOf(textOf('bride')) === 'latn' ? textOf('bride') : 'Raghavi';
@@ -437,7 +551,7 @@
   function wireFonts(p) {
     FN.ensure(FN.LIST.filter((f) => p.querySelector(`[data-font="${CSS.escape(f.name)}"]`)).map((f) => [f.name, f.w || f.weights[0]]));
     p.querySelectorAll('[data-font]').forEach((b) => (b.onclick = () => {
-      const id = S.sel && !isOrn(S.sel) ? S.sel : 'names';
+      const id = setOf(fontTarget());
       elOf(id)[fontKey(b.dataset.sc)] = b.dataset.font;
       if (b.dataset.sc === 'latn') { delete elOf(id).w; delete elOf(id).italic; }
       p.querySelectorAll(`[data-font][data-sc="${b.dataset.sc}"]`).forEach((x) => x.classList.toggle('on', x === b));
@@ -483,7 +597,7 @@
       const o = LIB.O[b.dataset.add], size = ST.SIZES[cal.size] || ST.SIZES['5x7'];
       const id = 'add-' + Math.random().toString(36).slice(2, 8);
       const w = o.kind === 'motif' || o.kind === 'mark' ? 120 : 300;
-      cal.added.push({ id, ref: o.id, x: size.w / 2, y: size.h * 0.82, w, scale: 1, rot: 0, opacity: 1 });
+      cal.added.push({ id, ref: o.id, x: size.w / 2, y: size.h * 0.82, w, scale: 1, rot: 0, opacity: 1, page: S.pageId });
       if (window.innerWidth < 900) S.sheet = false;
       changed({ left: true });
       requestAnimationFrame(() => { protect(id); select(id); });
@@ -491,8 +605,11 @@
     }));
     p.querySelectorAll('[data-slot]').forEach((s) => (s.onchange = () => {
       const k = s.dataset.slot, id = 'orn-' + k;
-      cal.orn[k] = s.value; cal.removed = cal.removed.filter((x) => x !== id);
-      if (cal.el[id]) delete cal.el[id].ref;
+      cal.orn[k] = s.value;
+      // the same slot on every page of the set
+      const ids = Object.keys(cal.el).concat(cal.removed).filter((x) => base(x) === id || (k === 'divider' && /^orn-d\d+$/.test(base(x))));
+      cal.removed = cal.removed.filter((x) => !ids.includes(x));
+      ids.forEach((x) => { if (cal.el[x]) delete cal.el[x].ref; });
       changed();
     }));
     p.querySelector('#ixIniF').onchange = (e) => { cal.orn.initialFlourish = e.target.checked; cal.removed = cal.removed.filter((x) => x !== 'names-curl'); changed(); };
@@ -549,9 +666,16 @@
     const id = S.sel;
     if (!id) { r.innerHTML = `<div class="ixc-empty"><p><b>Tap anything on the card</b> to change its font, size, spacing, ink or position.</p><p class="tiny muted">Tip: drag to move. Use the round handle to turn and the square handle to resize. Arrow keys nudge.</p></div>`; return; }
     const cal = S.inv.calligraphy;
-    const head = `<div class="ixc-rh"><b>${esc(IXC.LABELS[id] || (addedOf(id) ? LIB.O[addedOf(id).ref].name : id.startsWith('corner-') ? 'Corner' : 'Item'))}</b><button type="button" class="btn sm ghost iconbtn" data-x aria-label="Close">✕</button></div>`;
+    const head = `<div class="ixc-rh"><b>${esc(IXC.labelOf(id) || (addedOf(id) ? LIB.O[addedOf(id).ref].name : id.startsWith('corner-') ? 'Corner' : 'Item'))}</b><button type="button" class="btn sm ghost iconbtn" data-x aria-label="Close">✕</button></div>`;
     let body = '';
-    if (id === 'names') {
+    if (base(id) === 'qr') {
+      const o = elOf(id);
+      body = `<p class="tiny muted">${S.inv.slug ? 'Guests scan this to open your invitation and reply.' : 'The QR code appears once the invitation is published. Until then this box shows where it will go.'}</p>
+        ${slider('scale', 'Size', o.scale || 1, 0.5, 1.8, 0.05, pct)}
+        <div class="field"><span class="lbl">Ink</span>${inkSwatches(o.ink || cal.inks.details, 'data-tink')}</div>
+        <p class="tiny muted">Dark inks on light paper scan best.</p>
+        <div class="row"><button type="button" class="btn sm" id="ixr-reset">↺ Put back</button><button type="button" class="btn sm" id="ixr-hide">Hide the QR code</button></div>`;
+    } else if (base(id) === 'names') {
       const o = elOf('names');
       const sc = FN.scriptOf([textOf('bride'), textOf('groom')].join(' '));
       body = `<div class="ixc-row2"><div class="field"><label for="ixr-b">Bride</label><input class="input" id="ixr-b" data-name="bride" value="${esc(textOf('bride'))}" spellcheck="false"></div><div class="field"><label for="ixr-g">Groom</label><input class="input" id="ixr-g" data-name="groom" value="${esc(textOf('groom'))}" spellcheck="false"></div></div>
@@ -568,7 +692,7 @@
         <div class="field"><span class="lbl">Initials ink</span>${inkSwatches(o.inkInitials || cal.inks.initials, 'data-ni')}</div>`;
     } else if (isOrn(id)) {
       const a = addedOf(id), o = a || elOf(id);
-      const slotK = id.startsWith('orn-') ? id.slice(4) : null;
+      const ob = base(id), slotK = /^orn-d\d+$/.test(ob) ? 'divider' : ob.startsWith('orn-') ? ob.slice(4) : null;
       body = `${slotK ? `<div class="field"><label for="ixr-ref">Flourish</label><select class="input" id="ixr-ref">${LIB.ORNAMENTS.filter((x) => x.kind !== 'corner').map((x) => `<option value="${x.id}" ${(o.ref || cal.orn[slotK]) === x.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>` : ''}
         ${slider('scale', 'Size', o.scale || 1, 0.2, 3, 0.05, pct)}
         ${slider('rot', 'Turn', o.rot || 0, -180, 180, 1, (v) => v + '°')}
@@ -577,10 +701,9 @@
         <div class="row"><button type="button" class="btn sm" id="ixr-reset">↺ Put back</button><button type="button" class="btn sm danger" id="ixr-del">✕ Remove</button></div>`;
     } else {
       const o = elOf(id), txt = textOf(id), sc0 = FN.scriptOf(txt), sc = sc0 === 'other' ? 'latn' : sc0;
-      const role = { heading: 'heading', parents: 'small', message: 'main', when: 'details', reception: 'details', venue: 'details', rsvp: 'small', blessing: 'main' }[id];
-      const r = ST.STYLE[cal.style].type[role];
-      const fields = FIELD_OF[id].map((k) => ST.FIELDS.find((f) => f.key === k));
-      body = `${fields.map((f) => `<div class="field"><label for="ixr-${f.key}">${esc(f.label)}</label>${f.multi ? `<textarea class="input" rows="3" id="ixr-${f.key}" data-rf="${f.key}" lang="${S.lang}">${esc(f.key === 'message' ? IXC.htmlText(fieldVal(f)) : fieldVal(f))}</textarea>` : `<input class="input" id="ixr-${f.key}" data-rf="${f.key}" type="${f.type || 'text'}" value="${esc(fieldVal(f))}">`}</div>`).join('')}
+      const r = ST.STYLE[cal.style].type[IXC.roleOf(id)];
+      body = `${specsOf(id).map((sp) => fieldHtml(sp, 'ixr-', 'data-rf')).join('')}
+        ${base(id) === 'rsvpLink' ? '<p class="tiny muted">This is your invitation’s web address. It fills in by itself once the invitation is published.</p>' : ''}
         ${sc0 === 'other' ? `<p class="notice small">${esc(IXC.WARN_TEXT.other)}</p>` : ''}
         <div class="field"><label for="ixr-f">Font (${esc(FN.SCRIPT_NAME[sc])})</label><select class="input" id="ixr-f" data-fsel="${sc}">${fontOptions(sc, curFont(id, sc))}</select></div>
         ${slider('size', 'Size', o.size || 1, 0.4, 2.2, 0.05, pct)}
@@ -588,15 +711,15 @@
         ${slider('leading', 'Line height', o.leading || r.leading || 1.25, 0.8, 2, 0.05, (v) => (+v).toFixed(2))}
         ${slider('width', 'Line width', o.width || 1, 0.5, 1, 0.05, pct)}
         <div class="field"><span class="lbl">Alignment</span><div class="seg ixc-seg">${[['left', 'Left'], ['center', 'Centre'], ['right', 'Right']].map(([v, l]) => `<label><input type="radio" name="ral" value="${v}" ${(o.align || 'center') === v ? 'checked' : ''}>${l}</label>`).join('')}</div></div>
-        <div class="field"><span class="lbl">Ink</span>${inkSwatches(o.ink || cal.inks[{ heading: 'heading', parents: 'main', message: 'main', when: 'details', reception: 'details', venue: 'details', rsvp: 'main', blessing: 'heading' }[id]], 'data-tink')}</div>
+        <div class="field"><span class="lbl">Ink</span>${inkSwatches(o.ink || cal.inks[IXC.inkOf(id)], 'data-tink')}</div>
         <div class="row"><button type="button" class="btn sm" id="ixr-reset">↺ Put back</button><button type="button" class="btn sm" id="ixr-hide">Hide this line</button></div>`;
     }
-    if (id !== 'names' || true) body += (id === 'names' ? '<div class="row"><button type="button" class="btn sm" id="ixr-reset">↺ Put back</button></div>' : '');
+    if (base(id) === 'names') body += '<div class="row"><button type="button" class="btn sm" id="ixr-reset">↺ Put back</button></div>';
     r.innerHTML = head + `<div class="ixc-rb">${body}</div>`;
     wireRight(r, id);
   }
   function wireRight(r, id) {
-    const cal = S.inv.calligraphy, o = addedOf(id) || elOf(id);
+    const cal = S.inv.calligraphy, o = addedOf(id) || elOf(setOf(id)), pos = addedOf(id) || elOf(id);
     r.querySelector('[data-x]').onclick = () => select(null);
     r.querySelectorAll('[data-sl]').forEach((s) => (s.oninput = () => {
       const k = s.dataset.sl; let v = +s.value;
@@ -614,11 +737,7 @@
     r.querySelectorAll('input[name=rini]').forEach((x) => (x.onchange = () => { cal.initials = x.value; if (x.value === 'flourished') { cal.orn.initialFlourish = true; cal.orn.sprig = true; } changed({ fonts: true }); }));
     const amp = r.querySelector('#ixr-amp'); if (amp) amp.oninput = () => { o.amp = amp.value.trim(); changed(); };
     r.querySelectorAll('[data-name]').forEach((inp) => (inp.oninput = () => { S.inv.text[S.lang] = S.inv.text[S.lang] || {}; S.inv.text[S.lang][inp.dataset.name] = inp.value; changed({ fonts: FN.scriptOf(inp.value) !== 'latn' }); }));
-    r.querySelectorAll('[data-rf]').forEach((inp) => (inp.oninput = () => {
-      const f = ST.FIELDS.find((x) => x.key === inp.dataset.rf);
-      if (f.event) { S.inv.events[0][f.event] = inp.value; } else { S.inv.text[S.lang] = S.inv.text[S.lang] || {}; S.inv.text[S.lang][f.key] = f.key === 'message' ? IX.esc(inp.value).replace(/\n/g, '<br>') : inp.value; }
-      changed({ fonts: FN.scriptOf(inp.value) !== 'latn' });
-    }));
+    wireFields(r, 'data-rf');
     wireInkRow(r, 'data-nb', (v) => { o.inkBride = v; changed({ right: true }); });
     wireInkRow(r, 'data-ng', (v) => { o.inkGroom = v; changed({ right: true }); });
     wireInkRow(r, 'data-ni', (v) => { o.inkInitials = v; changed({ right: true }); });
@@ -628,11 +747,11 @@
     const reset = r.querySelector('#ixr-reset');
     if (reset) reset.onclick = () => {
       const a = addedOf(id);
-      if (a) { a.scale = 1; a.rot = 0; a.opacity = 1; } else ['dx', 'dy', 'rot', 'scale', 'size', 'tracking', 'leading', 'width', 'align', 'opacity', 'sizeBride', 'sizeGroom'].forEach((k) => delete o[k]);
+      if (a) { a.scale = 1; a.rot = 0; a.opacity = 1; } else [o, pos].forEach((x) => ['dx', 'dy', 'rot', 'scale', 'size', 'tracking', 'leading', 'width', 'align', 'opacity', 'sizeBride', 'sizeGroom'].forEach((k) => delete x[k]));
       changed({ right: true });
     };
     const del = r.querySelector('#ixr-del'); if (del) del.onclick = () => removeOrn(id);
-    const hide = r.querySelector('#ixr-hide'); if (hide) hide.onclick = () => { o.hidden = true; select(null); changed(); IX.toast('Line hidden. Undo brings it back, or use Restore original layout.'); };
+    const hide = r.querySelector('#ixr-hide'); if (hide) hide.onclick = () => { pos.hidden = true; select(null); changed(); IX.toast('Line hidden. Undo brings it back, or use Restore original layout.'); };
   }
 
   /* ---------------- small cards for galleries ---------------- */

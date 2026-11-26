@@ -38,6 +38,15 @@
     if (time) time = lang === 'hi' ? `${time} बजे` : lang === 'pa' ? `${time} ਵਜੇ` : `at ${time.replace(/\s?([ap])m$/i, ' $1.m.').toLowerCase()}`;
     return [date, time].filter(Boolean).join('\n');
   }
+  /** The date alone, without the weekday (cover and "reply by"). */
+  function shortDate(inv, ev, lang) {
+    if (!ev || !ev.date) return '';
+    const tz = inv.timezone || 'Asia/Kolkata';
+    if (lang !== 'en') return IX.fmtDate(ev.date, tz, lang);
+    const d = IX.zonedToUtc(ev.date, '12:00', tz);
+    const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: tz }).formatToParts(d).map((x) => [x.type, x.value]));
+    return `${p.day}^{${ORD(+p.day)}} ${p.month} ${p.year}`;
+  }
   /** All words the page can show, for one language. */
   function words(inv, lang, placeholders) {
     const t = (k) => {
@@ -54,6 +63,24 @@
       message: htmlText(t('message')), when: whenText(inv, ev, lang), reception: t('reception'),
       venue: [ev.venue, ev.address, ev.city].filter(Boolean).join('\n'), rsvp: t('rsvpNote'), blessing: t('blessing'),
     };
+    // lines for the other pages: titles fall back to starting words until the host types (an empty line hides them)
+    const pd = (k) => { const v = inv.text && inv.text[lang] && inv.text[lang][k]; return v == null ? ((ST().PAGE_DEFAULTS[lang] || ST().PAGE_DEFAULTS.en)[k] || '') : v; };
+    out.coverLine = pd('coverLine'); out.eventsTitle = pd('eventsTitle'); out.rsvpTitle = pd('rsvpTitle');
+    out.underNames = t('underNames');
+    out.shortDate = shortDate(inv, ev, lang); out.city = ev.city || '';
+    (inv.events || []).forEach((e, i) => {
+      if (!e || !(e.name || e.date)) return;
+      out['ev' + i + 'n'] = e.name || '';
+      out['ev' + i + 'd'] = [whenText(inv, e, lang).replace(/\n/, lang === 'en' ? ' ' : ', '), [e.venue, e.city].filter(Boolean).join(', ')].filter(Boolean).join('\n');
+    });
+    const dl = inv.settings && inv.settings.rsvpDeadline;
+    if (dl) {
+      const d = shortDate(inv, { date: dl }, lang);
+      out.rsvpBy = lang === 'hi' ? `${d} तक उत्तर की प्रतीक्षा रहेगी` : lang === 'pa' ? `${d} ਤੱਕ ਜਵਾਬ ਦੀ ਉਡੀਕ ਰਹੇਗੀ` : `The favour of a reply is requested by ${d}`;
+    } else out.rsvpBy = '';
+    const c = inv.contact || {};
+    out.contact = [c.name, c.phone].filter(Boolean).join(' · ');
+    out.rsvpLink = inv.slug && IX.inviteUrl ? IX.inviteUrl(inv.slug).replace(/^https?:\/\//, '') : '';
     const ph = {};
     if (placeholders) {
       const S = ST().SAMPLES;
@@ -61,6 +88,9 @@
       if (!out.groom) { out.groom = S.groom; ph.groom = 1; }
       if (!out.when) { out.when = lang === 'en' ? 'Saturday, 14^{th} February 2027\nat 7 p.m.' : ''; ph.when = 1; }
       if (!out.venue) { out.venue = S.venue; ph.venue = 1; }
+      if (!out.shortDate && lang === 'en') { out.shortDate = '14^{th} February 2027'; ph.shortDate = 1; }
+      if (!out.rsvpLink) { out.rsvpLink = 'Your invitation link appears here once it is published'; ph.rsvpLink = 1; }
+      if (!out.ev0n && !out.ev0d) { out.ev0n = 'Wedding Ceremony'; out.ev0d = out.when.replace(/\n/, ' ') + '\n' + out.venue; ph.ev0n = ph.ev0d = 1; }
     }
     return { w: out, ph };
   }
@@ -149,13 +179,22 @@
   }
 
   /* ---------- text blocks ---------- */
-  const ROLE_OF = { heading: 'heading', parents: 'small', message: 'main', when: 'details', reception: 'details', venue: 'details', rsvp: 'small', blessing: 'main' };
-  const INK_OF = { heading: 'heading', parents: 'main', message: 'main', when: 'details', reception: 'details', venue: 'details', rsvp: 'main', blessing: 'heading' };
+  const ROLE_OF = { heading: 'heading', parents: 'small', message: 'main', when: 'details', reception: 'details', venue: 'details', rsvp: 'small', blessing: 'main',
+    underNames: 'main', coverLine: 'heading', shortDate: 'details', city: 'small', eventsTitle: 'names', rsvpTitle: 'names', rsvpBy: 'details', rsvpLink: 'small', contact: 'details' };
+  const INK_OF = { heading: 'heading', parents: 'main', message: 'main', when: 'details', reception: 'details', venue: 'details', rsvp: 'main', blessing: 'heading',
+    underNames: 'main', coverLine: 'heading', shortDate: 'details', city: 'details', eventsTitle: 'bride', rsvpTitle: 'bride', rsvpBy: 'details', rsvpLink: 'details', contact: 'details' };
+  // page titles use the names' lettering at about half the size; event names use the heading lettering
+  const SIZE_OF = { eventsTitle: 0.5, rsvpTitle: 0.5, shortDate: 1.1, evn: 1.15, coverLine: 1.2, 'rsvp:rsvp': 1.35 };
+  /** "cover:names" → "names"; "ev2n" → "evn". */
+  const baseOf = (id) => String(id).split(':').pop();
+  const kindOf = (b) => (/^ev\d+n$/.test(b) ? 'evn' : /^ev\d+d$/.test(b) ? 'evd' : b);
+  const roleOf = (id) => { const k = kindOf(baseOf(id)); return k === 'names' ? 'names' : k === 'evn' ? 'heading' : k === 'evd' ? 'details' : ROLE_OF[k]; };
+  const inkOf = (id) => { const k = kindOf(baseOf(id)); return k === 'evn' ? 'heading' : k === 'evd' ? 'details' : INK_OF[k]; };
   function textBlock(D, id, text, ph) {
-    const role = ROLE_OF[id], o = D.cal.el[id] || {}, r = D.style.type[role];
+    const role = roleOf(id), o = D.cal.el[id] || {}, r = D.style.type[role];
     const ff = fontFor(D.cal, D.style, role, o, text);
     if (ff.sc === 'other') D.warn.add('other');
-    const px = r.size * ff.f.k * (o.size || 1) * D.fit;
+    const px = r.size * ff.f.k * (o.size || 1) * D.fit * (SIZE_OF[id] || SIZE_OF[kindOf(baseOf(id))] || 1);
     const tracking = o.tracking != null ? o.tracking : r.tracking || 0;
     const leading = Math.max(o.leading || r.leading || 1.25, ff.sc === 'deva' || ff.sc === 'guru' ? 1.3 : 0);
     const maxW = D.safeW * (o.width || 1);
@@ -163,7 +202,7 @@
     const lh = px * leading;
     const h = lines.length * lh;
     const align = o.align || 'center';
-    const paint = paintFor(D, o.ink || D.cal.inks[INK_OF[id]], 'text');
+    const paint = paintFor(D, o.ink || D.cal.inks[inkOf(id)], 'text');
     const lw = Math.max(...lines.map((l) => measure(l, ff, px, tracking)), 10);
     return {
       id, h, hw: lw, align, draw: (y) => {
@@ -206,7 +245,7 @@
   function namesBlock(D, W, ph) {
     const o = D.cal.el.names || {}, st = D.style;
     const layout = D.cal.nameLayout || 'stacked';
-    const sizeK = (o.size || 1) * Math.sqrt(D.fit);
+    const sizeK = (o.size || 1) * Math.sqrt(D.fit) * (D.nameScale || 1);
     const mk = (which) => {
       const text = W[which];
       const ff = fontFor(D.cal, st, 'names', o, text);
@@ -353,14 +392,51 @@
 
   /* ---------- the page ---------- */
   const FLOW = [
-    ['heading', 'text'], ['orn-top', 'orn', 'top'], ['names', 'names'], ['orn-under', 'orn', 'under'], ['parents', 'text'], ['message', 'text'],
+    ['heading', 'text'], ['orn-top', 'orn', 'top'], ['names', 'names'], ['underNames', 'text'], ['orn-under', 'orn', 'under'], ['parents', 'text'], ['message', 'text'],
     ['when', 'text'], ['reception', 'text'], ['orn-divider', 'orn', 'divider'], ['venue', 'text'], ['rsvp', 'text'], ['blessing', 'text'], ['orn-mark', 'orn', 'mark'],
   ];
-  const GAP_AFTER = { heading: 1.1, 'orn-top': 0.5, names: 0.9, 'orn-under': 0.9, parents: 1, message: 1.2, when: 0.8, reception: 0.9, 'orn-divider': 0.9, venue: 1.1, rsvp: 1, blessing: 0.7 };
-  const LABELS = { heading: 'Heading', names: 'Bride & groom names', parents: 'Parents', message: 'Message', when: 'Date & time', reception: 'Reception', venue: 'Venue', rsvp: 'RSVP', blessing: 'Blessing', 'orn-top': 'Flourish above names', 'orn-under': 'Flourish below names', 'orn-divider': 'Divider', 'orn-mark': 'Closing mark' };
+  /* The other pages of the set, in the same paper, inks and lettering. Ids on them are "<page>:<item>". */
+  function flowFor(page, Wd) {
+    if (page === 'cover') return [['coverLine', 'text'], ['orn-top', 'orn', 'top'], ['names', 'names'], ['orn-under', 'orn', 'under'], ['shortDate', 'text'], ['city', 'text'], ['orn-mark', 'orn', 'mark']];
+    if (page === 'events') {
+      const f = [['eventsTitle', 'text'], ['orn-under', 'orn', 'under']];
+      Object.keys(Wd).filter((k) => /^ev\d+n$/.test(k)).forEach((k, i) => {
+        const n = k.slice(2, -1);
+        if (i) f.push(['orn-d' + n, 'orn', 'divider']);
+        f.push(['ev' + n + 'n', 'text'], ['ev' + n + 'd', 'text']);
+      });
+      return f.concat([['orn-mark', 'orn', 'mark']]);
+    }
+    if (page === 'rsvp') return [['rsvpTitle', 'text'], ['orn-under', 'orn', 'under'], ['rsvp', 'text'], ['rsvpBy', 'text'], ['qr', 'qr'], ['rsvpLink', 'text'], ['contact', 'text'], ['orn-mark', 'orn', 'mark']];
+    return FLOW;
+  }
+  const GAP_AFTER = { heading: 1.1, 'orn-top': 0.5, names: 0.9, underNames: 0.9, 'orn-under': 0.9, parents: 1, message: 1.2, when: 0.8, reception: 0.9, 'orn-divider': 0.9, venue: 1.1, rsvp: 1, blessing: 0.7,
+    coverLine: 1.2, shortDate: 0.5, city: 1.4, eventsTitle: 0.6, evn: 0.35, evd: 0.9, rsvpTitle: 0.6, rsvpBy: 1, qr: 0.7, rsvpLink: 1.2, contact: 1 };
+  const LABELS = { heading: 'Heading', names: 'Bride & groom names', underNames: 'Line under the names', parents: 'Parents', message: 'Message', when: 'Date & time', reception: 'Reception', venue: 'Venue', rsvp: 'RSVP', blessing: 'Blessing', 'orn-top': 'Flourish above names', 'orn-under': 'Flourish below names', 'orn-divider': 'Divider', 'orn-mark': 'Closing mark',
+    coverLine: 'Cover line', shortDate: 'Date', city: 'Town or city', eventsTitle: 'Events title', evn: 'Event name', evd: 'Event date and place', 'orn-d': 'Divider', rsvpTitle: 'RSVP title', rsvpBy: 'Reply-by date', qr: 'QR code', rsvpLink: 'Invitation link', contact: 'Contact' };
+  const labelOf = (id) => { const b = baseOf(id); return LABELS[b] || LABELS[kindOf(b)] || (/^orn-d\d+$/.test(b) ? 'Divider' : ''); };
+
+  /* ---------- QR code for the RSVP page (drawn in ink, straight on the paper) ---------- */
+  function qrBlock(D, id, url, ph) {
+    const side = 210 * Math.max(D.fit, 0.8) * ((D.cal.el[id] || {}).scale || 1);
+    // the darkest-against-paper ink of the design, so phones can read it
+    const pc = D.cal.paper.color || LIB().PAPER[D.cal.paper.id].color;
+    const best = ['details', 'main', 'bride', 'groom', 'heading'].map((k) => D.cal.inks[k]).sort((a, b) => LIB().contrast(LIB().inkColor(b), pc) - LIB().contrast(LIB().inkColor(a), pc))[0];
+    const paint = LIB().inkColor((D.cal.el[id] || {}).ink || best);
+    let inner = '';
+    if (url && typeof qrcode === 'function') {
+      const q = qrcode(0, 'M'); q.addData(unescape(encodeURIComponent(url))); q.make();
+      const n = q.getModuleCount(), m = side / n;
+      let d = '';
+      for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) d += `M${r1(c * m)} ${r1(r * m)}h${r1(m + 0.2)}v${r1(m + 0.2)}h${r1(-m - 0.2)}z`;
+      inner = `<path d="${d}" fill="${paint}" shape-rendering="crispEdges"/>`;
+    } else if (ph) inner = `<rect x="0" y="0" width="${r1(side)}" height="${r1(side)}" fill="none" stroke="${paint}" stroke-dasharray="8 6" opacity=".45"/><text x="${r1(side / 2)}" y="${r1(side / 2 + 10)}" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="30" fill="${paint}" opacity=".5">QR code</text>`;
+    else return null;
+    return { id, h: side, hw: side, draw: (y) => `<g transform="translate(${r1(D.W / 2 - side / 2)} ${r1(y)})">${inner}</g>` };
+  }
 
   /**
-   * Draw a page. opts: lang, editing (adds element hooks), placeholders, print (flat inks), uid.
+   * Draw a page. opts: page (cover | main | events | rsvp), lang, editing (adds element hooks), placeholders, print (flat inks), uid.
    * Returns { svg, warnings[], fit, W, H }.
    */
   function draw(inv, opts = {}) {
@@ -378,18 +454,23 @@
     D.mx = corners ? 120 : 100; D.safeW = W - D.mx * 2;
     const my = corners ? 150 : 110, avail = H - my * 2;
     const { w: Wd, ph } = words(inv, lang, opts.placeholders);
+    const page = ['cover', 'events', 'rsvp'].includes(opts.page) ? opts.page : 'main';
+    const pid = (b) => (page === 'main' ? b : page + ':' + b);
+    D.nameScale = page === 'cover' ? 1.15 : 1;
     const build = () => {
       D.use = new Set();
       const items = [];
-      FLOW.forEach(([id, kind, slot]) => {
+      flowFor(page, Wd).forEach(([b, kind, slot]) => {
+        const id = pid(b);
         if (D.cal.removed.includes(id) || (D.cal.el[id] || {}).hidden) return;
-        if (kind === 'text') { if (Wd[id] && String(Wd[id]).trim()) items.push(textBlock(D, id, Wd[id], ph[id])); }
-        else if (kind === 'names') items.push(namesBlock(D, Wd, ph));
-        else { const ref = (D.cal.el[id] || {}).ref || D.cal.orn[slot]; if (ref) { const b = ornBlock(D, id, slot, ref); if (b) items.push(b); } }
+        if (kind === 'text') { if (Wd[b] && String(Wd[b]).trim()) items.push(textBlock(D, id, Wd[b], ph[b])); }
+        else if (kind === 'names') { const nb = namesBlock(D, Wd, ph); nb.id = id; items.push(nb); }
+        else if (kind === 'qr') { const q = qrBlock(D, id, inv.slug && IX.inviteUrl ? IX.inviteUrl(inv.slug) : '', opts.placeholders); if (q) items.push(q); }
+        else { const ref = (D.cal.el[id] || {}).ref || D.cal.orn[slot]; if (ref) { const ob = ornBlock(D, id, slot, ref); if (ob) items.push(ob); } }
       });
       const unit = 26 * D.fit;
       let total = 0;
-      items.forEach((it, i) => { it.gap = i < items.length - 1 ? unit * (GAP_AFTER[it.id] || 1) : 0; total += it.h + it.gap; });
+      items.forEach((it, i) => { const k = kindOf(baseOf(it.id)); it.gap = i < items.length - 1 ? unit * (GAP_AFTER[k] || 1) : 0; total += it.h + it.gap; });
       return { items, total };
     };
     let L = build();
@@ -407,12 +488,12 @@
       }
       const cy = y + it.h / 2;
       const tf = `translate(${o.dx || 0} ${o.dy || 0})${o.rot ? ` rotate(${o.rot} ${W / 2} ${r1(cy)})` : ''}`;
-      body += opts.editing ? `<g data-el="${it.id}" data-kind="${it.orn ? 'orn' : it.id === 'names' ? 'names' : 'text'}" transform="${tf}">${inner}</g>` : `<g transform="${tf}">${inner}</g>`;
+      body += opts.editing ? `<g data-el="${it.id}" data-kind="${it.orn ? 'orn' : baseOf(it.id) === 'names' ? 'names' : baseOf(it.id) === 'qr' ? 'qr' : 'text'}" transform="${tf}">${inner}</g>` : `<g transform="${tf}">${inner}</g>`;
       y += it.h + it.gap;
     });
     // ornaments the host added
     (D.cal.added || []).forEach((a) => {
-      const o = LIB().O[a.ref]; if (!o) return;
+      const o = LIB().O[a.ref]; if (!o || (a.page || 'main') !== page) return;
       const sc = (a.scale || 1) * (a.w || 160) / o.w;
       const inner = (opts.editing ? `<rect x="${-o.w / 2}" y="${-o.h / 2}" width="${o.w}" height="${o.h}" fill="transparent" pointer-events="all"/>` : '') + LIB().ornament(a.ref).replace(/currentColor/g, paintFor(D, a.ink || D.cal.inks.flourish, 'orn'));
       body += `<g${opts.editing ? ` data-el="${a.id}" data-kind="orn"` : ''} transform="translate(${r1(a.x)} ${r1(a.y)}) rotate(${a.rot || 0}) scale(${r1(sc * 1000) / 1000})" opacity="${a.opacity != null ? a.opacity : 1}">${inner}</g>`;
@@ -423,7 +504,12 @@
     const pc = cal.paper.color || LIB().PAPER[cal.paper.id].color;
     if (['heading', 'details', 'main'].some((k) => LIB().contrast(LIB().inkColor(cal.inks[k]), pc) < 2.6)) D.warn.add('contrast');
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" class="ixc-page" role="img" aria-label="${esc([Wd.bride, Wd.groom].filter(Boolean).join(' & ') || 'Calligraphy invitation')}"><defs>${pdefs}${inkDefs(D)}</defs>${paper}${body}</svg>`;
-    return { svg, warnings: [...D.warn], fit: D.fit, W, H };
+    return { svg, warnings: [...D.warn], fit: D.fit, W, H, page };
+  }
+  /** Every page of the set that is switched on, in order. */
+  async function renderPages(inv, opts = {}) {
+    await FN().ensure(fontsNeeded(inv, opts.lang || inv.defaultLang || 'en'));
+    return ST().pagesOn(inv.calligraphy).map((page) => draw(inv, { ...opts, page, uid: (opts.uid || 'ixp') + '-' + page }));
   }
 
   /** Fonts a design needs (for loading before drawing). */
@@ -452,5 +538,5 @@
     contrast: 'Some ink is hard to read on this paper. Try a lighter ink on dark paper, or a darker ink on light paper.',
   };
 
-  Object.assign(IXC, { draw, render, fontsNeeded, words, htmlText, WARN_TEXT, LABELS, FLOW });
+  Object.assign(IXC, { draw, render, renderPages, fontsNeeded, words, htmlText, WARN_TEXT, LABELS, FLOW, baseOf, kindOf, roleOf, inkOf, labelOf });
 })();

@@ -189,7 +189,7 @@ group('earlier "type of message" choices map to studio styles', () => {
   ok('unknown tone → the event type default', C.styleFromTone('zzz', 'corporate') === 'formal');
   ok('business events do not offer spiritual or family styles', !C.stylesFor('conference').some((s) => ['spiritual', 'family', 'traditional'].includes(s.id)));
   ok('a puja does not offer the playful style', !C.stylesFor('religious').some((s) => s.id === 'playful'));
-  ok('all 12 styles exist', C.STYLES.length === 12);
+  ok('all 13 styles exist (Poetic added for Calligraphy Studio)', C.STYLES.length === 13);
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);
