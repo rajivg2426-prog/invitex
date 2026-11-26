@@ -653,6 +653,21 @@ details.more-details[open]>summary,details.more-options[open]>summary{margin-bot
   .design-tile:hover { transform: none; }
 }
 
+/* Guest-facing preview guidance */
+.pv-context { display: grid; gap: .15rem; margin: .15rem 0 .55rem; }
+.pv-context-title { color: var(--ink); font-weight: 700; font-size: 13px; }
+.pv-context-tip { color: var(--muted); font-size: 11.5px; line-height: 1.4; }
+.wiz-preview { min-width: 0; }
+.wiz-preview .pv-frame { box-shadow: 0 20px 48px rgba(30,10,30,.24); border: 1px solid rgba(255,255,255,.7); }
+.wiz-preview .pv-pages { gap: .25rem; }
+.wiz-preview .pv-page { min-height: 36px; padding-inline: .65rem; }
+.wiz-preview .pv-page[aria-pressed="true"] { font-weight: 700; }
+.wiz-preview .pv-tools { align-items: center; gap: .55rem; }
+@media (max-width: 1020px) {
+  .pv-context { padding-inline: .1rem; }
+  .pv-context-tip { font-size: 12px; }
+}
+
 /* design studio: describe your card, occasion tabs, palette dots, font pairs, undo/redo */
 .describe { display: grid; gap: .5rem; padding: .9rem; border-radius: 14px; background: var(--ivory); border: 1px solid var(--champagne); }
 .describe .lbl { font-weight: 600; font-size: 13px; color: var(--ink2); }
