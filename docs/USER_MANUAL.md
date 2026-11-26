@@ -67,7 +67,16 @@ Calligraphy Studio is a full-screen editor for handwritten-style wedding cards. 
 - **On a phone** the tools are in the bar at the bottom and open as sheets, so the card stays in view.
 - **⋯ menu**: Duplicate design (makes a copy to edit), Stop using calligraphy (goes back to a ready design; your calligraphy design is kept).
 
-The guest page shows your calligraphy main card at the top, with the RSVP, venue and the rest below it as before (the guest page already has its own events and RSVP sections, so the other pages are for the printed and downloaded set). Downloads (high-resolution PNG and JPG, multi-page and print PDFs) arrive in the next update.
+- **⬇ Download** (top bar, also **✒ Download calligraphy card** on the invitation's dashboard):
+  - **Picture of this page**, PNG or JPG: 1500 × 2100 pixels for a 5 × 7 in card (300 dpi), right for WhatsApp and for printing at home.
+  - **All pages as pictures**: one PNG per page in a ZIP file.
+  - **PDF**: every page that is switched on, to share, email or print at home.
+  - **Print file for a print shop**: a PDF with 3 mm extra paper on every side (bleed) and crop marks, so the cut edge has no white line. Give this file to the printer.
+  - Pages are drawn again at full size from your design, never screenshotted. Lettering is made from the licensed font files as sharp outlines (Hindi and Punjabi letters join exactly as on screen), flourishes stay sharp at any size, and the paper texture is printed at 300 dpi.
+  - Gold, bronze and copper print as a gold colour from an ordinary printer. This is not metallic foil. If you want real foil, ask your print shop and give them the print file.
+  - Downloads use the language shown at the top of the studio, and never include the faint sample names: add the names first.
+
+The guest page shows your calligraphy main card at the top, with the RSVP, venue and the rest below it as before (the guest page already has its own events and RSVP sections, so the other pages are for the printed and downloaded set).
 
 ### 2.2 Fill your card
 

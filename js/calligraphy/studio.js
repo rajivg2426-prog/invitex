@@ -74,7 +74,7 @@
   }
 
   /* ---------------- route ---------------- */
-  H.routes.calligraphy = async (v, id) => {
+  H.routes.calligraphy = async (v, id, then) => {
     const inv = id && (await H.store.getInvitation(id));
     if (!inv) { H.render('<div class="card"><h2>Invitation not found</h2><a class="btn" href="#/">Back</a></div>'); return; }
     if (!inv.calligraphy) inv.calligraphy = ST.newDesign('royal-english');
@@ -95,6 +95,7 @@
     renderLeft(); renderRight(); renderPageBar();
     await paint(true);
     fitZoom();
+    if (then === 'download') { history.replaceState(null, '', '#/calligraphy/' + inv.id); openDownloads(); }
   };
 
   /* ---------------- the four pages ---------------- */
@@ -124,6 +125,7 @@
           <button type="button" id="ixDup">⧉ Duplicate design</button>
           <button type="button" id="ixOff">✕ Stop using calligraphy</button></div></details>
         <span class="ixc-status small muted" id="ixStatus" aria-live="polite">Saved</span>
+        <button class="btn sm" id="ixDl" title="Download PNG, JPG or PDF">⬇ <span class="ixc-hide-sm">Download</span></button>
         <button class="btn sm primary" id="ixSave">Save</button>
       </header>
       <div class="ixc-body">
@@ -231,6 +233,7 @@
     root.querySelector('#ixRedo').onclick = redo;
     root.querySelectorAll('[data-zoom]').forEach((b) => (b.onclick = () => { const z = +b.dataset.zoom; S.zoom = z === 0 ? 1 : Math.max(0.5, Math.min(2, S.zoom + z * 0.25)); applyZoom(); }));
     root.querySelector('#ixSave').onclick = async () => { await save(); IX.toast('Design saved', 'ok'); };
+    root.querySelector('#ixDl').onclick = () => openDownloads();
     root.querySelector('#ixRestore').onclick = async () => {
       closeMenu();
       if (!(await H.confirm('Restore the original layout?', 'Flourishes and positions go back to how this style made them. Your words, fonts and colours stay as they are. You can undo this.', 'Restore'))) return;
@@ -413,7 +416,7 @@
   function pageSpecs() {
     const p = S.pageId, inv = S.inv;
     if (p === 'cover') return ['t:coverLine', 't:bride', 't:groom', 'e0:date', 'e0:city'];
-    if (p === 'rsvp') return ['t:rsvpTitle', 't:rsvpNote', 's:deadline', 'c:name', 'c:phone'];
+    if (p === 'rsvp') return ['t:rsvpTitle', 't:rsvpNote', 's:deadline', 'c:name', 'c:phone', 't:blessing'];
     if (p === 'events') return ['t:eventsTitle'];
     return ST.FIELDS.map((f) => (f.event ? 'e0:' + f.event : 't:' + f.key));
   }
@@ -425,7 +428,7 @@
         <div class="ixc-wstyles" role="radiogroup" aria-label="Writing style">${WORD_STYLES.map(([id, l]) => `<button type="button" role="radio" aria-checked="${cs === id}" class="${cs === id ? 'on' : ''}" data-wstyle="${id}">${l}</button>`).join('')}</div>
         <button type="button" class="btn sm primary" id="ixCopy">✨ Write with Copy Studio</button></div>` : '';
     const evs = p === 'events' ? inv.events.map((e, n) => `<fieldset class="ixc-ev"><legend>Event ${n + 1}${inv.events.length > 1 ? ` <button type="button" class="btn sm ghost" data-evdel="${n}" aria-label="Remove event ${n + 1}">✕</button>` : ''}</legend>
-        ${['name', 'date', 'start', 'venue', 'city'].map((k) => fieldHtml(`e${n}:${k}`, 'ixf-', 'data-field')).join('')}</fieldset>`).join('') + '<button type="button" class="btn sm" id="ixEvAdd">＋ Add an event</button><p class="tiny muted">Events are shared with the RSVP page and the calendar links.</p>' : '';
+        ${['name', 'date', 'start', 'venue', 'city'].map((k) => fieldHtml(`e${n}:${k}`, 'ixf-', 'data-field')).join('')}</fieldset>`).join('') + '<button type="button" class="btn sm" id="ixEvAdd">＋ Add an event</button><p class="tiny muted">Events are shared with the RSVP page and the calendar links.</p>' + fieldHtml('t:reception', 'ixf-', 'data-field') : '';
     const intro = { main: 'Type your words here. Names are written exactly as you type them. Leave a line empty to leave it off the card.', cover: 'The cover shows the names, the date and the town. Leave a line empty to leave it off.',
       events: 'Every event of your wedding, in order. Each one gets its own name, date and place.', rsvp: 'How guests reply. Once the invitation is published, a QR code to your invitation page appears on this page.' }[p];
     return `${ai}<p class="tiny muted">${intro}</p>${pageSpecs().map((sp) => fieldHtml(sp, 'ixf-', 'data-field')).join('')}${evs}
@@ -752,6 +755,52 @@
     };
     const del = r.querySelector('#ixr-del'); if (del) del.onclick = () => removeOrn(id);
     const hide = r.querySelector('#ixr-hide'); if (hide) hide.onclick = () => { pos.hidden = true; select(null); changed(); IX.toast('Line hidden. Undo brings it back, or use Restore original layout.'); };
+  }
+
+  /* ---------------- downloads ---------------- */
+  let exporting = false;
+  async function openDownloads() {
+    if (!S || exporting) return;
+    const inv = S.inv, cal = inv.calligraphy, w = IXC.words(inv, S.lang, false).w;
+    await save();
+    if (!w.bride && !w.groom) { IX.toast('Add the names first. Downloads never include the sample names.', 'err', 5000); return; }
+    const pages = ST.pagesOn(cal), z = ST.SIZES[cal.size] || ST.SIZES['5x7'];
+    const pxW = Math.round(z.mm[0] / 25.4 * 300), pxH = Math.round(pxW * z.h / z.w);
+    const pageName = ST.PAGES.find(([id]) => id === S.pageId)[1];
+    const opt = (v, t, d) => `<button type="button" class="ixc-dlo" data-dl="${v}"><b>${t}</b><small>${d}</small></button>`;
+    const v = await H.modal({
+      title: 'Download your card',
+      body: `${inv.languages.length > 1 ? `<p class="small">In <b>${esc(LANG_NAME[S.lang] || S.lang)}</b>. Switch language at the top of the studio for another.</p>` : ''}
+        <div class="ixc-dl">
+          ${opt('png', `Picture of this page (PNG): ${esc(pageName)}`, `${pxW} × ${pxH} px, 300 dpi. Best for WhatsApp and printing at home.`)}
+          ${opt('jpeg', `Picture of this page (JPG): ${esc(pageName)}`, 'Same size, smaller file.')}
+          ${pages.length > 1 ? opt('zip', `All ${pages.length} pages as pictures (ZIP)`, 'One PNG for each page.') : ''}
+          ${opt('pdf', `PDF, ${pages.length === 1 ? 'one page' : 'all ' + pages.length + ' pages'}`, `${esc(z.name)} pages. To share, email or print at home.`)}
+          ${opt('print', 'Print file for a print shop (PDF)', `${esc(z.name)} with 3 mm bleed on every side and crop marks.`)}
+        </div>
+        <p class="tiny muted">Pages are drawn again at full size, not screenshotted. Lettering is made from the licensed font files as sharp outlines, flourishes stay sharp at any size, and the paper texture is printed at 300 dpi. Gold, bronze and copper print as gold-coloured ink from an ordinary printer; this is not metallic foil. If you want real foil, ask your print shop and give them the print file.</p>
+        ${cal.pages && Object.values(cal.pages).includes(false) ? '<p class="tiny muted">Pages you switched off are left out.</p>' : ''}`,
+      actions: [{ label: 'Close', value: '' }],
+      onOpen: (m, done) => m.querySelectorAll('[data-dl]').forEach((b) => (b.onclick = () => done(b.dataset.dl))),
+    });
+    if (!v || !S) return;
+    exporting = true;
+    const btn = document.getElementById('ixDl'); if (btn) btn.disabled = true;
+    status('Preparing download…');
+    const E = IXC.exporter;
+    try {
+      const r = v === 'png' || v === 'jpeg' ? await E.image(inv, { page: S.pageId, lang: S.lang, type: v })
+        : v === 'zip' ? await E.zip(inv, { lang: S.lang, progress: (n) => status(`Page ${n} of ${pages.length}…`) })
+        : await E.pdf(inv, { lang: S.lang, print: v === 'print', progress: (n) => status(`Page ${n} of ${pages.length}…`) });
+      IX.download(r.name, r.blob);
+      IX.toast(`Downloaded ${r.name}`, 'ok', 4000);
+    } catch (e) {
+      console.warn(e);
+      IX.toast('Could not make the download: ' + e.message, 'err', 6000);
+    } finally {
+      exporting = false; if (btn) btn.disabled = false;
+      if (S) status(S.saved ? 'Saved' : 'Saving…');
+    }
   }
 
   /* ---------------- small cards for galleries ---------------- */

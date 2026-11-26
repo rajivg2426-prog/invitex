@@ -364,13 +364,18 @@
   function paperLayer(D) {
     const p = D.cal.paper, L = LIB();
     const base = { ...L.PAPER[p.id], ...p };
-    const inset = base.deckle ? 10 : 0;
+    // a print file runs the paper past the cut line (bleed) and has straight, cut edges
+    const bl = D.bleed || 0;
+    if (bl) base.deckle = false;
+    const inset = base.deckle ? 10 : -bl;
     let s = `<g${base.deckle ? ` filter="url(#${D.uid}-deckle)"` : ''}><rect x="${inset}" y="${inset}" width="${D.W - inset * 2}" height="${D.H - inset * 2}" fill="${base.color}"/>`;
     if (base.pattern === 'wash') s += `<g filter="url(#${D.uid}-wash)"><ellipse cx="${D.W * 0.18}" cy="${D.H * 0.12}" rx="${D.W * 0.32}" ry="${D.H * 0.14}" fill="url(#${D.uid}-w1)"/><ellipse cx="${D.W * 0.85}" cy="${D.H * 0.9}" rx="${D.W * 0.36}" ry="${D.H * 0.16}" fill="url(#${D.uid}-w1)"/><ellipse cx="${D.W * 0.9}" cy="${D.H * 0.2}" rx="${D.W * 0.16}" ry="${D.H * 0.08}" fill="url(#${D.uid}-w1)"/></g>`;
     else if (base.pattern && base.pattern !== 'none') s += `<rect x="${inset}" y="${inset}" width="${D.W - inset * 2}" height="${D.H - inset * 2}" fill="url(#${D.uid}-pat)"/>`;
     if (base.texture && base.texture !== 'none') s += `<rect x="${inset}" y="${inset}" width="${D.W - inset * 2}" height="${D.H - inset * 2}" filter="url(#${D.uid}-tex)"/>`;
     if (base.texture === 'cotton' || base.deckle) s += `<rect x="${inset}" y="${inset}" width="${D.W - inset * 2}" height="${D.H - inset * 2}" filter="url(#${D.uid}-fib)"/>`;
     s += `<rect x="${inset}" y="${inset}" width="${D.W - inset * 2}" height="${D.H - inset * 2}" fill="url(#${D.uid}-vig)"/></g>`;
+    const paperOnly = s;
+    s = '';
     // border
     const bp = paintFor(D, p.borderInk || D.cal.inks.flourish, 'orn'), b = p.border;
     const R = (i, w, extra = '') => `<rect x="${i}" y="${i}" width="${D.W - i * 2}" height="${D.H - i * 2}" fill="none" stroke="${bp}" stroke-width="${w}"${extra}/>`;
@@ -387,7 +392,7 @@
         s += `<g data-el="corner-${k}" data-kind="orn" transform="translate(${x + (el.dx || 0)} ${y + (el.dy || 0)}) scale(${sx * sc * (el.scale || 1)} ${sy * sc * (el.scale || 1)})" opacity="${el.opacity != null ? el.opacity : 1}">${o.draw().replace(/currentColor/g, paintFor(D, el.ink || D.cal.inks.flourish, 'orn'))}</g>`;
       });
     }
-    return s;
+    return { base: paperOnly, decor: s };
   }
 
   /* ---------- the page ---------- */
@@ -405,9 +410,9 @@
         if (i) f.push(['orn-d' + n, 'orn', 'divider']);
         f.push(['ev' + n + 'n', 'text'], ['ev' + n + 'd', 'text']);
       });
-      return f.concat([['orn-mark', 'orn', 'mark']]);
+      return f.concat([['reception', 'text'], ['orn-mark', 'orn', 'mark']]);
     }
-    if (page === 'rsvp') return [['rsvpTitle', 'text'], ['orn-under', 'orn', 'under'], ['rsvp', 'text'], ['rsvpBy', 'text'], ['qr', 'qr'], ['rsvpLink', 'text'], ['contact', 'text'], ['orn-mark', 'orn', 'mark']];
+    if (page === 'rsvp') return [['rsvpTitle', 'text'], ['orn-under', 'orn', 'under'], ['rsvp', 'text'], ['rsvpBy', 'text'], ['qr', 'qr'], ['rsvpLink', 'text'], ['contact', 'text'], ['blessing', 'text'], ['orn-mark', 'orn', 'mark']];
     return FLOW;
   }
   const GAP_AFTER = { heading: 1.1, 'orn-top': 0.5, names: 0.9, underNames: 0.9, 'orn-under': 0.9, parents: 1, message: 1.2, when: 0.8, reception: 0.9, 'orn-divider': 0.9, venue: 1.1, rsvp: 1, blessing: 0.7,
@@ -448,7 +453,7 @@
     const corners = cal.paper.corners && cal.paper.corners !== 'none';
     const D = {
       cal: { el: {}, removed: [], added: [], orn: {}, ...cal }, style, lang, W, H, uid: opts.uid || 'ixc' + Math.random().toString(36).slice(2, 7),
-      sheen: opts.print ? false : cal.sheen !== false, use: new Set(), warn: new Set(), fit: 1,
+      sheen: opts.print ? false : cal.sheen !== false, use: new Set(), warn: new Set(), fit: 1, bleed: opts.bleed || 0,
     };
     D.darkPaper = LIB().lum(cal.paper.color || LIB().PAPER[cal.paper.id].color) < 0.2;
     D.mx = corners ? 120 : 100; D.safeW = W - D.mx * 2;
@@ -503,7 +508,10 @@
     // readable ink check
     const pc = cal.paper.color || LIB().PAPER[cal.paper.id].color;
     if (['heading', 'details', 'main'].some((k) => LIB().contrast(LIB().inkColor(cal.inks[k]), pc) < 2.6)) D.warn.add('contrast');
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" class="ixc-page" role="img" aria-label="${esc([Wd.bride, Wd.groom].filter(Boolean).join(' & ') || 'Calligraphy invitation')}"><defs>${pdefs}${inkDefs(D)}</defs>${paper}${body}</svg>`;
+    // layers for exports: "paper" (textures, drawn as a picture) and "ink" (words and flourishes, kept as vectors)
+    const content = opts.layer === 'paper' ? paper.base : opts.layer === 'ink' ? paper.decor + body : paper.base + paper.decor + body;
+    const bl = D.bleed, vb = bl ? `${-bl} ${-bl} ${W + bl * 2} ${H + bl * 2}` : `0 0 ${W} ${H}`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" class="ixc-page" role="img" aria-label="${esc([Wd.bride, Wd.groom].filter(Boolean).join(' & ') || 'Calligraphy invitation')}"><defs>${pdefs}${inkDefs(D)}</defs>${content}</svg>`;
     return { svg, warnings: [...D.warn], fit: D.fit, W, H, page };
   }
   /** Every page of the set that is switched on, in order. */

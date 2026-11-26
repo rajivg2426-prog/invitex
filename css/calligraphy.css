@@ -163,3 +163,9 @@ body.ixc-on #ix-toasts, body.ixc-on .ix-toast { pointer-events: none; }
 .ixc-copy { position: fixed; top: 52px; left: 0; bottom: 0; width: min(600px, 48vw); z-index: 30; background: #fff; border-right: 1px solid var(--line); box-shadow: 16px 0 40px rgba(43,16,34,.10); }
 .ixc-copy-box { height: 100%; overflow: auto; padding: .9rem 1rem 2rem; }
 @media (max-width: 899px) { .ixc-copy { top: 0; bottom: 0; width: 100%; z-index: 60; } .ixc-pages button { padding: .3rem .55rem; font-size: 12px; } .ixc-pageon { width: 100%; text-align: center; } }
+
+/* downloads */
+.ixc-dl { display: grid; gap: .45rem; margin: .4rem 0 .8rem; }
+.ixc-dlo { display: grid; gap: 2px; text-align: left; border: 1px solid var(--line); background: #fff; border-radius: 12px; padding: .65rem .8rem; cursor: pointer; font: inherit; color: var(--ink); }
+.ixc-dlo:hover, .ixc-dlo:focus-visible { border-color: var(--plum); box-shadow: 0 0 0 1px var(--plum); }
+.ixc-dlo small { color: var(--muted); font-size: 12.5px; }
