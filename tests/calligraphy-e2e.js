@@ -97,7 +97,7 @@ const watch = (p) => { p.on('pageerror', (e) => errs.push(e.message)); p.on('con
   await p.click('[data-nb=burgundy]');
   await p.waitForTimeout(300);
   const fills = await p.locator('#ixCard [data-el=names] text:not([data-init])').evaluateAll((ts) => ts.map((t) => t.getAttribute('fill')));
-  ok('bride’s ink changes only the bride’s name', fills[0] === '#7a1f2e' && fills[fills.length - 1] !== '#7a1f2e', fills.join(','));
+  ok('bride’s ink changes only the bride’s name', fills[0] === '#7a0e27' && fills[fills.length - 1] !== '#7a0e27', fills.join(','));
 
   /* 12. undo and redo */
   await p.waitForTimeout(600);
@@ -105,7 +105,7 @@ const watch = (p) => { p.on('pageerror', (e) => errs.push(e.message)); p.on('con
   const afterUndo = await p.locator('#ixCard [data-el=names] text:not([data-init])').first().getAttribute('fill');
   await p.click('#ixRedo'); await p.waitForTimeout(400);
   const afterRedo = await p.locator('#ixCard [data-el=names] text:not([data-init])').first().getAttribute('fill');
-  ok('undo puts the ink back, redo applies it again', afterUndo !== '#7a1f2e' && afterRedo === '#7a1f2e', afterUndo + ' → ' + afterRedo);
+  ok('undo puts the ink back, redo applies it again', afterUndo !== '#7a0e27' && afterRedo === '#7a0e27', afterUndo + ' → ' + afterRedo);
 
   /* 9. flourishes: add, move, resize, and they are kept off words */
   await p.click('[data-tab=orn]');

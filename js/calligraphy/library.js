@@ -12,31 +12,31 @@
    * metal: shown with a soft sheen on screen; flat warm colour in print.
    * We call this "gold-coloured ink", never foil. */
   const INKS = [
-    { id: 'antique-gold', name: 'Antique gold', color: '#9c7a3c', metal: ['#7d5e28', '#c9a55a', '#efd99a', '#b08a44', '#86672d'] },
-    { id: 'champagne-gold', name: 'Champagne gold', color: '#bfa26a', metal: ['#9d8250', '#d9c08a', '#f4e6c0', '#c8ab72', '#a68a55'] },
-    { id: 'bronze', name: 'Burnished bronze', color: '#8a5a2e', metal: ['#6b4220', '#a8733f', '#d4a26a', '#91602f', '#6e4522'] },
-    { id: 'copper', name: 'Copper', color: '#a85a35', metal: ['#7f3f22', '#c46d43', '#e9a57d', '#b0603a', '#844426'] },
-    { id: 'burgundy', name: 'Burgundy', color: '#7a1f2e' },
-    { id: 'vermilion', name: 'Vermilion red', color: '#b0381f', duo: ['#c8442a', '#9a2f17', '#6e2412'] },
-    { id: 'dark-brown', name: 'Dark brown', color: '#3f2617' },
+    { id: 'antique-gold', name: 'Antique gold', color: '#8d6619', metal: ['#6a4708', '#b8851f', '#f6d77a', '#a97a18', '#77520c'] },
+    { id: 'champagne-gold', name: 'Champagne gold', color: '#d6b160', metal: ['#a9802f', '#e3bd62', '#fff1c4', '#d4a94c', '#b38832'] },
+    { id: 'bronze', name: 'Burnished bronze', color: '#7c4517', metal: ['#56300c', '#97581c', '#e0a25a', '#88501a', '#5e340e'] },
+    { id: 'copper', name: 'Copper', color: '#a24d22', metal: ['#73300f', '#c25f2a', '#f3a26e', '#ab5223', '#7b3612'] },
+    { id: 'burgundy', name: 'Burgundy', color: '#7a0e27' },
+    { id: 'vermilion', name: 'Vermilion red', color: '#b8301a', duo: ['#d8401f', '#a82a14', '#76190b'] },
+    { id: 'dark-brown', name: 'Dark brown', color: '#38200f' },
     { id: 'black', name: 'Black', color: '#1a1714' },
-    { id: 'deep-green', name: 'Deep green', color: '#1f4a36' },
-    { id: 'ivory', name: 'Ivory white', color: '#f5ecd9' },
+    { id: 'deep-green', name: 'Deep green', color: '#145238' },
+    { id: 'ivory', name: 'Ivory white', color: '#fbf2df' },
   ];
   const INK = Object.fromEntries(INKS.map((i) => [i.id, i]));
   /** Plain colour of an ink id or a custom #hex. */
-  const inkColor = (v) => (INK[v] ? INK[v].color : /^#[0-9a-f]{3,8}$/i.test(v || '') ? v : '#3f2617');
+  const inkColor = (v) => (INK[v] ? INK[v].color : /^#[0-9a-f]{3,8}$/i.test(v || '') ? v : '#38200f');
 
   /* ---------------- papers ---------------- */
   const PAPERS = [
-    { id: 'handmade-ivory', name: 'Handmade ivory', color: '#f5efe2', texture: 'cotton', grain: 0.45, deckle: true, dark: false },
-    { id: 'antique-parchment', name: 'Antique parchment', color: '#eddcb6', texture: 'mottled', grain: 0.6, deckle: false, edgeTone: true },
-    { id: 'cotton-rag', name: 'Cotton rag', color: '#f7f4ec', texture: 'cotton', grain: 0.4, deckle: true },
-    { id: 'warm-cream', name: 'Warm cream', color: '#f4e7cc', texture: 'fine', grain: 0.35 },
-    { id: 'vintage-white', name: 'Vintage white', color: '#faf8f2', texture: 'laid', grain: 0.2 },
-    { id: 'champagne', name: 'Champagne textured', color: '#efe5cf', texture: 'linen', grain: 0.3 },
-    { id: 'deep-burgundy', name: 'Deep burgundy', color: '#4a1420', texture: 'fine', grain: 0.4, dark: true },
-    { id: 'dark-luxury', name: 'Dark luxury', color: '#1e1b1a', texture: 'linen', grain: 0.25, dark: true },
+    { id: 'handmade-ivory', name: 'Handmade ivory', color: '#f8ecd4', texture: 'cotton', grain: 0.45, deckle: true, dark: false },
+    { id: 'antique-parchment', name: 'Antique parchment', color: '#f1d9a6', texture: 'mottled', grain: 0.6, deckle: false, edgeTone: true },
+    { id: 'cotton-rag', name: 'Cotton rag', color: '#f9f1df', texture: 'cotton', grain: 0.4, deckle: true },
+    { id: 'warm-cream', name: 'Warm cream', color: '#f7e3bd', texture: 'fine', grain: 0.35 },
+    { id: 'vintage-white', name: 'Vintage white', color: '#fdf8ec', texture: 'laid', grain: 0.2 },
+    { id: 'champagne', name: 'Champagne textured', color: '#f4e2be', texture: 'linen', grain: 0.3 },
+    { id: 'deep-burgundy', name: 'Deep burgundy', color: '#4e0d1e', texture: 'fine', grain: 0.4, dark: true },
+    { id: 'dark-luxury', name: 'Dark luxury', color: '#15110e', texture: 'linen', grain: 0.25, dark: true },
   ];
   const PAPER = Object.fromEntries(PAPERS.map((p) => [p.id, p]));
   const TEXTURES = [['none', 'Smooth'], ['fine', 'Fine grain'], ['cotton', 'Cotton fibres'], ['laid', 'Laid lines'], ['linen', 'Linen weave'], ['mottled', 'Parchment mottling']];
@@ -157,7 +157,7 @@
   function paperDefs(uid, paper, W, H, inkHex) {
     const g = Math.max(0, Math.min(1, paper.grain == null ? 0.4 : paper.grain)) * 0.6;
     const dark = lum(paper.color) < 0.18;
-    const tone = dark ? '1 1 1' : '0.35 0.28 0.18';
+    const tone = dark ? '1 1 1' : '0.46 0.31 0.14';
     const T = {
       fine: `<feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3"/>`,
       cotton: `<feTurbulence type="fractalNoise" baseFrequency="0.16 0.2" numOctaves="3" seed="7"/>`,
@@ -169,13 +169,13 @@
     // alpha follows the noise (red channel), scaled by the grain setting, so the texture stays faint
     const a = (k, b) => `${r1(k * g * 100) / 100} 0 0 0 ${r1(b * g * 100) / 100}`;
     const [tr, tg, tb] = tone.split(' ');
-    if (T) s += `<filter id="${uid}-tex" x="0" y="0" width="100%" height="100%">${T}<feColorMatrix type="matrix" values="0 0 0 0 ${tr}  0 0 0 0 ${tg}  0 0 0 0 ${tb}  ${paper.texture === 'mottled' ? a(1.0, -0.45) : dark ? a(0.9, -0.42) : a(1.4, -0.56)}"/></filter>`;
-    s += `<filter id="${uid}-fib" x="0" y="0" width="100%" height="100%"><feTurbulence type="turbulence" baseFrequency="0.015 0.22" numOctaves="2" seed="21"/><feColorMatrix type="matrix" values="0 0 0 0 ${dark ? 1 : 0.42}  0 0 0 0 ${dark ? 1 : 0.34}  0 0 0 0 ${dark ? 1 : 0.24}  ${a(1.1, -0.18)}"/></filter>`;
+    if (T) s += `<filter id="${uid}-tex" x="0" y="0" width="100%" height="100%">${T}<feColorMatrix type="matrix" values="0 0 0 0 ${tr}  0 0 0 0 ${tg}  0 0 0 0 ${tb}  ${paper.texture === 'mottled' ? a(1.0, -0.45) : dark ? a(0.9, -0.42) : a(1.1, -0.5)}"/></filter>`;
+    s += `<filter id="${uid}-fib" x="0" y="0" width="100%" height="100%"><feTurbulence type="turbulence" baseFrequency="0.015 0.22" numOctaves="2" seed="21"/><feColorMatrix type="matrix" values="0 0 0 0 ${dark ? 1 : 0.5}  0 0 0 0 ${dark ? 1 : 0.35}  0 0 0 0 ${dark ? 1 : 0.18}  ${a(1.1, -0.18)}"/></filter>`;
     if (paper.deckle) s += `<filter id="${uid}-deckle" x="-3%" y="-3%" width="106%" height="106%"><feTurbulence type="fractalNoise" baseFrequency="0.06" numOctaves="3" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="14" xChannelSelector="R" yChannelSelector="G"/></filter>`;
     s += `<radialGradient id="${uid}-vig" cx="50%" cy="48%" r="75%"><stop offset="60%" stop-color="${dark ? '#000' : '#7a5a2a'}" stop-opacity="0"/><stop offset="100%" stop-color="${dark ? '#000' : '#7a5a2a'}" stop-opacity="${paper.edgeTone ? 0.28 : dark ? 0.35 : 0.08}"/></radialGradient>`;
     if (paper.pattern === 'wash') {
-      const c = inkHex || '#9c7a3c';
-      s += `<filter id="${uid}-wash"><feGaussianBlur stdDeviation="40"/></filter><radialGradient id="${uid}-w1"><stop offset="0" stop-color="${c}" stop-opacity=".14"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient>`;
+      const c = inkHex || '#8d6619';
+      s += `<filter id="${uid}-wash"><feGaussianBlur stdDeviation="40"/></filter><radialGradient id="${uid}-w1"><stop offset="0" stop-color="${c}" stop-opacity=".2"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient>`;
     }
     if (paper.pattern === 'damask' || paper.pattern === 'paisley' || paper.pattern === 'dots') {
       const pc = dark ? '#ffffff' : '#6b4a20', op = dark ? 0.05 : 0.06;

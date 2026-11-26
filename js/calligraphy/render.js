@@ -209,7 +209,7 @@
         const x = align === 'left' ? D.mx : align === 'right' ? D.W - D.mx : D.W / 2;
         const anchor = align === 'left' ? 'start' : align === 'right' ? 'end' : 'middle';
         const tsp = lines.map((ln, i) => `<tspan x="${r1(x)}" y="${r1(y + lh * i + lh * 0.74)}">${tspanText(ln, px)}</tspan>`).join('');
-        return `<text text-anchor="${anchor}" font-family="${esc(ff.family)}" font-size="${r1(px)}" font-weight="${ff.w}"${ff.italic ? ' font-style="italic"' : ''}${tracking ? ` letter-spacing="${tracking}"` : ''} fill="${paint}"${ph ? ' opacity=".38"' : ''}>${tsp}</text>`;
+        return `<text text-anchor="${anchor}" font-family="${esc(ff.family)}" font-size="${r1(px)}" font-weight="${ff.w}"${ff.italic ? ' font-style="italic"' : ''}${tracking ? ` letter-spacing="${tracking}"` : ''} fill="${paint}"${ph ? D.phOp : ''}>${tsp}</text>`;
       },
     };
   }
@@ -289,7 +289,7 @@
     const drawRuns = (l, x, y) => {
       let s = '', cx = x;
       l.runs.forEach((r, i) => {
-        s += `<text x="${r1(cx)}" y="${r1(y)}" font-family="${esc(r.ff.family)}" font-size="${r1(r.px)}" font-weight="${r.ff.w}"${r.ff.italic ? ' font-style="italic"' : ''} fill="${r.paint}"${r.ph ? ' opacity=".38"' : ''}${r.init ? ' data-init="1"' : ''}>${esc(r.t)}</text>`;
+        s += `<text x="${r1(cx)}" y="${r1(y)}" font-family="${esc(r.ff.family)}" font-size="${r1(r.px)}" font-weight="${r.ff.w}"${r.ff.italic ? ' font-style="italic"' : ''} fill="${r.paint}"${r.ph ? D.phOp : ''}${r.init ? ' data-init="1"' : ''}>${esc(r.t)}</text>`;
         cx += r.w + (i === 0 ? l.kern : 0);
       });
       return s;
@@ -333,7 +333,7 @@
             const half = Math.min(D.safeW / 2, l.w * 0.62), pid = `${D.uid}-arc-${i}`;
             const d = `M${r1(cx - half * 1.3)} ${r1(y)} Q${r1(cx)} ${r1(up ? y - sag * 2 : y + sag * 1.4)} ${r1(cx + half * 1.3)} ${r1(y)}`;
             s += `<path id="${pid}" d="${d}" fill="none"/>`;
-            s += `<text font-family="${esc(l.runs[l.runs.length - 1].ff.family)}"><textPath href="#${pid}" startOffset="50%" text-anchor="middle">${l.runs.map((r) => `<tspan font-family="${esc(r.ff.family)}" font-size="${r1(r.px)}" font-weight="${r.ff.w}" fill="${r.paint}"${r.ph ? ' opacity=".38"' : ''}>${esc(r.t)}</tspan>`).join('')}</textPath></text>`;
+            s += `<text font-family="${esc(l.runs[l.runs.length - 1].ff.family)}"><textPath href="#${pid}" startOffset="50%" text-anchor="middle">${l.runs.map((r) => `<tspan font-family="${esc(r.ff.family)}" font-size="${r1(r.px)}" font-weight="${r.ff.w}" fill="${r.paint}"${r.ph ? D.phOp : ''}>${esc(r.t)}</tspan>`).join('')}</textPath></text>`;
           });
           return s;
         }
@@ -453,7 +453,7 @@
     const corners = cal.paper.corners && cal.paper.corners !== 'none';
     const D = {
       cal: { el: {}, removed: [], added: [], orn: {}, ...cal }, style, lang, W, H, uid: opts.uid || 'ixc' + Math.random().toString(36).slice(2, 7),
-      sheen: opts.print ? false : cal.sheen !== false, use: new Set(), warn: new Set(), fit: 1, bleed: opts.bleed || 0,
+      sheen: opts.print ? false : cal.sheen !== false, phOp: opts.placeholders === 'solid' ? '' : ' opacity=".75"', use: new Set(), warn: new Set(), fit: 1, bleed: opts.bleed || 0,
     };
     D.darkPaper = LIB().lum(cal.paper.color || LIB().PAPER[cal.paper.id].color) < 0.2;
     D.mx = corners ? 120 : 100; D.safeW = W - D.mx * 2;
