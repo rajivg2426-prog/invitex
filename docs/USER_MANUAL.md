@@ -88,6 +88,13 @@ Open the invitation's **RSVP dashboard** (from step 3, or **Guests** on the home
 - **Guests & reminders** tab: add guests one by one (name, WhatsApp number, how many people), paste a list, or tap **Upload Excel / CSV** (download the **Sample template** first). You see a preview before anything is added. Each guest gets a personal link that greets them by name. Tap **WhatsApp** next to a guest: WhatsApp opens with the message ready, and **you press Send**.
 - **Share** tab: one general link anyone can reply on. Pick the **message language** and **message style**. **Short, with card image** sends the card picture with one line and the RSVP link (on a phone, the share sheet sends both together; on a computer the image is saved and WhatsApp opens with the message ready). **Full details** sends the longer text. You can also download a **QR code**, a **1080×1350 image card** for WhatsApp status or Instagram, or **Print / Save as PDF**.
 
+**Starting sharing.** The first time you open the **Share** tab of an invitation you see **Start sharing**. Until you start, guests who open your link see "This invitation is not open yet". Everything before this (design, photos, preview, guest list, messages) is free.
+- If sharing is free right now, tap **Start sharing** and the sharing buttons appear.
+- If there is a price, the button says, for example, **Start sharing · Pay ₹20 by UPI**. Razorpay opens with UPI only: scan the QR code on a computer, or pick your UPI app on a phone. When the payment is confirmed, the Share tab shows **Paid ₹20** and the sharing buttons appear.
+- One payment covers **all your guests** for this invitation. Adding guests, resending and reminders in the same campaign are free.
+- If you close the payment window or UPI is slow, you see **Try again**, **I already paid** and **Not now**. You are never charged twice for one campaign; if it ever happens, the extra payment is refunded.
+- When you have finished, **Mark as done**. Links you sent keep working and guests can still reply. You can reopen a finished campaign for free.
+
 InviteX shows honest sharing status: on the list, WhatsApp or email opened by you, link opened, replied. It never claims a WhatsApp message was "delivered", because it cannot know that.
 
 ![Guests & reminders](screenshots/manual/06-guests.png)
@@ -141,7 +148,7 @@ Settings apply to every **new** invitation. Invitations you already made keep th
 | Account | Your name and WhatsApp number (used as the contact on new invitations), the data mode, and **Sign out** |
 | Language | Which languages new invitations use, and the main one |
 | WhatsApp | Default message style (short with card image, or full details) and language |
-| Plan | Free. There are no payments or billing in InviteX today |
+| Plan | How sharing is priced right now, your sharing campaigns, and your payments (with a TEST label for test payments) |
 
 ---
 
@@ -201,7 +208,7 @@ After this, you never need SQL for roles: make other people admin from the Admin
 
 ## 3.2 The Admin page
 
-The left menu has four screens. On a phone they appear as tabs across the top.
+The left menu has Users, Invitations, Usage analytics and Audit log, plus the money screens in 3.2b. On a phone they appear as tabs across the top.
 
 **Users** lists every account: email, when they joined and last signed in, how many invitations (and how many are live), replies received, and AI tries used out of their allowance. Search by email. Press **Manage** on an account to:
 
@@ -224,6 +231,18 @@ Both ask for a reason, which goes in the activity log.
 **Usage** shows totals (accounts, invitations, replies, people coming, AI designs with an estimated cost in rupees) and a week-by-week table for the last 8 weeks: new accounts, invitations made, published, replies and AI designs. It also lists the five accounts that used the most AI designs. The cost is an estimate (about ₹3.5 per Google image, ₹5 per OpenAI image); your Google or OpenAI bill is the real figure.
 
 **Activity log** records every change made on the Admin page: what was done, to whom, by which admin, when, and the reason or note. Filter by Accounts or Invitations. Nobody can edit or delete log entries from the app.
+
+## 3.2b Prices, free access and payments (Super Admin)
+
+The Admin page also has **Overview**, **Sharing campaigns**, **Pricing control**, **Free access**, **Payment transactions**, **Revenue reports** and **System settings**. Every admin can look at them. Only the **Super Admin** can change prices, free access or the payment mode, and only the Super Admin can make or remove admins.
+
+- **Pricing control**: turn charging on or off and set the price per sharing campaign (₹10 to ₹100, whole rupees; ₹20 suggested). A change applies to campaigns started after you save.
+- **Free access**: **Make all new sharing campaigns free, right now** for emergencies; free days for new users; a number of free first campaigns per person; timed **promotions** (they end by themselves, then the normal price is back); and free access for named people by email.
+- **Payment transactions**: every UPI payment with search, filters and **Download CSV**. Lines marked **Needs a look** are a wrong amount or a double payment to refund.
+- **Revenue reports**: money in, refunds and free campaigns per day (India time).
+- **System settings**: **test** or **live** payments. In test mode only admins pay, with test money.
+
+Setting up payments: [PAYMENTS_SETUP.md](PAYMENTS_SETUP.md). Taking real money: [PAYMENTS_GO_LIVE.md](PAYMENTS_GO_LIVE.md); nothing switches to real money without your typed approval there.
 
 ## 3.3 Still done in the Supabase dashboard
 

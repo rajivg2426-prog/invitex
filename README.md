@@ -38,8 +38,9 @@ Click **Load 4 sample invitations** (Himachali Dham, Wedding, Birthday, Corporat
 - **Guest reply (V2)**: one tap stays one tap (Yes / Not sure yet / Can't come). An optional *Add details* panel collects children, which events, food, other names, special needs and a message, and opens by itself when the guest changes an earlier reply. A floating *Reply* button on phones, and Save the date / Get directions right after a yes.
 - **Sharing centre (V2)**: honest sharing status (on the list, WhatsApp/email opened by you, link opened, replied, never "delivered"), message language with hand-written Hindi and Punjabi templates, guest list search and filters (not sent, sent, opened, replied).
 - **WhatsApp card message (V2)**: send the card image with a short line and the RSVP link ("You're warmly invited to celebrate with us. / Aarav & Diya · date / RSVP here: link"), in English, Hindi and Punjabi. On phones the share sheet sends the image and message together; on a computer the image is saved and WhatsApp opens with the message ready. A WhatsApp-style preview shows how it will look. "Full details" keeps the longer message.
-- **Settings (V2)**: four tabs. Account (your name and WhatsApp number as the contact on new invitations, data mode, backup, restore, delete), Language (languages and main language for new invitations), WhatsApp (message style and language), Plan (Free; no payments or billing). In Production mode preferences are saved on your sign-in account, so no database change is needed.
+- **Settings (V2)**: four tabs. Account (your name and WhatsApp number as the contact on new invitations, data mode, backup, restore, delete), Language (languages and main language for new invitations), WhatsApp (message style and language), Plan (pricing, your sharing campaigns and payments). In Production mode preferences are saved on your sign-in account, so no database change is needed.
 - **RSVP dashboard**: KPIs (confirmed attendees, adults, children, yes/no/maybe, pending, response and attendance rate, places left), a donut chart, event-wise attendance, food preferences, search and filter, editing responses, CSV/Excel export (UTF-8 with BOM so Hindi and Punjabi display correctly), print and a guest-list download.
+- **Paid sharing (V2.2)**: optional one-time UPI payment per sharing campaign through Razorpay Standard Checkout (₹10 to ₹100, set by the Super Admin), checked on the server and by webhook. Free access rules, promotions, an emergency free switch, and admin screens for campaigns, payments, revenue and CSV export. Test mode by default; real money needs the owner's approval ([setup](docs/PAYMENTS_SETUP.md), [go live](docs/PAYMENTS_GO_LIVE.md)).
 - **Sharing**: personalised WhatsApp click-to-chat links per guest, a general WhatsApp share, email, copy link, native share sheet, a QR code (PNG), a 1080×1350 image card and print/PDF. The app records "WhatsApp opened", never "delivered".
 - **Reminders** for pending guests (editable template), **check-in** by QR scan (where the browser supports `BarcodeDetector`) or by reference, **duplicate invitation**, **edit after publishing** (changes stay as a draft until you press *Update published invitation*), **expiry date**, **password protection**, **custom link name**, **delete invitation and all its data**, and JSON backup/restore in local mode.
 
@@ -66,7 +67,12 @@ js/samples.js         The 4 sample invitations
 js/vendor/qrcode.js   QR generator (qrcode-generator 1.4.4, MIT, Kazuhiko Arase)
 supabase/schema.sql   Tables, RLS policies, guest RPC API, storage bucket & policies
 supabase/admin.sql    Admin page: roles, admin-only functions, paused accounts, activity log
-js/admin.js           Admin page (#/admin): Users, Invitations, Usage, Activity log
+js/admin.js           Admin page (#/admin): Users, Invitations, Usage, Audit log
+js/admin-billing.js   Admin money screens: Overview, Campaigns, Pricing, Free access, Payments, Revenue, System
+js/campaign.js        Sharing campaign panel on the Share tab (start, pay by UPI, status)
+supabase/billing.sql  Paid sharing: prices, campaigns, orders, payments, refunds, free access, RLS
+supabase/functions/sharing-campaign/  Server step: Razorpay orders and payment checks
+supabase/functions/razorpay-webhook/  Server step: Razorpay webhook (signature checked)
 tests/e2e.js          Playwright end-to-end test of all 13 required journeys
 tests/copy-*.{mjs,js} Writing studio tests: built-in writer, AI server step, studio in the browser
 js/copy/              Writing studio: built-in writer (engine + EN/HI/PA phrase banks) and studio screen
@@ -81,3 +87,4 @@ docs/                 User manual, deployment guide, test report, screenshots
 - [Deployment & Supabase setup](docs/DEPLOYMENT.md)
 - [Test report](docs/TEST_REPORT.md), including known limitations
 - [Writing studio and AI writer setup](docs/COPY_STUDIO.md)
+- [Paid sharing setup (test mode)](docs/PAYMENTS_SETUP.md) and [going live](docs/PAYMENTS_GO_LIVE.md)
