@@ -1107,3 +1107,16 @@ main:has(.ax) { max-width: 1400px; }
 .ready-ok { margin: 0; padding: .6rem .8rem; border-radius: 10px; background: #e7f6ee; color: #0f5c39; font-weight: 600; }
 .steps .step-tab { white-space: nowrap; }
 @media (max-width: 560px) { .steps { overflow: visible; flex-wrap: nowrap; } .steps .step-tab { padding: .4rem .5rem; font-size: 12.5px; } .steps .step-tab:not(.on) .sl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } }
+
+/* ---------- AI design assistant ---------- */
+.ai-ask { display: grid; gap: .5rem; padding: .9rem; border-radius: 14px; background: var(--ivory); border: 1px solid var(--champagne); }
+.ai-ask .lbl { font-weight: 600; font-size: 13px; color: var(--ink2); }
+.ai-ask-row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.ai-ref { display: inline-flex; align-items: center; gap: .4rem; }
+.ai-ref img { width: 40px; height: 40px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }
+.ai-note { margin: 0; font-size: 13px; color: var(--ink2); background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: .5rem .7rem; }
+.ai-two { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+@media (max-width: 480px) { .ai-two { grid-template-columns: 1fr; } }
+.ai-match { display: grid; gap: .4rem; }
+.ai-refine { display: grid; gap: .35rem; padding: .8rem; border-radius: 12px; border: 1px dashed var(--champagne2); }
+.ai-refine .describe-row input { flex: 1; min-width: 0; }

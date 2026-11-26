@@ -137,6 +137,38 @@ const saved = (p) => p.evaluate(async () => { const id = location.hash.split('/'
   await p.goto(BASE + 'index.html#/'); await p.waitForTimeout(500);
   await p.goto(BASE + 'index.html#/edit/' + idNow + '/share'); await p.waitForSelector('#slug');
   ok('Share links from home and dashboard open step 5', (await p.getAttribute('.step-tab.on', 'data-step')) === '5');
+  /* ---------- AI design assistant ---------- */
+  await p.goto(BASE + 'index.html#/new/wedding'); await p.waitForSelector('#designCard'); await p.waitForTimeout(600);
+  await p.click('[data-way=ai]'); await p.waitForSelector('#aiDesc');
+  ok('AI assistant works in demo mode: describe box, occasion, language, and an honest note', (await p.locator('#aiOcc').count()) === 1 && (await p.locator('#aiLang').count()) === 1 && /online version/.test(await p.innerText('#aiCard')));
+  await p.fill('#aiDesc', 'Create a royal Indian wedding invitation with a burgundy background, antique gold calligraphy and two golden horses');
+  await p.click('#aiUnderstand'); await p.waitForTimeout(200);
+  ok('words fill the choices: Royal style, maroon & gold', (await p.getAttribute('.ai-style.on', 'data-ai-style')) === 'royal' && (await p.getAttribute('.ai-color.on', 'data-ai-color')) === 'maroon-gold' && /Got it/.test(await p.innerText('.ai-note')));
+  ok('words go to the painter, including the horses', /horses/.test(await p.inputValue('#aiWords')));
+  ok('matching ready designs are offered too', (await p.locator('[data-ai-ready]').count()) >= 1);
+  // inspiration photo: a pink picture → pink & peach
+  const pink = await p.evaluate(() => { const c = document.createElement('canvas'); c.width = c.height = 80; const x = c.getContext('2d'); x.fillStyle = '#f4b6c2'; x.fillRect(0, 0, 80, 80); x.fillStyle = '#ffd3b0'; x.fillRect(40, 0, 40, 80); return c.toDataURL('image/png').split(',')[1]; });
+  await p.setInputFiles('#aiRef', { name: 'idea.png', mimeType: 'image/png', buffer: Buffer.from(pink, 'base64') }); await p.waitForTimeout(500);
+  ok('inspiration photo sets the colours (pink & peach) and stays on the device', (await p.getAttribute('.ai-color.on', 'data-ai-color')) === 'pink-peach' && (await p.locator('.ai-ref img').getAttribute('src')).startsWith('blob:'));
+  await p.selectOption('#aiLang', 'hi'); await p.waitForTimeout(1200);
+  const lang = await p.evaluate(async () => { const i = await H.store.getInvitation(location.hash.split('/')[2]); return [i.defaultLang, i.languages.join(',')]; });
+  ok('card language choice adds Hindi and makes it the main language', lang[0] === 'hi' && lang[1].includes('hi'), lang.join(' / '));
+  // fake painter to test paint, refine and regenerate
+  await p.evaluate(() => {
+    const art = (i) => { const c = document.createElement('canvas'); c.width = 60; c.height = 80; const x = c.getContext('2d'); x.fillStyle = ['#fde2e4', '#fff1d6', '#e2f0e8', '#f1e4f7'][i]; x.fillRect(0, 0, 60, 80); return c.toDataURL('image/png'); };
+    window.__calls = []; let left = 3;
+    Object.defineProperty(H.store, 'aiAvailable', { value: true, configurable: true });
+    H.store.aiCredits = async () => ({ left }); H.store.aiRecent = async () => [];
+    H.store.aiGenerate = async (o) => { window.__calls.push(o); left--; return { images: [0, 1, 2, 3].map(art), left }; };
+  });
+  await p.click('[data-way=ready]'); await p.click('[data-way=ai]'); await p.waitForSelector('#aiGo');
+  await p.click('#aiGo'); await p.waitForSelector('#aiRefine');
+  ok('paints 4 concepts and offers refine', (await p.locator('[data-ai-use]').count()) === 4);
+  await p.fill('#aiRefine', 'more pastel, add lotus flowers'); await p.click('#aiRefineGo'); await p.waitForTimeout(500);
+  const calls = await p.evaluate(() => window.__calls);
+  ok('refine repaints with the change added', calls.length === 2 && /lotus/.test(calls[1].words) && calls[1].colors === 'pink-peach' && calls[1].category === 'wedding', JSON.stringify(calls[1]));
+  await p.selectOption('#aiOcc', 'birthday'); await p.waitForTimeout(100);
+  ok('occasion choice changes the suggested style', /Suggested/.test(await p.innerText('[data-ai-style=birthday]')));
   /* ---------- phone ---------- */
   for (const [name, dev] of [['phone', devices['iPhone 13']], ['tablet', { viewport: { width: 820, height: 1180 } }]]) {
     const c2 = await b.newContext(dev); await c2.route(/js\/config\.js/, stub);

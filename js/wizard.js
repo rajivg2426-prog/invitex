@@ -488,6 +488,7 @@
       const c = IXT.CATEGORIES.find((x) => x.id === b.dataset.cat);
       inv.category = c.id;
       W.galTab = IXGallery.TAB_FOR_CAT[c.id] || 'all';
+      if (W.ai) { W.ai.cat = c.id; if (!W.ai.styleSetByUser) W.ai.style = null; }
       const untouched = inv.events.every((e) => !e.date && !e.venue);
       if (untouched) inv.events = [M.newEvent(c.main || c.events[0])];
       // fresh wording for the new event type, unless the host has written their own
@@ -689,18 +690,50 @@
   const AI_FOR_CAT = { wedding: 'royal', engagement: 'floral', birthday: 'birthday', anniversary: 'minimal', housewarming: 'pichwai', religious: 'temple', festival: 'mehndi', corporate: 'corporate', conference: 'corporate', launch: 'corporate', school: 'floral', farewell: 'minimal', community: 'floral', custom: 'floral' };
   const grad = (g) => (g.startsWith('conic') ? g : `linear-gradient(135deg,${g})`);
 
+  /* AI design assistant: describe the idea (or add an inspiration photo), pick occasion,
+   * style, colours and card language, paint 4 designs, then refine and repaint.
+   * The photo is only read in this browser for its colours; it is never uploaded. */
+  const LANG_NAMES = { en: 'English', hi: 'हिन्दी (Hindi)', pa: 'ਪੰਜਾਬੀ (Punjabi)' };
+  function setCardLang(l) {
+    const inv = W.inv;
+    if (!inv.languages.includes(l)) {
+      inv.languages.push(l);
+      inv.text[l] = Object.assign({}, inv.text[inv.defaultLang] || inv.text.en);
+      if (window.IXStudio) { try { IXStudio.fillDefault(inv, l); } catch (e) { /* keep the copied text */ } }
+    }
+    inv.defaultLang = l; W.lang = l; W.pvLang = l;
+    changed();
+  }
+  // The AI colour set closest to a photo's main colours.
+  async function coloursFromPhoto(file) {
+    const u = URL.createObjectURL(file);
+    try {
+      const img = await IX.loadImage(u);
+      const c = document.createElement('canvas'); c.width = c.height = 40;
+      const x = c.getContext('2d'); x.drawImage(img, 0, 0, 40, 40);
+      const d = x.getImageData(0, 0, 40, 40).data;
+      const px = []; for (let i = 0; i < d.length; i += 4) px.push([d[i], d[i + 1], d[i + 2]]);
+      const sat = (q) => Math.max(...q) - Math.min(...q);
+      const lum = (q) => (0.2126 * q[0] + 0.7152 * q[1] + 0.0722 * q[2]) / 255;
+      const avg = (list) => list.reduce((a, q) => [a[0] + q[0], a[1] + q[1], a[2] + q[2]], [0, 0, 0]).map((v) => v / Math.max(1, list.length));
+      const vivid = px.slice().sort((a, b) => sat(b) - sat(a)).slice(0, 320), main = avg(vivid), all = avg(px);
+      const hx = (h) => { const n = parseInt(h.replace('#', ''), 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
+      const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+      let best = 'auto', bd = Infinity;
+      AI_COLORS.filter(([id]) => id !== 'auto').forEach(([id, , g]) => { const [a, b] = g.split(',').map(hx); const v = Math.min(dist(main, a), dist(main, b)) + 0.5 * Math.min(dist(all, a), dist(all, b)); if (v < bd) { bd = v; best = id; } });
+      return { colors: best, light: lum(all) > 0.6, url: u };
+    } catch (e) { URL.revokeObjectURL(u); throw e; }
+  }
   function renderAi(stepBody) {
     const el = stepBody.querySelector('#aiCard');
     if (!el) return;
     const inv = W.inv, store = H.store;
     const A = (W.ai = W.ai || { style: null, colors: 'auto', words: '', busy: false, results: [], recent: null, credits: null, error: '', picking: '' });
-    const style = A.style || AI_FOR_CAT[inv.category] || 'royal';
-    if (!store.aiAvailable) {
-      el.innerHTML = `<h3 style="margin:0">✨ Let AI paint your card</h3><p class="small muted" style="margin:0">AI designs work in the online version once you are signed in. In this demo copy, choose “Ready designs” or “Your own design” above.</p>`;
-      return;
-    }
-    if (A.credits === null) { A.credits = false; store.aiCredits().then((c) => { A.credits = c; renderAi(stepBody); }).catch(() => { A.credits = { left: null }; renderAi(stepBody); }); }
-    if (A.recent === null) { A.recent = []; store.aiRecent().then((r) => { A.recent = r; renderAi(stepBody); }).catch(() => {}); }
+    if (A.desc === undefined) Object.assign(A, { desc: '', cat: inv.category, refUrl: '', note: '', refine: '' });
+    const style = A.style || AI_FOR_CAT[A.cat] || 'royal';
+    const can = !!store.aiAvailable;
+    if (can && A.credits === null) { A.credits = false; store.aiCredits().then((c) => { A.credits = c; renderAi(stepBody); }).catch(() => { A.credits = { left: null }; renderAi(stepBody); }); }
+    if (can && A.recent === null) { A.recent = []; store.aiRecent().then((r) => { A.recent = r; renderAi(stepBody); }).catch(() => {}); }
     const c = A.credits || {};
     const left = c.left;
     const none = left === 0;
@@ -708,30 +741,81 @@
         <span class="ai-img" style="background-image:url('${esc(u)}')"></span>
         <span class="ai-use">${A.picking === u ? 'Applying…' : inv.design.aiArt === u ? '✓ On your card' : 'Use this design'}</span></button>`;
     const older = (A.recent || []).filter((u) => !A.results.includes(u));
+    const matches = A.desc.trim() ? IXGallery.suggest(A.desc, A.cat) : null;
     el.innerHTML = `
-      <div class="row between"><h3 style="margin:0">✨ Let AI paint your card</h3>
-        <span class="pill ai-left" id="aiLeft">${left == null ? '' : none ? 'No free tries left' : `${left} free ${left === 1 ? 'try' : 'tries'} left`}</span></div>
-      <p class="small muted" style="margin:0">Choose a style and colours. AI paints 4 new background designs just for you, and your names and details are placed on top.</p>
+      <div class="row between"><h3 style="margin:0">✨ AI design assistant</h3>
+        <span class="pill ai-left" id="aiLeft">${!can || left == null ? '' : none ? 'No free tries left' : `${left} free ${left === 1 ? 'try' : 'tries'} left`}</span></div>
+      <p class="small muted" style="margin:0">Describe your idea or add an inspiration photo. AI paints 4 new background designs just for you, and your names and details are placed on top.</p>
+      <div class="ai-ask">
+        <label class="lbl" for="aiDesc">Describe the card you want</label>
+        <textarea class="input" id="aiDesc" rows="3" maxlength="300" placeholder="e.g. A royal Indian wedding invitation with a burgundy background, antique gold details and two golden horses">${esc(A.desc)}</textarea>
+        <div class="ai-ask-row">
+          <button type="button" class="btn sm primary" id="aiUnderstand">Fill the choices from my words</button>
+          <label class="btn sm ghost">📷 ${A.refUrl ? 'Change' : 'Add'} inspiration photo<input type="file" hidden accept="image/*" id="aiRef"></label>
+          ${A.refUrl ? `<span class="ai-ref"><img src="${esc(A.refUrl)}" alt="Your inspiration photo"><button type="button" class="linkbtn" id="aiRefDel">Remove</button></span>` : ''}
+        </div>
+        ${A.note ? `<p class="ai-note" role="status">${A.note}</p>` : '<p class="tiny muted" style="margin:0">Your photo stays on your device. Only its colours are used.</p>'}
+      </div>
+      <div class="ai-two">
+        <label class="field"><span class="lbl">Occasion</span><select class="input" id="aiOcc">${IXT.CATEGORIES.map((x) => `<option value="${x.id}" ${x.id === A.cat ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>
+        <label class="field"><span class="lbl">Card language</span><select class="input" id="aiLang">${Object.entries(LANG_NAMES).map(([l, n]) => `<option value="${l}" ${l === inv.defaultLang ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+      </div>
       <div class="field"><span class="lbl">Style</span>
-        <div class="ai-styles" role="radiogroup" aria-label="AI design style">${AI_STYLES.map((s) => `<button type="button" role="radio" aria-checked="${s.id === style}" class="ai-style ${s.id === style ? 'on' : ''}" data-ai-style="${s.id}">
-          <span class="ai-sw" style="background:${grad(s.g)}" aria-hidden="true">${s.icon}</span><b>${esc(s.name)}${s.id === AI_FOR_CAT[inv.category] ? ' <small>Suggested</small>' : ''}</b><small>${esc(s.hint)}</small></button>`).join('')}</div></div>
+        <div class="ai-styles" role="radiogroup" aria-label="AI design style">${AI_STYLES.map((st) => `<button type="button" role="radio" aria-checked="${st.id === style}" class="ai-style ${st.id === style ? 'on' : ''}" data-ai-style="${st.id}">
+          <span class="ai-sw" style="background:${grad(st.g)}" aria-hidden="true">${st.icon}</span><b>${esc(st.name)}${st.id === AI_FOR_CAT[A.cat] ? ' <small>Suggested</small>' : ''}</b><small>${esc(st.hint)}</small></button>`).join('')}</div></div>
       <div class="field"><span class="lbl">Colours</span>
         <div class="ai-colors" role="radiogroup" aria-label="AI design colours">${AI_COLORS.map(([id, name, g]) => `<button type="button" role="radio" aria-checked="${id === A.colors}" class="ai-color ${id === A.colors ? 'on' : ''}" data-ai-color="${id}"><i style="background:${grad(g)}"></i>${esc(name)}</button>`).join('')}</div></div>
       <label class="field"><span class="lbl">Anything special? <span class="tiny muted">(optional, a few words)</span></span>
         <input class="input" id="aiWords" maxlength="120" placeholder="e.g. elephants and lotus flowers, Ganesha motif, mountains" value="${esc(A.words)}"></label>
-      <div class="row"><button class="btn primary" id="aiGo" ${A.busy || none ? 'disabled' : ''}>${A.busy ? 'Painting…' : A.results.length ? '✨ Paint 4 more designs' : '✨ Paint 4 designs'}</button>
-        <span class="tiny muted">${none ? 'You have used your free AI tries. You can still choose “Ready designs” or “Your own design” above.' : 'Each try paints 4 designs and takes about half a minute.'}</span></div>
+      ${can ? `<div class="row"><button class="btn primary" id="aiGo" ${A.busy || none ? 'disabled' : ''}>${A.busy ? 'Painting…' : A.results.length ? '✨ Paint 4 more designs' : '✨ Paint 4 designs'}</button>
+        <span class="tiny muted">${none ? 'You have used your free AI tries. You can still choose “Ready designs” or “Your own design” above.' : 'Each try paints 4 designs and takes about half a minute.'}</span></div>`
+        : '<p class="notice small" style="margin:0">Painting new designs with AI works in the online version once you are signed in. In this demo copy you can still use your words to find matching ready designs below.</p>'}
+      ${matches && matches.understood ? `<div class="ai-match"><span class="lbl">Ready designs that match your words</span><div class="describe-picks">${matches.designs.map((d) => { const t = IXT.THEMES[d.theme], pl = t.palettes[d.palette] || t.palettes[0]; return `<button type="button" class="describe-pick" data-ai-ready="${d.theme}" data-pal="${d.palette}"><i style="background:linear-gradient(135deg,${pl.bg} 50%,${pl.accent} 50%)"></i><span><b>${esc(t.name.replace(' (blank)', ''))}</b><small>${esc(pl.name)}</small></span></button>`; }).join('')}</div></div>` : ''}
       ${A.error ? `<p class="notice warn" role="alert" style="margin:0">${esc(A.error)}</p>` : ''}
       ${A.busy ? `<div class="ai-grid" aria-live="polite" aria-busy="true">${'<div class="ai-pick ai-wait"><span class="ai-img"></span></div>'.repeat(4)}</div><p class="small muted" style="margin:0;text-align:center">🎨 Painting your designs… please keep this page open.</p>` : ''}
-      ${A.results.length && !A.busy ? `<div class="field"><span class="lbl">Tap a design to put it on your card</span><div class="ai-grid">${A.results.map(thumb).join('')}</div></div>` : ''}
+      ${A.results.length && !A.busy ? `<div class="field"><span class="lbl">Tap a design to put it on your card</span><div class="ai-grid">${A.results.map(thumb).join('')}</div></div>
+        <div class="ai-refine"><label class="lbl" for="aiRefine">Not quite right? Tell AI what to change</label>
+          <div class="describe-row"><input class="input" id="aiRefine" maxlength="100" placeholder="e.g. more pastel, add lotus flowers, less gold" value="${esc(A.refine)}"><button type="button" class="btn" id="aiRefineGo" ${none ? 'disabled' : ''}>✨ Repaint with changes</button></div></div>` : ''}
       ${older.length ? `<details class="ai-older" ${A.results.length ? '' : 'open'}><summary class="small">Your earlier AI designs (${older.length})</summary><div class="ai-grid">${older.map(thumb).join('')}</div></details>` : ''}`;
-    el.querySelectorAll('[data-ai-style]').forEach((b) => (b.onclick = () => { A.style = b.dataset.aiStyle; renderAi(stepBody); }));
-    el.querySelectorAll('[data-ai-color]').forEach((b) => (b.onclick = () => { A.colors = b.dataset.aiColor; renderAi(stepBody); }));
-    el.querySelector('#aiWords').oninput = (e) => (A.words = e.target.value);
-    el.querySelector('#aiGo').onclick = async () => {
-      A.busy = true; A.error = ''; A.style = style; renderAi(stepBody);
+    const $ = (q) => el.querySelector(q);
+    $('#aiDesc').oninput = (e) => (A.desc = e.target.value);
+    $('#aiUnderstand').onclick = () => {
+      A.desc = $('#aiDesc').value;
+      if (!A.desc.trim()) { $('#aiDesc').focus(); A.note = 'Write a few words first, for example “pastel floral with lotus flowers”.'; return renderAi(stepBody); }
+      const r = IXGallery.suggest(A.desc, A.cat);
+      if (r.aiStyle) A.style = r.aiStyle;
+      if (r.aiColors && r.aiColors !== 'auto') A.colors = r.aiColors;
+      A.words = r.words.slice(0, 120);
+      const sn = (AI_STYLES.find((x) => x.id === (A.style || style)) || {}).name, cn = ((AI_COLORS.find(([id]) => id === A.colors) || [])[1] || '');
+      A.note = r.understood ? `Got it: <b>${esc(sn)}</b> style with <b>${esc(cn.toLowerCase())}</b>. Your words are added below. Change anything you like.` : 'I could not pick a style from those words, so I kept your choices. Your words are added below.';
+      renderAi(stepBody);
+    };
+    $('#aiRef').onchange = async (e) => {
+      const f = e.target.files[0]; if (!f) return;
       try {
-        const r = await store.aiGenerate({ style, colors: A.colors, category: inv.category, words: A.words });
+        const r = await coloursFromPhoto(f);
+        if (A.refUrl) URL.revokeObjectURL(A.refUrl);
+        A.refUrl = r.url; A.colors = r.colors;
+        A.note = `From your photo: <b>${esc(((AI_COLORS.find(([id]) => id === r.colors) || [])[1] || '').toLowerCase())}</b> colours${r.light ? ', light and airy' : ', rich and deep'}. Add words above for the style.`;
+      } catch (err) { A.note = 'Could not read that photo. Please try a JPG or PNG.'; }
+      renderAi(stepBody);
+    };
+    const rd = $('#aiRefDel'); if (rd) rd.onclick = () => { URL.revokeObjectURL(A.refUrl); A.refUrl = ''; A.note = ''; renderAi(stepBody); };
+    $('#aiOcc').onchange = (e) => { A.cat = e.target.value; if (!A.styleSetByUser) A.style = null; renderAi(stepBody); };
+    $('#aiLang').onchange = (e) => { setCardLang(e.target.value); IX.toast(`Card language: ${LANG_NAMES[e.target.value]}. Your words can be changed in step 2.`, 'ok'); };
+    el.querySelectorAll('[data-ai-style]').forEach((b) => (b.onclick = () => { A.style = b.dataset.aiStyle; A.styleSetByUser = true; renderAi(stepBody); }));
+    el.querySelectorAll('[data-ai-color]').forEach((b) => (b.onclick = () => { A.colors = b.dataset.aiColor; renderAi(stepBody); }));
+    $('#aiWords').oninput = (e) => (A.words = e.target.value);
+    el.querySelectorAll('[data-ai-ready]').forEach((b) => (b.onclick = () => {
+      if (calligOn(inv)) inv.calligraphy.active = false;
+      if (inv.media.background) removePicture();
+      setTheme(b.dataset.aiReady); inv.paletteIndex = +b.dataset.pal; W.way = 'ready';
+      changed(); step1(stepBody); IX.toast(`“${IXT.THEMES[b.dataset.aiReady].name}” is on your card.`, 'ok');
+    }));
+    const paint = async () => {
+      A.busy = true; A.error = ''; A.style = A.style || style; renderAi(stepBody);
+      try {
+        const r = await store.aiGenerate({ style: A.style, colors: A.colors, category: A.cat, words: A.words });
         A.results = r.images || [];
         A.credits = { ...c, used: r.used, limit: r.limit, left: r.left };
       } catch (e) {
@@ -741,6 +825,22 @@
       A.busy = false;
       if (W.step === 1) renderAi(stepBody);
     };
+    if ($('#aiGo')) $('#aiGo').onclick = paint;
+    const rg = $('#aiRefineGo');
+    if (rg) {
+      $('#aiRefine').oninput = (e) => (A.refine = e.target.value);
+      $('#aiRefine').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); rg.click(); } };
+      rg.onclick = () => {
+        const t = $('#aiRefine').value.trim();
+        if (!t) return $('#aiRefine').focus();
+        const r = IXGallery.suggest(t, A.cat);
+        if (r.aiColors && r.aiColors !== 'auto') A.colors = r.aiColors;
+        if (r.aiStyle && r.understood && /style|royal|floral|temple|minimal|mehndi|pichwai|birthday|corporate/i.test(t)) A.style = r.aiStyle;
+        A.words = [t, A.words].filter(Boolean).join(', ').slice(0, 120);
+        A.refine = '';
+        paint();
+      };
+    }
     el.querySelectorAll('[data-ai-use]').forEach((b) => (b.onclick = () => useAiArt(b.dataset.aiUse, stepBody)));
   }
 
