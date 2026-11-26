@@ -35,7 +35,7 @@
     const inv = await H.store.getInvitation(id);
     if (!inv) { H.render('<div class="card"><h2>Invitation not found</h2><a class="btn" href="#/">Back</a></div>'); return; }
     normalise(inv);
-    W = { inv, step: IX.clamp(IX.int(step, 1), 1, NSTEPS), lang: inv.defaultLang, pv: 'mobile', pvLang: null, saving: false, ready: false };
+    W = { inv, step: IX.clamp(IX.int(step, 1), 1, NSTEPS), lang: inv.defaultLang, pv: 'mobile', pvLang: null, saving: false, ready: false, pvOpener: false, pvZoom: 1, pvPage: 'cover' };
     H.render(`
       <div class="wiz-head">
         <div><h1 id="wTitle">${esc(H.title(inv))}</h1><span class="save-state" id="saveState" aria-live="polite">All changes saved</span></div>
@@ -47,25 +47,32 @@
           <nav class="steps" aria-label="Steps">${STEPS.map((s, i) => `<button type="button" class="step-tab" data-step="${i + 1}"><span class="n">${i + 1}</span>${esc(s)}</button>`).join('')}</nav>
           <div id="stepBody"></div>
           <div class="wiz-foot no-print">
-            <button class="btn" id="prevBtn">← Back</button>
-            <button class="btn ghost" id="draftBtn">💾 Save draft</button>
+            <button class="btn" id="prevBtn" aria-label="Back">←<span class="lbl-long"> Back</span></button>
+            <button class="btn ghost" id="draftBtn" aria-label="Save draft">💾<span class="lbl-long"> Save draft</span></button>
+            <button class="btn foot-pv" id="fabPv" aria-label="Preview your card">👁<span class="lbl-long"> Preview</span></button>
             <button class="btn primary" id="nextBtn">Next →</button>
           </div>
         </div>
         <aside class="wiz-preview" id="pvPane" aria-label="Live preview">
-          <div class="pv-tools"><div class="seg" role="group" aria-label="Preview size"><button type="button" data-pv="mobile" class="on">📱 Mobile</button><button type="button" data-pv="desktop">🖥 Desktop</button></div>
-            <button class="btn sm ghost" id="replayOpen" title="Show the opening animation again">↺ Opening</button></div>
+          <div class="pv-tools"><div class="seg" role="group" aria-label="Preview size"><button type="button" data-pv="mobile" class="on" aria-pressed="true">📱 Mobile</button><button type="button" data-pv="desktop" aria-pressed="false">🖥 Desktop</button></div>
+            <div class="pv-acts"><div class="pv-zoom" role="group" aria-label="Zoom"><button type="button" class="btn sm ghost iconbtn" data-zoom="-1" aria-label="Zoom out" title="Zoom out">−</button><span id="pvZoomVal" aria-live="polite">100%</span><button type="button" class="btn sm ghost iconbtn" data-zoom="1" aria-label="Zoom in" title="Zoom in">+</button></div>
+              <button type="button" class="btn sm ghost iconbtn" id="pvFull" title="Full-screen preview" aria-label="Full-screen preview">⤢</button></div></div>
+          <div class="pv-pages" role="group" aria-label="Preview page"><button type="button" class="pv-arrow" data-pg-step="-1" aria-label="Previous page">‹</button>${PV_PAGES.map(([id, l]) => `<button type="button" class="pv-page" data-pg="${id}" aria-pressed="false">${l}</button>`).join('')}<button type="button" class="pv-arrow" data-pg-step="1" aria-label="Next page">›</button></div>
           <div class="pv-frame" id="pvFrame"><iframe id="pvIframe" title="Live preview of the invitation" src="invite.html?preview=1"></iframe></div>
-          <p class="tiny muted" style="text-align:center;margin-top:.5rem">Live preview · RSVP is disabled here</p>
+          <div class="pv-note"><span id="pvSample" class="pv-sample" hidden>Sample names and dates are shown until you add yours.</span>
+            <span class="tiny muted">Live preview · RSVP is disabled here · <button type="button" class="linkbtn" id="replayOpen" title="Show the opening animation guests see first">▶ Play opening</button></span></div>
           <button class="btn pv-close" id="pvClose">✕ Close preview</button>
         </aside>
       </div>
-      <button class="btn primary fab-preview" id="fabPv">👁 Preview</button>`);
+      `);
     const iframe = document.getElementById('pvIframe');
     const onMsg = (e) => {
       if (e.origin !== location.origin) return;
       if (e.data?.type === 'ix-preview-ready') { W.ready = true; pushPreview(); }
       if (e.data?.type === 'ix-preview-lang') W.pvLang = e.data.lang;
+      if (e.data?.type === 'ix-preview-opened') W.pvOpener = false;
+      if (e.data?.type === 'ix-preview-page') pvMarkPage(PV_PAGES.find((p) => p[2].includes(e.data.id))?.[0] || W.pvPage);
+      if (e.data?.type === 'ix-preview-goto-done' && !e.data.found) IX.toast('That page is turned off on this card. You can turn it on in step 2.');
       // typing directly on the card in the preview
       if (e.data?.type === 'ix-edit') {
         const { key, lang, value } = e.data;
@@ -74,6 +81,7 @@
         const f = document.getElementById('tf-' + key);
         if (f && W.lang === lang && document.activeElement !== f) f.value = value;
         changed(true, false);
+        if (key === 'title' && value.trim()) { const n = document.getElementById('pvSample'); if (n) n.hidden = true; }
       }
       if (e.data?.type === 'ix-edit-focus') focusField(e.data.key, e.data.lang, e.data.inline);
     };
@@ -100,10 +108,28 @@
       v.querySelectorAll('[data-pv]').forEach((x) => x.classList.toggle('on', x === b));
       document.getElementById('pvFrame').classList.toggle('desktop', W.pv === 'desktop');
     }));
-    v.querySelector('#replayOpen').onclick = () => pushPreview(false);
-    v.querySelector('#fabPv').onclick = () => document.getElementById('pvPane').classList.add('open');
-    v.querySelector('#pvClose').onclick = () => document.getElementById('pvPane').classList.remove('open');
-    iframe.addEventListener('load', () => setTimeout(pushPreview, 50));
+    v.querySelector('#replayOpen').onclick = () => { W.pvOpener = true; pvMarkPage('cover'); pushPreview(); };
+    const pane = v.querySelector('#pvPane');
+    const pvOpen = (full) => { pane.classList.add('open'); pane.classList.toggle('full', !!full); pane.setAttribute('role', 'dialog'); pane.setAttribute('aria-modal', 'true'); document.body.classList.add('pv-locked'); pane.querySelector('#pvClose').focus(); };
+    const pvClose = () => { if (!pane.classList.contains('open')) return; pane.classList.remove('open', 'full'); pane.removeAttribute('role'); pane.removeAttribute('aria-modal'); document.body.classList.remove('pv-locked'); };
+    v.querySelector('#fabPv').onclick = () => pvOpen(false);
+    v.querySelector('#pvFull').onclick = () => (pane.classList.contains('open') ? pvClose() : pvOpen(true));
+    v.querySelector('#pvClose').onclick = pvClose;
+    const onEsc = (e) => { if (e.key === 'Escape') pvClose(); };
+    document.addEventListener('keydown', onEsc);
+    H.cleanup.push(() => { document.removeEventListener('keydown', onEsc); document.body.classList.remove('pv-locked'); });
+    v.querySelectorAll('[data-zoom]').forEach((b) => (b.onclick = () => {
+      W.pvZoom = Math.round(IX.clamp(W.pvZoom + 0.1 * +b.dataset.zoom, 0.6, 1.4) * 10) / 10;
+      v.querySelector('#pvZoomVal').textContent = Math.round(W.pvZoom * 100) + '%';
+      pvPost({ type: 'ix-preview-zoom', zoom: W.pvZoom });
+    }));
+    v.querySelectorAll('[data-pg]').forEach((b) => (b.onclick = () => pvGoto(b.dataset.pg)));
+    v.querySelectorAll('[data-pg-step]').forEach((b) => (b.onclick = () => {
+      const i = PV_PAGES.findIndex((p) => p[0] === W.pvPage);
+      pvGoto(PV_PAGES[IX.clamp(i + +b.dataset.pgStep, 0, PV_PAGES.length - 1)][0]);
+    }));
+    pvMarkPage('cover');
+    iframe.addEventListener('load', () => setTimeout(() => { pushPreview(); if (W.pvZoom !== 1) pvPost({ type: 'ix-preview-zoom', zoom: W.pvZoom }); }, 50));
     goStep(W.step);
   };
 
@@ -122,15 +148,75 @@
   }
 
   /* ---------- saving & preview ---------- */
-  const pushPreview = (opened) => {
+  /* The preview's pages: Cover, Invitation, Events, RSVP. Each jumps to the first of its sections that is on the card. */
+  const PV_PAGES = [
+    ['cover', 'Cover', ['opening']],
+    ['invite', 'Invitation', ['welcome', 'hosts', 'message']],
+    ['events', 'Events', ['schedule', 'countdown', 'venue', 'highlights']],
+    ['rsvp', 'RSVP', ['rsvp', 'instructions', 'thankyou']],
+  ];
+  const pvPost = (msg) => { const f = document.getElementById('pvIframe'); if (f && f.contentWindow) f.contentWindow.postMessage(msg, location.origin); };
+  function pvMarkPage(id) {
+    W.pvPage = id;
+    document.querySelectorAll('[data-pg]').forEach((b) => { const on = b.dataset.pg === id; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+    const i = PV_PAGES.findIndex((p) => p[0] === id);
+    const [pr, nx] = document.querySelectorAll('[data-pg-step]');
+    if (pr) pr.disabled = i <= 0;
+    if (nx) nx.disabled = i >= PV_PAGES.length - 1;
+  }
+  function pvGoto(id) {
+    const p = PV_PAGES.find((x) => x[0] === id); if (!p) return;
+    if (W.pvOpener) { W.pvOpener = false; pushPreview(); }
+    pvMarkPage(id);
+    setTimeout(() => pvPost({ type: 'ix-preview-goto', ids: p[2] }), W.pvOpener ? 120 : 0);
+  }
+  /* Before the host has typed their own details, the preview shows realistic sample ones
+   * (only in the preview copy, never saved), so they can see the finished card straight away. */
+  const SAMPLE_DETAILS = {
+    wedding: { host: 'The Sharma & Kapoor families', venue: 'The Leela Palace', city: 'Udaipur' },
+    engagement: { host: 'The Mehta & Rao families', venue: 'Taj Lands End', city: 'Mumbai' },
+    birthday: { host: 'Neha & Arjun', venue: 'Fun Zone Party Hall', city: 'Pune' },
+    anniversary: { host: 'Their children & grandchildren', venue: 'The Oberoi', city: 'New Delhi' },
+    housewarming: { host: 'The Verma family', venue: 'Our new home, Sector 21', city: 'Chandigarh' },
+    religious: { host: 'The Iyer family', venue: 'Shri Ram Mandir Hall', city: 'Bengaluru' },
+    festival: { host: 'The Thakur family', venue: 'Community Hall', city: 'Mandi' },
+    corporate: { host: 'Acme India Pvt Ltd', venue: 'Conference Room 3, Tower B', city: 'Gurugram' },
+    conference: { host: 'InnovateX', venue: 'Jio World Convention Centre', city: 'Mumbai' },
+    launch: { host: 'Acme India', venue: 'The Grand Ballroom', city: 'Bengaluru' },
+    school: { host: 'Springfield Public School', venue: 'School Auditorium', city: 'Jaipur' },
+    farewell: { host: 'Your colleagues', venue: 'The Clubhouse', city: 'Hyderabad' },
+    community: { host: 'Green Park Residents Association', venue: 'Society Clubhouse', city: 'Noida' },
+    custom: { host: 'Your hosts', venue: 'The Venue', city: 'Your city' },
+  };
+  function withSamples(inv, lang) {
+    const t = inv.text[lang] || (inv.text[lang] = {});
+    const keys = [];
+    if (!(inv.calligraphy && inv.calligraphy.active !== false) && !String(t.title || '').trim()) {
+      const d = SAMPLE_DETAILS[inv.category] || SAMPLE_DETAILS.custom;
+      t.title = SAMPLE_NAME[inv.category] || 'You are invited'; keys.push('title');
+      if (!String(t.hostName || '').trim()) { t.hostName = d.host; keys.push('hostName'); }
+      if (!(inv.events || []).some((e) => e.date)) {
+        const ev = inv.events[0] || (inv.events[0] = M.newEvent('Main Event'));
+        const dt = new Date(Date.now() + 60 * 86400e3);
+        ev.date = dt.toISOString().slice(0, 10);
+        if (!ev.venue) ev.venue = d.venue;
+        if (!ev.city) ev.city = d.city;
+        keys.push('events');
+      }
+    }
+    return keys;
+  }
+  const pushPreview = () => {
     const f = document.getElementById('pvIframe');
     if (!f || !f.contentWindow || !W) return;
     const inv = IX.deepClone(W.inv);
     // the writing studio can show a version on the card before it is used
     if (W.pvWording) { inv.text[W.pvWording.lang] = Object.assign({}, inv.text[W.pvWording.lang], W.pvWording.fields); }
-    const msg = { type: 'ix-preview', inv, lang: W.pvWording ? W.pvWording.lang : W.pvLang || W.lang };
-    if (opened === false) msg.opened = false;
-    f.contentWindow.postMessage(msg, location.origin);
+    const lang = W.pvWording ? W.pvWording.lang : W.pvLang || W.lang;
+    const samples = withSamples(inv, lang);
+    const note = document.getElementById('pvSample'); if (note) note.hidden = !samples.length;
+    // Show the card itself, not the closed opening screen, unless the host asked to play the opening.
+    f.contentWindow.postMessage({ type: 'ix-preview', inv, lang, samples, opened: !W.pvOpener }, location.origin);
   };
   const debouncedPreview = IX.debounce(pushPreview, 250);
   const debouncedSave = IX.debounce(() => save(), 700);
