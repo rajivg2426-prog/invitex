@@ -41,14 +41,31 @@ Your work saves by itself ("All changes saved" under the title). The ↶ and ↷
 ### 2.1 Design
 
 1. **What are you celebrating?** Tap the occasion (14 choices, from Wedding to Community Function).
-2. **How would you like to design your card?** Pick one of three ways:
+2. **How would you like to design your card?** Pick one of four ways:
    - **Ready designs**: tap a design, then one of its colour dots. Designs are grouped by occasion, and the best one for your event is marked. Not sure? Type a few words in **Describe the card you want** (for example "royal maroon and gold") and InviteX shows the closest matches.
    - **Your own design**: upload a card someone made for you, a painting or a photo (JPG, PNG or WebP). It fills the whole card and your names, date and place are written on top. Choose **Full picture** or a softer look.
    - **Design with AI**: pick a style (Royal, Floral, Temple, Minimal, Mehndi, Pichwai, Birthday or Corporate) and colours, then tap **Paint 4 designs**. Wait about half a minute and tap the one you like. Each account gets 3 free tries; a try that fails is not counted.
+   - **Calligraphy**: a card that looks professionally handwritten. Pick one of 10 styles (also under the **Calligraphy & Handwritten** tab of Ready designs) and **Calligraphy Studio** opens. See *Calligraphy Studio* below.
 3. **Colours & shape**: fine-tune colours and pick **Portrait** (best for WhatsApp), landscape or square.
 4. Tap **Next: Fill your card**.
 
 ![Step 1, Design](screenshots/manual/02-design.png)
+
+### Calligraphy Studio
+
+Calligraphy Studio is a full-screen editor for handwritten-style wedding cards. Everything you change shows on the card at once and is saved automatically.
+
+- **Words** (left): heading, bride's and groom's names, parents, date, time, venue, reception, your message, RSVP details and closing blessings. Names are written exactly as you type them. Leave a line empty to leave it off the card.
+- **Style**: 10 starting styles, from *Royal English Calligraphy* (broad-nib italic with red-brown decorated capitals on torn cotton paper) to *Luxury Black Ink*. Changing style keeps your words. Choose how the names sit (stacked, staggered, side by side or arched), plain names or large or decorated initials, and the card size (5 × 7 in or A5).
+- **Fonts**: 33 licensed calligraphy fonts in groups (Copperplate, Spencerian, Roundhand, Gothic, formal, flowing, signature, minimalist, romantic) plus Hindi and Punjabi fonts. Tap a line on the card first to choose its font. Hindi and Punjabi words always use a font made for those scripts; English calligraphy fonts are never forced onto them. Punjabi fonts are traditional lettering, because no freely licensed handwritten Gurmukhi calligraphy font exists yet.
+- **Ink**: a separate ink for each name, the initials, heading, message, details and flourishes. Gold, bronze and copper have an on-screen shimmer. Printed, they are a warm gold colour from an ordinary printer: this is gold-coloured ink, not metallic foil.
+- **Flourishes**: tap one to add it, drag to move, use the square handle to resize and the round handle to turn. Flourishes dropped on your words slide off them automatically. **Restore original layout** (also in the ⋯ menu) puts flourishes and positions back without touching your words.
+- **Paper**: 8 papers (handmade ivory, parchment, cotton rag and more), your own paper colour, texture, pattern, grain, torn edges, border and decorative corners. On dark paper, inks that would be hard to read are swapped for light ones.
+- **The card** (centre): tap any line or flourish to change it in the right-hand panel: font, size, letter spacing, line height, width, alignment and ink. Undo and redo are at the top (Ctrl+Z / Ctrl+Y on a computer).
+- **On a phone** the tools are in the bar at the bottom and open as sheets, so the card stays in view.
+- **⋯ menu**: Duplicate design (makes a copy to edit), Stop using calligraphy (goes back to a ready design; your calligraphy design is kept).
+
+The guest page shows your calligraphy card at the top, with the RSVP, venue and the rest below it as before. Downloads (high-resolution PNG and JPG, multi-page and print PDFs) and matching extra pages arrive in the next updates.
 
 ### 2.2 Fill your card
 

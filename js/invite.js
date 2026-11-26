@@ -144,6 +144,8 @@
     const pal = M.palette(inv);
     const motif = IXT.motif(IXT.THEMES[inv.theme]?.motif || 'minimal', pal);
     const order = inv.design.sectionOrder.filter((id) => inv.design.sections[id]);
+    // Calligraphy Studio designs replace the opening section with the drawn card
+    S.callig = window.IXC && inv.calligraphy && inv.calligraphy.active !== false ? await IXC.render(inv, { lang: S.lang, uid: 'ixg' }).catch((e) => { console.error(e); return null; }) : null;
     const ctx = { inv, motif, pal, title };
     const html = order.map((id) => (SECTIONS[id] ? SECTIONS[id](ctx) : '')).filter(Boolean).join('');
     const bg = url(inv.media.background);
@@ -257,6 +259,7 @@
         const f = (o) => new Intl.DateTimeFormat(IX.locale(S.lang), { ...o, timeZone: tz }).format(d);
         return `<div class="ix-datebar"><span>${esc(f({ weekday: 'long' }))}</span><span class="ix-datebig"><small>${esc(f({ month: 'short' }))}</small><b>${esc(f({ day: 'numeric' }))}</b><small>${esc(f({ year: 'numeric' }))}</small></span><span>${esc(ev.start ? IX.fmtTime(ev.date, ev.start, tz, S.lang) : '')}</span></div>`;
       })() : '';
+      if (S.callig) return `<section class="ix-hero ix-callig" id="sec-opening" aria-label="${esc(ctx.title)}"><div class="ix-callig-card">${S.callig.svg}</div>${isPrint ? '' : `<a href="#sec-${(inv.design.sectionOrder.find((x) => x !== 'opening' && inv.design.sections[x])) || 'rsvp'}" class="ix-scroll" aria-label="Scroll down"><span aria-hidden="true">⌄</span></a>`}</section>`;
       return `<section class="ix-hero" id="sec-opening" aria-label="${esc(ctx.title)}">
         ${deco(ctx)}
         ${motif.hero && !cover ? `<div class="ix-hero-art" aria-hidden="true">${motif.hero}</div>` : ''}

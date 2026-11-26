@@ -360,3 +360,9 @@ body.is-preview [data-edit][data-empty="1"]::before { content: 'Click to add tex
 .ix-alt .ix-btn { letter-spacing: .06em; font-size: .74rem; }
 .ix-more[open] > *:not(summary) { margin-top: .9rem; }
 .ix-more[open] > .ix-small { margin-top: 0; }
+
+/* Calligraphy Studio card at the top of the guest page */
+.ix-hero.ix-callig { min-height: auto; padding: 1.2rem .8rem 3.2rem; }
+.ix-callig-card { width: min(100%, 560px, calc((100svh - 4rem) * 0.714)); margin: 0 auto; }
+.ix-callig-card svg { display: block; width: 100%; height: auto; filter: drop-shadow(0 10px 26px rgba(40,25,10,.25)); }
+body.is-print .ix-callig-card svg { filter: none; }

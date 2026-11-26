@@ -278,7 +278,34 @@
     ['ready', '🎨', 'Ready designs', 'Pick one of ours'],
     ['own', '🖼️', 'Your own design', 'Upload a picture'],
     ['ai', '✨', 'Design with AI', 'New art for you'],
+    ['callig', '✒️', 'Calligraphy', 'Handwritten look'],
   ];
+  const calligOn = (inv) => !!(inv.calligraphy && inv.calligraphy.active !== false && window.IXC);
+  /* Calligraphy & Handwritten Invitations: the 10 styles as live mini cards with the host's own names. */
+  function calligPanel(inv) {
+    if (!window.IXC) return '<p class="small muted">Calligraphy Studio could not load. Please refresh the page.</p>';
+    const on = calligOn(inv), cur = inv.calligraphy && inv.calligraphy.style;
+    return `${on ? `<div class="callig-on"><span class="ixc-thumb" data-cthumb="${esc(cur)}" data-own="1"></span><div class="stack" style="gap:.6rem"><b>✓ Your card uses ${esc(IXC.styles.STYLE[cur] ? IXC.styles.STYLE[cur].name : 'Calligraphy')}</b>
+        <p class="small muted" style="margin:0">Change the words, fonts, inks, paper and flourishes in Calligraphy Studio.</p>
+        <a class="btn primary" href="#/calligraphy/${esc(inv.id)}">✒ Open Calligraphy Studio</a></div></div><h3 style="margin:.4rem 0 0;font-size:15px">Or start from another style</h3>` : `<p class="small muted" style="margin:0">Invitations that look professionally handwritten: artistic calligraphy for the names, flourishes, handmade paper and gold-coloured ink. Pick a style to open Calligraphy Studio. You can change everything there.</p>`}
+      <div class="callig-grid" role="list">${IXC.styles.STYLES.map((s) => `<button type="button" role="listitem" class="callig-tile ${on && s.id === cur ? 'on' : ''}" data-callig="${s.id}"><span class="ixc-thumb" data-cthumb="${s.id}"></span><b>${esc(s.name)}</b><small>${esc(s.blurb)}</small></button>`).join('')}</div>`;
+  }
+  function wireCallig(body) {
+    const inv = W.inv;
+    body.querySelectorAll('[data-cthumb]').forEach(async (el) => {
+      try {
+        el.innerHTML = el.dataset.own ? (await IXC.render(inv, { lang: inv.defaultLang, placeholders: true, uid: 'own' })).svg : await IXC.studio.thumbFor(inv, el.dataset.cthumb, inv.defaultLang);
+      } catch (e) { console.error(e); }
+    });
+    body.querySelectorAll('[data-callig]').forEach((b) => (b.onclick = async () => {
+      const id = b.dataset.callig, inv2 = W.inv;
+      if (calligOn(inv2) && inv2.calligraphy.style !== id && !(await H.confirm('Switch to this style?', 'Fonts, inks, paper and flourishes change to the new style. Your words stay.', 'Switch style'))) return;
+      if (calligOn(inv2) && inv2.calligraphy.style === id) return H.go('#/calligraphy/' + inv2.id);
+      if (inv2.media.background) removePicture();
+      await save();
+      await IXC.studio.start(inv2, id);
+    }));
+  }
   // A small drawing of a ready design, built from the same colours and illustrations as the real card.
   function miniCard(id, inv, name) {
     const t = IXT.THEMES[id], p = t.palettes[id === inv.theme ? inv.paletteIndex : 0] || t.palettes[0], mo = IXT.motif(t.motif, p);
@@ -292,7 +319,7 @@
   function step1(body) {
     const inv = W.inv;
     if (W.bgUrl === undefined) { W.bgUrl = ''; if (inv.media.background) H.store.resolveMedia(inv.media.background).then((u) => { W.bgUrl = u || ''; if (W.step === 1 && u) step1(body); }); }
-    if (!W.way) W.way = inv.design.aiArt ? 'ai' : inv.media.background ? 'own' : 'ready';
+    if (!W.way) W.way = calligOn(inv) ? 'callig' : inv.design.aiArt ? 'ai' : inv.media.background ? 'own' : 'ready';
     if (!W.galTab) W.galTab = IXGallery.TAB_FOR_CAT[inv.category] || 'all';
     const guide = body.querySelector('.step-guide')?.outerHTML || '';
     const cat = IXT.CATEGORIES.find((c) => c.id === inv.category);
@@ -304,9 +331,9 @@
       ? `<p class="notice small" style="margin:0">Your own picture is on the card now. Tap a ready design below to use it instead.</p>` : '';
     const panels = {
       ready: `${picNote}${describeBox()}
-        <div class="gal-tabs" role="tablist" aria-label="Occasion">${IXGallery.TABS.filter(([t]) => t === 'all' || themeIds.some((id) => IXGallery.inTab(id, t))).map(([t, l]) => `<button type="button" role="tab" aria-selected="${t === W.galTab}" class="gal-tab ${t === W.galTab ? 'on' : ''}" data-gal-tab="${t}">${esc(l)}</button>`).join('')}</div>
-        <div class="design-grid" role="radiogroup" aria-label="Ready designs">${themeIds.filter((id) => IXGallery.inTab(id, W.galTab)).map((id) => {
-        const on = id === inv.theme && !hasPic, t = IXT.THEMES[id], meta = IXGallery.META[id] || {};
+        <div class="gal-tabs" role="tablist" aria-label="Occasion">${IXGallery.TABS.filter(([t]) => t === 'all' || t === 'calligraphy' || themeIds.some((id) => IXGallery.inTab(id, t))).map(([t, l]) => `<button type="button" role="tab" aria-selected="${t === W.galTab}" class="gal-tab ${t === W.galTab ? 'on' : ''}" data-gal-tab="${t}">${esc(l)}</button>`).join('')}</div>
+        ${W.galTab === 'calligraphy' ? calligPanel(inv) : ''}<div class="design-grid" role="radiogroup" aria-label="Ready designs" ${W.galTab === 'calligraphy' ? 'hidden' : ''}>${themeIds.filter((id) => IXGallery.inTab(id, W.galTab)).map((id) => {
+        const on = id === inv.theme && !hasPic && !calligOn(inv), t = IXT.THEMES[id], meta = IXGallery.META[id] || {};
         return `<div class="design-tile ${on ? 'on' : ''}"><button type="button" class="design-pick ${on ? 'on' : ''}" role="radio" aria-checked="${on}" data-theme-pick="${id}">
           ${miniCard(id, inv, name)}<span class="dp-name">${esc(t.name.replace(' (blank)', ''))}<span class="dp-style">${esc(meta.style || '')}</span>${id === cat.theme ? '<small>Best for ' + esc(cat.name) + '</small>' : ''}</span>${on ? '<span class="dp-tick" aria-hidden="true">✓</span>' : ''}</button>
           <div class="dp-pals" role="group" aria-label="${esc(t.name)} colours">${t.palettes.map((p, i) => `<button type="button" class="dp-pal ${on && i === inv.paletteIndex ? 'on' : ''}" data-theme-pick="${id}" data-pal-pick="${i}" title="${esc(p.name)}" aria-label="${esc(t.name)}, ${esc(p.name)}"><i style="background:linear-gradient(135deg,${p.bg} 50%,${p.accent} 50%)"></i></button>`).join('')}</div></div>`;
@@ -321,6 +348,7 @@
               <span class="dz-ic" aria-hidden="true">⬆</span><b>Tap to choose your picture</b><span class="small muted">JPG, PNG or WebP from your phone or computer</span></label>`}
         <p class="tiny muted" style="margin:0">Tip: a tall picture works best. Leave some plain space in the middle so your words are easy to read. You can move and zoom it after choosing.</p>`,
       ai: `<div class="stack ai-card" id="aiCard"></div>`,
+      callig: `<div class="stack">${window.IXC ? calligPanel(inv) : ''}</div>`,
     };
     body.innerHTML = `${guide}<div class="card stack">
       <h2>1. What are you celebrating?</h2>
@@ -366,6 +394,8 @@
     body.querySelectorAll('[data-theme-pick]').forEach((b) => (b.onclick = async () => {
       // A ready design replaces the host's own or AI picture (AI designs stay in "earlier designs").
       if (inv.media.background && !inv.design.aiArt && !(await H.confirm('Use this ready design?', 'Your own picture will be taken off the card. You can upload it again any time.', 'Use ready design'))) return;
+      if (calligOn(inv) && !(await H.confirm('Use this ready design?', 'Your calligraphy design will be taken off the card. It is kept, so you can switch back from the Calligraphy choice any time.', 'Use ready design'))) return;
+      if (inv.calligraphy) inv.calligraphy.active = false;
       if (inv.media.background) removePicture();
       setTheme(b.dataset.themePick);
       if (b.dataset.palPick != null) { inv.paletteIndex = +b.dataset.palPick; Object.assign(inv.design, { textColor: '', bgColor: '', accentColor: '' }); }
@@ -373,6 +403,7 @@
     }));
     body.querySelectorAll('[data-gal-tab]').forEach((b) => (b.onclick = () => { W.galTab = b.dataset.galTab; step1(body); }));
     wireDescribe(body);
+    if (W.way === 'callig' || W.galTab === 'calligraphy') wireCallig(body);
     body.querySelectorAll('[data-pal]').forEach((b) => (b.onclick = () => { inv.paletteIndex = +b.dataset.pal; Object.assign(inv.design, { textColor: '', bgColor: '', accentColor: '' }); changed(); step1(body); }));
     body.querySelectorAll('input[name=layout]').forEach((r) => (r.onchange = () => { inv.layout = r.value; changed(); }));
     renderAi(body);

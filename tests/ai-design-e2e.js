@@ -17,7 +17,7 @@ const ok = (t, c, n = '') => { if (!c) fails++; console.log((c ? 'PASS ' : 'FAIL
   await p.goto(BASE + 'index.html');
   await p.click('text=Create new invitation');
   await p.waitForSelector('#designCard');
-  ok('step 1 offers three ways: ready designs, your own design, AI', (await p.locator('[data-way]').count()) === 3);
+  ok('step 1 offers four ways: ready designs, your own design, AI, calligraphy', (await p.locator('[data-way]').count()) === 4);
   await p.click('.gal-tab >> text=All');
   ok('ready designs show as a gallery of small cards', (await p.locator('.design-pick .mini').count()) >= 14);
   await p.click('[data-way=ai]');
