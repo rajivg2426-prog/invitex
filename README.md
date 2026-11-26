@@ -83,7 +83,9 @@ docs/                 User manual, deployment guide, test report, screenshots
 
 ## Documentation
 
-- [User manual](docs/USER_MANUAL.md): for hosts, with no technical knowledge needed
+- [Host user manual](docs/HOST_USER_MANUAL.md): step by step for hosts, with screenshots
+- [Marketing manual](docs/MARKETING_MANUAL.md): positioning, audiences, pricing message and launch posts
+- [User manual and admin guide](docs/USER_MANUAL.md): teams, the Admin page, prices and payments
 - [Deployment & Supabase setup](docs/DEPLOYMENT.md)
 - [Test report](docs/TEST_REPORT.md), including known limitations
 - [Writing studio and AI writer setup](docs/COPY_STUDIO.md)

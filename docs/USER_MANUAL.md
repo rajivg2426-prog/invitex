@@ -2,6 +2,8 @@
 
 InviteX lets a host make a digital invitation in three steps (Design, Fill your card, Share), send it on WhatsApp, and track who is coming. Guests never need an account; they open a link and reply with one tap.
 
+> **Hosts:** the up-to-date, step-by-step guide to the five-step editor (Design, Personalise, Style, Preview, Share), with fresh screenshots, is [HOST_USER_MANUAL.md](HOST_USER_MANUAL.md). Part 1 below describes the earlier three-step editor and is kept for reference. For launch and promotion, see [MARKETING_MANUAL.md](MARKETING_MANUAL.md).
+
 This manual is for hosts and for whoever runs InviteX for a team. **Part 1** walks through the app step by step. **Part 2** explains how several people use it. **Part 3** explains the in-app Admin page: how to switch it on, make yourself admin, and use it.
 
 - **App address:** https://rajivg2426-prog.github.io/invitex/
