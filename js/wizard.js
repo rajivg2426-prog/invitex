@@ -1018,6 +1018,7 @@
         ${inv.status !== 'published' || H.hasUnpublished(inv) ? `<button class="btn gold lg" id="pubBig">🚀 ${inv.status === 'published' ? 'Update published invitation' : 'Publish invitation'}</button>` : ''}
         ${inv.status === 'published' ? `<div class="notice ${H.hasUnpublished(inv) ? 'warn' : 'ok'}">${H.hasUnpublished(inv) ? 'You have edits that guests cannot see yet. Press <b>Update published invitation</b> to make them live.' : 'Guests are seeing the latest version.'}</div>
           <div class="copyrow"><input class="input" readonly value="${esc(link)}" aria-label="Invitation link"><button class="btn" data-copy="${esc(link)}">Copy</button></div>
+          <div id="cmNote"></div>
           <div class="row"><a class="btn" target="_blank" rel="noopener" href="${esc(link)}">👁 Open invitation</a><a class="btn wa" href="#/dash/${esc(inv.id)}/share">💬 Share on WhatsApp</a><a class="btn" href="#/dash/${esc(inv.id)}">📊 RSVP dashboard</a><button class="btn danger" id="unpub">Unpublish</button></div>` : ''}
         ${IX.isProduction ? '' : '<div class="notice warn"><b>Demo/Local mode:</b> the published link works in this browser only. To let guests open it on their own phones and RSVP, set up Production mode (Supabase).</div>'}
       </div>
@@ -1042,6 +1043,8 @@
       </div></div></details>
 `;
     bind(body);
+    // published but sharing not started yet: say that guests can open it after "Start sharing"
+    if (inv.status === 'published' && window.IXCampaign) IXCampaign.load(inv).then(() => { const n = body.querySelector('#cmNote'); if (n) n.innerHTML = IXCampaign.lockedNote(inv); }).catch(() => {});
     const slugIn = body.querySelector('#slug'), msg = body.querySelector('#slugMsg');
     const checkSlug = IX.debounce(async () => {
       const v = slugIn.value.trim().toLowerCase();

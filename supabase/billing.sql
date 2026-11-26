@@ -757,7 +757,9 @@ begin
    where id = t.id;
   if v_total >= t.amount_paise then
     update public.campaign_entitlements set status = 'refunded', updated_at = now() where transaction_id = t.id and status = 'active';
-    update public.sharing_campaigns set entitlement_status = 'refunded', payment_status = 'refunded', updated_at = now()
+    update public.sharing_campaigns set entitlement_status = 'refunded', payment_status = 'refunded', updated_at = now(),
+           campaign_status = case when campaign_status in ('ready','sharing') then 'completed' else campaign_status end,
+           completed_at = case when campaign_status in ('ready','sharing') then now() else completed_at end
      where payment_transaction_id = t.id and entitlement_status = 'active';
   end if;
   return jsonb_build_object('result', 'ok', 'refunded_paise', v_total);

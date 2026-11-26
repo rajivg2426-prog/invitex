@@ -67,7 +67,8 @@
 
   /* ---------- my role (host / admin) and status ---------- */
   H.account = { role: 'host', status: 'active' };
-  H.isAdmin = () => H.account.role === 'admin' && H.account.status === 'active';
+  H.isAdmin = () => (H.account.role === 'admin' || H.account.role === 'super_admin') && H.account.status === 'active';
+  H.isSuperAdmin = () => H.account.role === 'super_admin' && H.account.status === 'active';
   H.loadAccount = async (force) => {
     const uid = H.user ? H.user.id : null;
     if (!force && H.accountFor === uid && uid) return H.account;

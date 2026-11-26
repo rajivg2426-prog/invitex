@@ -964,3 +964,28 @@ main:has(.ax) { max-width: 1400px; }
 .hx-donut-wrap { grid-template-columns: 130px minmax(0, 1fr); }
 .hx-legend span { white-space: nowrap; } .hx-legend span > small { white-space: normal; }
 .hx-panel { grid-template-columns: minmax(0, 1fr); min-width: 0; }
+
+/* ── V2.2 paid sharing: campaign panel (host) ── */
+.spinner.sm { width: 18px; height: 18px; border-width: 2px; flex: none; }
+.cm-card { border: 1px solid var(--champagne2); background: linear-gradient(180deg, var(--ivory), #fff); }
+.cm-top { display: flex; gap: .8rem; align-items: flex-start; }
+.cm-ic { font-size: 26px; line-height: 1; flex: none; }
+.cm-price { display: flex; align-items: baseline; gap: .5rem; }
+.cm-price b { font-size: 30px; color: var(--plum); }
+.cm-price span { color: var(--muted); font-size: 14px; }
+.cm-points { margin: 0; padding-left: 1.1rem; color: var(--ink2); display: grid; gap: .25rem; }
+.cm-test { margin: 0; padding: .45rem .7rem; border-radius: 10px; background: #eaf0ff; color: #1d3a8f; font: 600 12.5px/1.4 var(--font); letter-spacing: .02em; }
+.cm-strip { border-left: 4px solid var(--ok); }
+.cm-locked a { font-weight: 600; margin-left: .3rem; }
+
+/* ── V2.2 paid sharing: Super Admin money screens ── */
+.ab-switch { display: flex; gap: .7rem; align-items: flex-start; cursor: pointer; }
+.ab-switch input { width: 20px; height: 20px; margin-top: 2px; flex: none; accent-color: var(--plum2); }
+.ab-rupee { font: 600 20px/1 var(--font); color: var(--plum); }
+.ab-policy { border-left: 4px solid var(--gold); }
+.ab-emergency { border-color: #f2c7cb; background: #fffafa; }
+.ab-chart { margin: 0; overflow-x: auto; }
+.ab-chart svg { width: 100%; height: 180px; display: block; color: var(--plum2); }
+.ab-chart figcaption { color: var(--muted); font-size: 12.5px; margin-top: .3rem; }
+#axBody > * + * { margin-top: 1.1rem; }
+#cmBox:not(:empty) { margin-bottom: 1rem; }

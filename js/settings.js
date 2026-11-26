@@ -1,6 +1,6 @@
 /* InviteX settings: Account, Language, WhatsApp and Plan.
  * Preferences apply to NEW invitations only; existing invitations keep their own choices.
- * Plan is information only: InviteX is free, and there are no payments or billing here. */
+ * Plan shows how sharing is priced, your sharing campaigns and your receipts (information only). */
 (function () {
   'use strict';
   const IX = window.IX, M = IX.model, esc = IX.esc, H = window.H;
@@ -165,13 +165,38 @@
     draw();
   }
 
-  /* ---------- Plan (information only) ---------- */
-  function plan(body) {
-    const inc = ['Unlimited invitations', 'Guest list with personal links', 'One-tap RSVP and reply tracking', 'WhatsApp, email and QR sharing', 'English, Hindi and Punjabi', 'Check-in at the venue'];
+  /* ---------- Plan: how pricing works for me, my sharing campaigns and receipts ----------
+   * Information only. Prices and free access are decided by the server (supabase/billing.sql). */
+  async function plan(body) {
+    const inc = ['Unlimited invitations, photos and designs', 'Guest list with personal links', 'Preview and publish', 'One-tap RSVP and reply tracking', 'English, Hindi and Punjabi', 'Check-in at the venue'];
+    body.innerHTML = '<div class="page-loading"><div class="spinner"></div></div>';
+    const [q, camps, pays] = await Promise.all([H.store.sharingQuote().catch(() => null), H.store.myCampaigns().catch(() => []), H.store.myPayments().catch(() => [])]);
+    const C = window.IXCampaign || {};
+    const rs = C.rupees || ((p) => '₹' + p / 100);
+    const day = (iso) => (iso ? new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
+    const priced = q && q.payment_required !== undefined;
+    const pricing = !priced
+      ? '<p class="small muted" style="margin:0">There is nothing to pay. InviteX never asks for card or bank details.</p>'
+      : `<p style="margin:0">Making and preparing invitations is free. You pay only when you <b>start sharing</b> an invitation with guests:
+           <b>${rs(q.amount_paise)}</b> per sharing campaign, once, by UPI. One campaign covers every guest, and resending is free.</p>
+         ${q.payment_required ? '' : `<div class="notice ok">${esc((C.FREE_WHY || {})[q.free_reason] || 'Sharing is free for you right now.')}</div>`}
+         <p class="tiny muted" style="margin:0">Payments are made by UPI through Razorpay. InviteX never sees or stores your UPI PIN, bank or card details.</p>`;
+    const ST = C.STATUS || {};
     body.innerHTML = `<div class="card stack st-plan">
-      <div class="row between"><div><span class="lbl">Your plan</span><h2 style="margin:.2rem 0 0">Free</h2></div><span class="pill published">Active</span></div>
+      <div class="row between"><div><span class="lbl">Your plan</span><h2 style="margin:.2rem 0 0">Pay per sharing campaign</h2></div><span class="pill published">Active</span></div>
       <ul class="st-inc">${inc.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
-      <p class="small muted" style="margin:0">There is nothing to pay. Paid plans are not available yet, and InviteX never asks for card or bank details.</p>
-    </div>`;
+      ${pricing}
+    </div>
+    ${camps.length ? `<div class="card stack"><h2 style="margin:0">Your sharing campaigns</h2>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Campaign</th><th>Status</th><th>Cost</th><th>Started</th></tr></thead><tbody>
+      ${camps.map((c) => { const e = c.entitlement || {}; const st = ST[c.status] || [c.status, '']; return `<tr><td><a href="#/dash/${esc(c.invitation_id)}/share">${esc(c.name)}</a></td>
+        <td><span class="pill ${st[1]}">${esc(st[0])}</span>${c.entitlement_status === 'refunded' ? ' <span class="pill">Refunded</span>' : ''}</td>
+        <td>${e.grant_type === 'paid' ? rs(e.amount_paise) : e.grant_type ? 'Free' : c.amount_paise ? rs(c.amount_paise) + ' due' : '—'}</td><td>${esc(day(c.created_at))}</td></tr>`; }).join('')}
+      </tbody></table></div></div>` : ''}
+    ${pays.length ? `<div class="card stack"><h2 style="margin:0">Payments</h2>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Date</th><th>Campaign</th><th class="num">Amount</th><th>Status</th><th>Razorpay payment</th></tr></thead><tbody>
+      ${pays.map((p) => `<tr><td>${esc(day(p.paid_at || p.created_at))}</td><td>${esc(p.campaign)}${p.is_test ? ' <span class="pill">TEST</span>' : ''}</td><td class="num">${rs(p.amount_paise)}</td>
+        <td>${p.status === 'paid' ? (p.refunded_paise ? `Refunded ${rs(p.refunded_paise)}` : 'Paid') : p.status === 'expired' ? 'Not paid' : p.status === 'failed' ? 'Failed' : 'Pending'}</td><td class="tiny">${esc(p.payment_id || '')}</td></tr>`).join('')}
+      </tbody></table></div><p class="tiny muted" style="margin:0">Payments marked TEST were Razorpay test payments: no real money was taken.</p></div>` : ''}`;
   }
 })();
