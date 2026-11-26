@@ -813,7 +813,7 @@
     // keep thumbnails short: names, heading and the date only
     ['message', 'reception', 'rsvpNote', 'blessing', 'brideParents', 'groomParents'].forEach((k) => { tt[k] = ''; });
     if (t.events && t.events[0]) { t.events[0] = { ...t.events[0], address: '', city: '' }; }
-    const r = await IXC.render(t, { lang, placeholders: true, uid: 'th' + styleId.replace(/\W/g, '') + Math.random().toString(36).slice(2, 5) });
+    const r = await IXC.render(t, { lang, placeholders: 'solid', uid: 'th' + styleId.replace(/\W/g, '') + Math.random().toString(36).slice(2, 5) });
     return r.svg;
   }
 
