@@ -183,6 +183,20 @@ const saved = (p) => p.evaluate(async () => { const id = location.hash.split('/'
     await m.click('#pvClose');
     await c2.close();
   }
+  /* ---------- every width, every step: no sideways scrolling; every button has a name ---------- */
+  for (const w of [360, 768, 1024, 1366]) {
+    const c3 = await b.newContext({ viewport: { width: w, height: 800 } }); await c3.route(/js\/config\.js/, stub);
+    const q = await c3.newPage(); q.on('pageerror', (e) => errs.push(e.message));
+    await q.goto(BASE + 'index.html#/new/wedding'); await q.waitForSelector('#designCard'); await q.waitForTimeout(600);
+    const bad = [];
+    for (const way of ['ready', 'own', 'ai', 'callig']) { await q.click(`[data-way=${way}]`); await q.waitForTimeout(300); if (await q.evaluate(() => document.documentElement.scrollWidth > innerWidth)) bad.push(way); }
+    await q.click('[data-way=ready]');
+    const unnamed = await q.evaluate(() => [...document.querySelectorAll('#stepBody button, .wiz-foot button, .wiz-preview button')].filter((x) => !(x.getAttribute('aria-label') || x.textContent.trim() || x.title)).length);
+    for (const st of [2, 3, 4, 5]) { await q.click(`[data-step="${st}"]`); await q.waitForTimeout(400); if (await q.evaluate(() => document.documentElement.scrollWidth > innerWidth)) bad.push('step' + st); }
+    ok(`${w}px: no sideways scrolling on any design option or step`, !bad.length, bad.join());
+    ok(`${w}px: every button has a name for screen readers`, unnamed === 0, unnamed + ' unnamed');
+    await c3.close();
+  }
   ok('no page errors', !errs.length, errs.join(' | '));
   await b.close();
   const f = res.filter((x) => !x).length;
