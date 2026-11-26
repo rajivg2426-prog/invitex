@@ -2,14 +2,18 @@
 (function () {
   'use strict';
   const IX = window.IX, M = IX.model, esc = IX.esc, H = window.H;
-  const STEPS = ['Design', 'Fill your card', 'Share'];
+  const STEPS = ['Design', 'Personalise', 'Style', 'Preview', 'Share'];
   const NSTEPS = STEPS.length;
   // One line per step telling the host what to do here and what comes next.
   const STEP_HELP = [
-    'Pick what you are celebrating, then choose a ready design, upload your own, or let AI paint one. You can change this later.',
-    'Choose a message style, then fill in the names, date and place. Tip: you can also click any line on the card preview and type right there.',
-    'Pick your link name, publish, and send it on WhatsApp.',
+    'Choose your design: a ready design, your own picture, AI or calligraphy. The preview shows it straight away. You can change it any time.',
+    'Add the names, date, place, photos and family details. Tip: you can also click any line on the card preview and type right there.',
+    'Optional: change fonts, colours, decorations and which parts appear. Skip this if you like the design as it is.',
+    'Check every page as your guests will see it: the cover, the invitation, events and RSVP, on a phone or a computer.',
+    'Pick your link name, publish, and send it on WhatsApp. You get a link and a QR code, and replies arrive in your RSVP dashboard.',
   ];
+  // Steps that can be skipped straight to Share.
+  const SKIPPABLE = [3, 4];
   // Friendly list of event locations for the time zone (the full world list was confusing).
   const TZ_CHOICES = [
     ['Asia/Kolkata', 'India'], ['Asia/Kathmandu', 'Nepal'], ['Asia/Dubai', 'UAE / Dubai'], ['Asia/Riyadh', 'Saudi Arabia / Kuwait / Qatar'],
@@ -35,20 +39,21 @@
     const inv = await H.store.getInvitation(id);
     if (!inv) { H.render('<div class="card"><h2>Invitation not found</h2><a class="btn" href="#/">Back</a></div>'); return; }
     normalise(inv);
-    W = { inv, step: IX.clamp(IX.int(step, 1), 1, NSTEPS), lang: inv.defaultLang, pv: 'mobile', pvLang: null, saving: false, ready: false, pvOpener: false, pvZoom: 1, pvPage: 'cover' };
+    W = { inv, step: step === 'share' ? NSTEPS : IX.clamp(IX.int(step, 1), 1, NSTEPS), lang: inv.defaultLang, pv: 'mobile', pvLang: null, saving: false, ready: false, pvOpener: false, pvZoom: 1, pvPage: 'cover' };
     H.render(`
       <div class="wiz-head">
-        <div><h1 id="wTitle">${esc(H.title(inv))}</h1><span class="save-state" id="saveState" aria-live="polite">All changes saved</span></div>
+        <div><h1 id="wTitle">${esc(H.title(inv))}</h1><span class="tiny muted">Every change is saved automatically.</span></div>
         <div class="row"><div class="hist" role="group" aria-label="Undo and redo"><button type="button" class="btn sm ghost iconbtn" id="undoBtn" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>${H.icon ? H.icon('undo') : '↶'}</button><button type="button" class="btn sm ghost iconbtn" id="redoBtn" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" disabled>${H.icon ? H.icon('redo') : '↷'}</button></div>
           <span class="pill ${inv.status}" id="wStatus"></span><a class="btn sm" href="#/dash/${esc(inv.id)}">📊 RSVP dashboard</a></div>
       </div>
       <div class="wiz">
         <div class="wiz-main">
-          <nav class="steps" aria-label="Steps">${STEPS.map((s, i) => `<button type="button" class="step-tab" data-step="${i + 1}"><span class="n">${i + 1}</span>${esc(s)}</button>`).join('')}</nav>
+          <nav class="steps" aria-label="Steps">${STEPS.map((s, i) => `<button type="button" class="step-tab" data-step="${i + 1}"><span class="n">${i + 1}</span><span class="sl">${esc(s)}</span></button>`).join('')}</nav>
           <div id="stepBody"></div>
           <div class="wiz-foot no-print">
             <button class="btn" id="prevBtn" aria-label="Back">←<span class="lbl-long"> Back</span></button>
-            <button class="btn ghost" id="draftBtn" aria-label="Save draft">💾<span class="lbl-long"> Save draft</span></button>
+            <button class="btn ghost" id="draftBtn" aria-label="Save draft" data-state="saved">💾<span class="lbl-long"> Save draft</span></button>
+            <span class="save-state" id="saveState" role="status" aria-live="polite" data-state="saved">✓ Saved</span>
             <button class="btn foot-pv" id="fabPv" aria-label="Preview your card">👁<span class="lbl-long"> Preview</span></button>
             <button class="btn primary" id="nextBtn">Next →</button>
           </div>
@@ -68,11 +73,14 @@
     const iframe = document.getElementById('pvIframe');
     const onMsg = (e) => {
       if (e.origin !== location.origin) return;
+      // only the main preview talks to the editor (quick look and compare have their own previews)
+      const main = document.getElementById('pvIframe');
+      if (!main || e.source !== main.contentWindow) return;
       if (e.data?.type === 'ix-preview-ready') { W.ready = true; pushPreview(); }
       if (e.data?.type === 'ix-preview-lang') W.pvLang = e.data.lang;
       if (e.data?.type === 'ix-preview-opened') W.pvOpener = false;
       if (e.data?.type === 'ix-preview-page') pvMarkPage(PV_PAGES.find((p) => p[2].includes(e.data.id))?.[0] || W.pvPage);
-      if (e.data?.type === 'ix-preview-goto-done' && !e.data.found) IX.toast('That page is turned off on this card. You can turn it on in step 2.');
+      if (e.data?.type === 'ix-preview-goto-done' && !e.data.found) IX.toast('That page is turned off on this card. You can turn it on in step 3, Style.');
       // typing directly on the card in the preview
       if (e.data?.type === 'ix-edit') {
         const { key, lang, value } = e.data;
@@ -102,10 +110,10 @@
     v.querySelectorAll('[data-step]').forEach((b) => (b.onclick = () => goStep(+b.dataset.step)));
     v.querySelector('#prevBtn').onclick = () => goStep(W.step - 1);
     v.querySelector('#nextBtn').onclick = () => (W.step < NSTEPS ? goStep(W.step + 1) : publish());
-    v.querySelector('#draftBtn').onclick = async () => { await save(); IX.toast('Draft saved', 'ok'); };
+    v.querySelector('#draftBtn').onclick = async () => { if (await save()) IX.toast('Draft saved', 'ok'); };
     v.querySelectorAll('[data-pv]').forEach((b) => (b.onclick = () => {
       W.pv = b.dataset.pv;
-      v.querySelectorAll('[data-pv]').forEach((x) => x.classList.toggle('on', x === b));
+      v.querySelectorAll('[data-pv]').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', x === b); });
       document.getElementById('pvFrame').classList.toggle('desktop', W.pv === 'desktop');
     }));
     v.querySelector('#replayOpen').onclick = () => { W.pvOpener = true; pvMarkPage('cover'); pushPreview(); };
@@ -220,29 +228,39 @@
   };
   const debouncedPreview = IX.debounce(pushPreview, 250);
   const debouncedSave = IX.debounce(() => save(), 700);
+  /* Save status beside Save draft: Saving…, ✓ Saved at 4:12 pm, or ⚠ Not saved with Retry. */
+  function setSave(state, text) {
+    const st = document.getElementById('saveState'), db = document.getElementById('draftBtn');
+    if (db) { db.dataset.state = state; db.title = text; db.setAttribute('aria-label', 'Save draft. ' + text); }
+    if (!st) return;
+    st.dataset.state = state;
+    st.innerHTML = esc(text) + (state === 'failed' ? ' <button type="button" class="linkbtn" id="retrySave">Retry</button>' : '');
+    const r = st.querySelector('#retrySave'); if (r) r.onclick = () => save();
+  }
   async function save() {
-    if (!W || W.saving) { if (W) W.pendingSave = true; return; }
+    if (!W || W.saving) { if (W) W.pendingSave = true; return true; }
     W.saving = true;
-    const st = document.getElementById('saveState');
-    if (st) st.textContent = 'Saving…';
+    setSave('saving', 'Saving…');
+    let ok = true;
     try {
       const saved = await H.store.saveInvitation(W.inv);
       if (saved && saved.id !== W.inv.id) { W.inv.id = saved.id; history.replaceState(null, '', `#/edit/${saved.id}/${W.step}`); }
       W.dirty = false;
-      if (st) st.textContent = 'All changes saved · ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      setSave('saved', '✓ Saved ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
     } catch (e) {
-      if (st) st.textContent = '⚠ Not saved: ' + e.message;
-      IX.toast(e.message, 'bad', 5000);
+      ok = false;
+      setSave('failed', '⚠ Not saved: ' + (e.message || 'connection problem'));
+      IX.toast('Your last change was not saved. Tap Retry. ' + (e.message || ''), 'bad', 6000);
     }
     W.saving = false;
     updateStatus();
-    if (W.pendingSave) { W.pendingSave = false; save(); }
+    if (W.pendingSave) { W.pendingSave = false; return save(); }
+    return ok;
   }
   function changed(rerenderTitle = true, preview = true) {
     W.dirty = true;
     histSoon();
-    const st = document.getElementById('saveState');
-    if (st) st.textContent = 'Unsaved changes…';
+    setSave('pending', 'Saving soon…');
     if (rerenderTitle) { const t = document.getElementById('wTitle'); if (t) t.textContent = H.title(W.inv); }
     debouncedSave();
     if (preview) debouncedPreview();
@@ -320,7 +338,7 @@
     s.textContent = W.inv.status === 'published' ? (dirty ? 'Published · unpublished edits' : '● Published') : 'Draft';
   }
 
-  function goStep(n) {
+  function goStep(n, keepScroll) {
     if (n < 1 || n > NSTEPS) return;
     W.step = n;
     history.replaceState(null, '', `#/edit/${W.inv.id}/${n}`);
@@ -332,10 +350,15 @@
     updateStatus();
     if (n < NSTEPS) nb.textContent = `Next: ${STEPS[n]} →`;
     const body = document.getElementById('stepBody');
-    [null, step1, stepFill, step6][n](body);
-    body.insertAdjacentHTML('afterbegin', `<div class="step-guide"><span class="sg-n">Step ${n} of ${NSTEPS}</span><span>${esc(STEP_HELP[n - 1])}</span></div>`);
+    [null, step1, stepFill, stepStyle, stepPreview, step6][n](body);
+    body.insertAdjacentHTML('afterbegin', `<div class="step-guide"><span class="sg-n">Step ${n} of ${NSTEPS}: ${esc(STEPS[n - 1])}</span><span>${esc(STEP_HELP[n - 1])}</span>${SKIPPABLE.includes(n) ? '<button type="button" class="linkbtn sg-skip" id="skipShare">Skip to Share →</button>' : ''}</div>`);
+    const sk = body.querySelector('#skipShare'); if (sk) sk.onclick = () => goStep(NSTEPS);
+    // the page buttons follow the step: Preview opens on the cover
+    if (n === 4) pvGoto('cover');
+    // anything typed is saved before moving on, so going back and forth never loses work
+    if (W.dirty) debouncedSave();
     document.querySelector('.step-tab.on')?.scrollIntoView({ block: 'nearest', inline: 'center' });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (!keepScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   // generic binding for [data-k]
@@ -393,8 +416,8 @@
     }));
   }
   // A small drawing of a ready design, built from the same colours and illustrations as the real card.
-  function miniCard(id, inv, name) {
-    const t = IXT.THEMES[id], p = t.palettes[id === inv.theme ? inv.paletteIndex : 0] || t.palettes[0], mo = IXT.motif(t.motif, p);
+  function miniCard(id, inv, name, pal) {
+    const t = IXT.THEMES[id], p = t.palettes[pal != null ? pal : id === inv.theme ? inv.paletteIndex : 0] || t.palettes[0], mo = IXT.motif(t.motif, p);
     return `<span class="mini mini-${t.motif}" style="--mbg:${p.bg};--mbg2:${p.bg2};--mtx:${p.text};--mac:${p.accent}" aria-hidden="true">
       ${mo.top ? `<span class="mini-top">${mo.top}</span>` : ''}
       ${mo.hero ? `<span class="mini-hero">${mo.hero}</span>` : ''}
@@ -407,6 +430,7 @@
     if (W.bgUrl === undefined) { W.bgUrl = ''; if (inv.media.background) H.store.resolveMedia(inv.media.background).then((u) => { W.bgUrl = u || ''; if (W.step === 1 && u) step1(body); }); }
     if (!W.way) W.way = calligOn(inv) ? 'callig' : inv.design.aiArt ? 'ai' : inv.media.background ? 'own' : 'ready';
     if (!W.galTab) W.galTab = IXGallery.TAB_FOR_CAT[inv.category] || 'all';
+    if (!W.gal) { const pr = (window.IXPicks && IXPicks.prefs()) || {}; W.gal = { styles: Array.isArray(pr.styles) ? pr.styles : [], colours: Array.isArray(pr.colours) ? pr.colours : [], sort: pr.sort || 'rec', favOnly: false, cmp: [], open: false }; }
     const guide = body.querySelector('.step-guide')?.outerHTML || '';
     const cat = IXT.CATEGORIES.find((c) => c.id === inv.category);
     const themeIds = Object.keys(IXT.THEMES).sort((a, b) => (a === cat.theme ? -1 : b === cat.theme ? 1 : 0));
@@ -416,14 +440,7 @@
     const picNote = hasPic && W.way === 'ready'
       ? `<p class="notice small" style="margin:0">Your own picture is on the card now. Tap a ready design below to use it instead.</p>` : '';
     const panels = {
-      ready: `${picNote}${describeBox()}
-        <div class="gal-tabs" role="tablist" aria-label="Occasion">${IXGallery.TABS.filter(([t]) => t === 'all' || t === 'calligraphy' || themeIds.some((id) => IXGallery.inTab(id, t))).map(([t, l]) => `<button type="button" role="tab" aria-selected="${t === W.galTab}" class="gal-tab ${t === W.galTab ? 'on' : ''}" data-gal-tab="${t}">${esc(l)}</button>`).join('')}</div>
-        ${W.galTab === 'calligraphy' ? calligPanel(inv) : ''}<div class="design-grid" role="radiogroup" aria-label="Ready designs" ${W.galTab === 'calligraphy' ? 'hidden' : ''}>${themeIds.filter((id) => IXGallery.inTab(id, W.galTab)).map((id) => {
-        const on = id === inv.theme && !hasPic && !calligOn(inv), t = IXT.THEMES[id], meta = IXGallery.META[id] || {};
-        return `<div class="design-tile ${on ? 'on' : ''}"><button type="button" class="design-pick ${on ? 'on' : ''}" role="radio" aria-checked="${on}" data-theme-pick="${id}">
-          ${miniCard(id, inv, name)}<span class="dp-name">${esc(t.name.replace(' (blank)', ''))}<span class="dp-style">${esc(meta.style || '')}</span>${id === cat.theme ? '<small>Best for ' + esc(cat.name) + '</small>' : ''}</span>${on ? '<span class="dp-tick" aria-hidden="true">✓</span>' : ''}</button>
-          <div class="dp-pals" role="group" aria-label="${esc(t.name)} colours">${t.palettes.map((p, i) => `<button type="button" class="dp-pal ${on && i === inv.paletteIndex ? 'on' : ''}" data-theme-pick="${id}" data-pal-pick="${i}" title="${esc(p.name)}" aria-label="${esc(t.name)}, ${esc(p.name)}"><i style="background:linear-gradient(135deg,${p.bg} 50%,${p.accent} 50%)"></i></button>`).join('')}</div></div>`;
-      }).join('')}</div>`,
+      ready: `${picNote}${describeBox()}${galleryPanel(inv, themeIds, cat, name, hasPic)}`,
       own: `<p class="small muted" style="margin:0">Use a card someone designed for you, a painting or a photo. It fills the whole card and your names, date and place are written on top.</p>
         ${W.bgUrl ? `<div class="own-done"><div class="own-prev" style="background-image:url('${esc(W.bgUrl)}')" role="img" aria-label="Your card picture"></div>
             <div class="stack" style="gap:.6rem"><b>✓ Your picture is on the card</b>
@@ -449,7 +466,8 @@
       <h2>3. Colours &amp; shape</h2>
       <div class="swatches" role="radiogroup" aria-label="Colour theme">${th.palettes.map((p, i) => `<button type="button" class="swatch ${i === inv.paletteIndex ? 'on' : ''}" role="radio" aria-checked="${i === inv.paletteIndex}" data-pal="${i}"><i style="background:linear-gradient(135deg,${p.bg} 50%,${p.accent} 50%)"></i>${esc(p.name)}</button>`).join('')}</div>
       <div class="seg" role="radiogroup" aria-label="Card shape">${[['portrait', 'Tall (best for phones)'], ['landscape', 'Wide'], ['square', 'Square']].map(([l, n]) => `<label><input type="radio" name="layout" value="${l}" ${inv.layout === l ? 'checked' : ''}>${n}</label>`).join('')}</div>
-      <p class="tiny muted" style="margin:0">You can fine-tune fonts and colours later in step 2.</p>
+      <div class="row between" style="gap:.5rem"><p class="tiny muted" style="margin:0">You can fine-tune fonts and colours in step 3, Style.</p>
+        <button type="button" class="btn sm ghost" id="resetDesign" title="Put back this design's own fonts and colours">↺ Reset design</button></div>
     </div>`;
     body.querySelectorAll('[data-way]').forEach((b) => (b.onclick = () => { W.way = b.dataset.way; step1(body); }));
     const artIn = body.querySelector('#artIn');
@@ -470,6 +488,7 @@
       const c = IXT.CATEGORIES.find((x) => x.id === b.dataset.cat);
       inv.category = c.id;
       W.galTab = IXGallery.TAB_FOR_CAT[c.id] || 'all';
+      if (W.ai) { W.ai.cat = c.id; if (!W.ai.styleSetByUser) W.ai.style = null; }
       const untouched = inv.events.every((e) => !e.date && !e.venue);
       if (untouched) inv.events = [M.newEvent(c.main || c.events[0])];
       // fresh wording for the new event type, unless the host has written their own
@@ -485,14 +504,123 @@
       if (inv.media.background) removePicture();
       setTheme(b.dataset.themePick);
       if (b.dataset.palPick != null) { inv.paletteIndex = +b.dataset.palPick; Object.assign(inv.design, { textColor: '', bgColor: '', accentColor: '' }); }
+      if (window.IXPicks) IXPicks.viewed(b.dataset.themePick);
       changed(); step1(body);
     }));
-    body.querySelectorAll('[data-gal-tab]').forEach((b) => (b.onclick = () => { W.galTab = b.dataset.galTab; step1(body); }));
+    wireGallery(body);
+    const rs = body.querySelector('#resetDesign');
+    if (rs) rs.onclick = async () => {
+      if (!(await H.confirm('Reset this design?', `Fonts and colours go back to how “${esc(th.name.replace(' (blank)', ''))}” was designed. Your words, photos and dates stay. You can undo this.`, 'Reset design'))) return;
+      const pal = inv.paletteIndex; setTheme(inv.theme); inv.paletteIndex = pal; inv.design.fontScale = 1;
+      changed(); step1(body); IX.toast('Design reset to the original fonts and colours.', 'ok');
+    };
     wireDescribe(body);
-    if (W.way === 'callig' || W.galTab === 'calligraphy') wireCallig(body);
+    if (W.way === 'callig' || (W.way === 'ready' && (W.galTab === 'calligraphy' || W.gal.styles.includes('calligraphy')))) wireCallig(body);
     body.querySelectorAll('[data-pal]').forEach((b) => (b.onclick = () => { inv.paletteIndex = +b.dataset.pal; Object.assign(inv.design, { textColor: '', bgColor: '', accentColor: '' }); changed(); step1(body); }));
     body.querySelectorAll('input[name=layout]').forEach((r) => (r.onchange = () => { inv.layout = r.value; changed(); }));
     renderAi(body);
+  }
+  /* ---------- the ready-design gallery ----------
+   * Occasion menu, style and colour chips that wrap (no hidden sideways strip), sorting,
+   * favourites, recently viewed, quick look and compare. Filters are remembered on this device. */
+  const SORTS = [['rec', 'Recommended'], ['recent', 'Recently viewed'], ['fav', 'Favourites first'], ['az', 'Name A–Z']];
+  const designOn = (inv, id) => id === inv.theme && !inv.media.background && !calligOn(inv);
+  // The invitation as it would look with another design, for quick look and compare (never saved).
+  function previewWith(themeId, pal) {
+    const inv = IX.deepClone(W.inv), t = IXT.THEMES[themeId];
+    inv.theme = themeId; inv.paletteIndex = pal || 0; inv.design.fonts = { ...t.fonts };
+    Object.assign(inv.design, { textColor: '', bgColor: '', accentColor: '', aiArt: '' });
+    inv.media.background = ''; if (inv.calligraphy) inv.calligraphy.active = false;
+    withSamples(inv, inv.defaultLang);
+    return inv;
+  }
+  function galleryPanel(inv, themeIds, cat, name, hasPic) {
+    const G = IXGallery, g = W.gal, P = window.IXPicks;
+    const f = { occ: W.galTab === 'calligraphy' ? 'all' : W.galTab, styles: g.styles.filter((x) => x !== 'calligraphy'), colours: g.colours };
+    const showCallig = W.galTab === 'calligraphy' || g.styles.includes('calligraphy');
+    const onlyCallig = W.galTab === 'calligraphy' || (g.styles.length === 1 && g.styles[0] === 'calligraphy');
+    const favs = P ? P.favs() : [], recent = P ? P.recent().filter((id) => IXT.THEMES[id]) : [];
+    let ids = onlyCallig ? [] : themeIds.filter((id) => G.matches(id, f) && (!g.favOnly || favs.includes(id)));
+    const rank = (list, id) => { const i = list.indexOf(id); return i < 0 ? 99 : i; };
+    if (g.sort === 'recent') ids.sort((a, b) => rank(recent, a) - rank(recent, b));
+    if (g.sort === 'fav') ids.sort((a, b) => (favs.includes(b) ? 1 : 0) - (favs.includes(a) ? 1 : 0));
+    if (g.sort === 'az') ids.sort((a, b) => IXT.THEMES[a].name.localeCompare(IXT.THEMES[b].name));
+    const nFilters = g.styles.length + g.colours.length + (g.favOnly ? 1 : 0);
+    const chip = (attr, val, label, on, extra = '') => `<button type="button" class="chip ${on ? 'on' : ''}" ${attr}="${val}" aria-pressed="${on}">${extra}${esc(label)}</button>`;
+    const count = ids.length + (showCallig ? IXC_COUNT() : 0);
+    const tile = (id) => {
+      const on = designOn(inv, id), t = IXT.THEMES[id], meta = G.META[id] || {}, fav = favs.includes(id);
+      const pal = g.colours.length ? Math.max(0, G.palFor(id, g.colours)) : null;
+      const picked = g.cmp.includes(id), full = g.cmp.length >= 3 && !picked;
+      return `<div class="design-tile ${on ? 'on' : ''}"><button type="button" class="design-pick ${on ? 'on' : ''}" role="radio" aria-checked="${on}" data-theme-pick="${id}" ${pal != null ? `data-pal-pick="${pal}"` : ''} aria-describedby="dd-${id}">
+          ${miniCard(id, inv, name, pal != null ? pal : on ? inv.paletteIndex : 0)}<span class="dp-name">${esc(t.name.replace(' (blank)', ''))}<span class="dp-style">${esc(meta.style || '')}</span><span class="dp-desc" id="dd-${id}">${esc(G.DESC[id] || '')}</span>${id === cat.theme ? '<small>Best for ' + esc(cat.name) + '</small>' : ''}</span>${on ? '<span class="dp-badge sel">✓ Selected</span>' : ''}</button>
+        <button type="button" class="dp-fav ${fav ? 'on' : ''}" data-fav="${id}" aria-pressed="${fav}" aria-label="${fav ? 'Remove from' : 'Save to'} favourites: ${esc(t.name)}" title="${fav ? 'In your favourites' : 'Save to favourites'}">${fav ? '♥' : '♡'}</button>
+        <div class="dp-tools"><button type="button" class="btn sm ghost" data-quick="${id}" ${pal != null ? `data-quick-pal="${pal}"` : ''}>👁 Quick look</button>
+          <label class="dp-cmp ${full ? 'off' : ''}" title="${full ? 'You can compare up to 3 designs' : 'Tick 2 or 3 designs to compare them'}"><input type="checkbox" data-cmp="${id}" ${picked ? 'checked' : ''} ${full ? 'disabled' : ''}> Compare</label></div>
+        <div class="dp-pals" role="group" aria-label="${esc(t.name)} colours">${t.palettes.map((p, i) => `<button type="button" class="dp-pal ${on && i === inv.paletteIndex ? 'on' : ''}" data-theme-pick="${id}" data-pal-pick="${i}" title="${esc(p.name)}" aria-label="${esc(t.name)}, ${esc(p.name)}"><i style="background:linear-gradient(135deg,${p.bg} 50%,${p.accent} 50%)"></i></button>`).join('')}</div></div>`;
+    };
+    return `<div class="gal-bar">
+        <div class="gal-row">
+          <label class="gal-sel"><span class="lbl">Occasion</span><select class="input" id="galOcc">${G.TABS.filter(([t]) => t === 'all' || t === 'calligraphy' || themeIds.some((id) => G.inTab(id, t))).map(([t, l]) => `<option value="${t}" ${t === W.galTab ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
+          <label class="gal-sel"><span class="lbl">Sort by</span><select class="input" id="galSort">${SORTS.map(([v, l]) => `<option value="${v}" ${v === g.sort ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+          <button type="button" class="btn sm gal-more" id="galMore" aria-expanded="${!!g.open}" aria-controls="galFilters">⚙ Filters${nFilters ? ` (${nFilters})` : ''}</button>
+        </div>
+        <div class="gal-filters ${g.open ? 'open' : ''}" id="galFilters">
+          <div class="chip-row" role="group" aria-label="Design style"><span class="lbl">Style</span>${G.STYLES.map(([v, l]) => chip('data-gstyle', v, l, g.styles.includes(v))).join('')}</div>
+          <div class="chip-row" role="group" aria-label="Colours"><span class="lbl">Colour</span>${G.COLOURS_F.map(([v, l, c]) => chip('data-gcol', v, l, g.colours.includes(v), `<i class="chip-sw" style="background:${c}" aria-hidden="true"></i>`)).join('')}${chip('data-gfav', '1', 'Favourites only', g.favOnly, '<span aria-hidden="true">♥ </span>')}</div>
+        </div>
+        <div class="gal-sum" aria-live="polite"><b>${count} design${count === 1 ? '' : 's'}</b>${nFilters || W.galTab !== 'all' ? ' <button type="button" class="linkbtn" id="galClear">Show all designs</button>' : ''}<span class="tiny muted">Every design works in English, हिन्दी and ਪੰਜਾਬੀ.</span></div>
+      </div>
+      ${recent.length ? `<div class="gal-recent"><span class="lbl">Recently viewed</span><div class="gal-recent-row">${recent.slice(0, 6).map((id) => { const t = IXT.THEMES[id], p = t.palettes[0]; return `<button type="button" class="recent-chip" data-quick="${id}"><i style="background:linear-gradient(135deg,${p.bg} 50%,${p.accent} 50%)" aria-hidden="true"></i>${esc(t.name.replace(' (blank)', ''))}</button>`; }).join('')}</div></div>` : ''}
+      ${g.cmp.length ? `<div class="cmp-tray" role="status"><span>Comparing <b>${g.cmp.length}</b> of 3: ${g.cmp.map((id) => esc(IXT.THEMES[id].name.replace(' (blank)', ''))).join(', ')}</span><span class="row" style="gap:.4rem"><button type="button" class="btn sm primary" id="cmpGo" ${g.cmp.length < 2 ? 'disabled title="Tick one more design"' : ''}>Compare side by side</button><button type="button" class="linkbtn" id="cmpClear">Clear</button></span></div>` : ''}
+      ${showCallig ? `<div class="stack">${onlyCallig ? '' : '<h3 class="gal-h">Calligraphy & handwritten</h3>'}${calligPanel(inv)}</div>${onlyCallig ? '' : '<h3 class="gal-h">Ready designs</h3>'}` : ''}
+      ${onlyCallig ? '' : ids.length ? `<div class="design-grid" role="radiogroup" aria-label="Ready designs">${ids.map(tile).join('')}</div>`
+        : `<div class="gal-empty"><p><b>No designs match these filters.</b></p><p class="small muted">Try fewer colours or styles, or look at every design.</p><button type="button" class="btn sm" id="galClear2">Show all designs</button></div>`}`;
+  }
+  const IXC_COUNT = () => (window.IXC ? IXC.styles.STYLES.length : 0);
+  function wireGallery(body) {
+    const g = W.gal, P = window.IXPicks, again = () => { if (P) P.setPrefs({ styles: g.styles, colours: g.colours, sort: g.sort }); step1(body); };
+    const toggle = (list, v) => (list.includes(v) ? list.filter((x) => x !== v) : list.concat(v));
+    const occ = body.querySelector('#galOcc'); if (occ) occ.onchange = () => { W.galTab = occ.value; step1(body); };
+    const so = body.querySelector('#galSort'); if (so) so.onchange = () => { g.sort = so.value; again(); };
+    const more = body.querySelector('#galMore'); if (more) more.onclick = () => { g.open = !g.open; step1(body); body.querySelector('#galMore')?.focus(); };
+    body.querySelectorAll('[data-gstyle]').forEach((b) => (b.onclick = () => { g.styles = toggle(g.styles, b.dataset.gstyle); again(); body.querySelector(`[data-gstyle="${b.dataset.gstyle}"]`)?.focus(); }));
+    body.querySelectorAll('[data-gcol]').forEach((b) => (b.onclick = () => { g.colours = toggle(g.colours, b.dataset.gcol); again(); body.querySelector(`[data-gcol="${b.dataset.gcol}"]`)?.focus(); }));
+    body.querySelectorAll('[data-gfav]').forEach((b) => (b.onclick = () => { g.favOnly = !g.favOnly; step1(body); body.querySelector('[data-gfav]')?.focus(); }));
+    body.querySelectorAll('#galClear, #galClear2').forEach((b) => (b.onclick = () => { g.styles = []; g.colours = []; g.favOnly = false; W.galTab = 'all'; again(); }));
+    body.querySelectorAll('[data-fav]').forEach((b) => (b.onclick = () => {
+      if (!P) return;
+      const on = P.toggleFav(b.dataset.fav);
+      IX.toast(on ? 'Saved to your favourites on this device.' : 'Removed from favourites.');
+      step1(body); body.querySelector(`[data-fav="${b.dataset.fav}"]`)?.focus();
+    }));
+    const pick = async (id, pal) => {
+      const inv = W.inv;
+      // same checks as tapping the card itself
+      if (inv.media.background && !inv.design.aiArt && !(await H.confirm('Use this ready design?', 'Your own picture will be taken off the card. You can upload it again any time.', 'Use ready design'))) return;
+      if (calligOn(inv) && !(await H.confirm('Use this ready design?', 'Your calligraphy design will be taken off the card. It is kept, so you can switch back from the Calligraphy choice any time.', 'Use ready design'))) return;
+      if (inv.calligraphy) inv.calligraphy.active = false;
+      if (inv.media.background) removePicture();
+      setTheme(id); inv.paletteIndex = pal || 0;
+      if (P) P.viewed(id);
+      changed(); step1(body);
+      IX.toast(`“${IXT.THEMES[id].name.replace(' (blank)', '')}” is on your card.`, 'ok');
+    };
+    body.querySelectorAll('[data-quick]').forEach((b) => (b.onclick = () => {
+      if (!P) return;
+      const id = b.dataset.quick, pal = b.dataset.quickPal != null ? +b.dataset.quickPal : designOn(W.inv, id) ? W.inv.paletteIndex : 0;
+      P.quickLook({ themeId: id, pal, build: previewWith, onUse: pick, isOn: (x) => designOn(W.inv, x) }).then(() => { if (W.step === 1 && !document.querySelector('.modal-bg')) step1(body); });
+    }));
+    body.querySelectorAll('[data-cmp]').forEach((c) => (c.onchange = () => {
+      g.cmp = c.checked ? g.cmp.concat(c.dataset.cmp).slice(0, 3) : g.cmp.filter((x) => x !== c.dataset.cmp);
+      step1(body); body.querySelector(`[data-cmp="${c.dataset.cmp}"]`)?.focus();
+    }));
+    const cc = body.querySelector('#cmpClear'); if (cc) cc.onclick = () => { g.cmp = []; step1(body); };
+    const cg = body.querySelector('#cmpGo');
+    if (cg) cg.onclick = () => P && P.compare({
+      items: g.cmp.map((id) => ({ id, pal: g.colours.length ? Math.max(0, IXGallery.palFor(id, g.colours)) : designOn(W.inv, id) ? W.inv.paletteIndex : 0 })),
+      build: previewWith, onUse: (id, pal) => { g.cmp = []; pick(id, pal); },
+    });
   }
   /* "Describe your card": finds the closest ready designs and colours for a few words,
    * and can hand the same words to the AI painter. */
@@ -562,18 +690,50 @@
   const AI_FOR_CAT = { wedding: 'royal', engagement: 'floral', birthday: 'birthday', anniversary: 'minimal', housewarming: 'pichwai', religious: 'temple', festival: 'mehndi', corporate: 'corporate', conference: 'corporate', launch: 'corporate', school: 'floral', farewell: 'minimal', community: 'floral', custom: 'floral' };
   const grad = (g) => (g.startsWith('conic') ? g : `linear-gradient(135deg,${g})`);
 
+  /* AI design assistant: describe the idea (or add an inspiration photo), pick occasion,
+   * style, colours and card language, paint 4 designs, then refine and repaint.
+   * The photo is only read in this browser for its colours; it is never uploaded. */
+  const LANG_NAMES = { en: 'English', hi: 'हिन्दी (Hindi)', pa: 'ਪੰਜਾਬੀ (Punjabi)' };
+  function setCardLang(l) {
+    const inv = W.inv;
+    if (!inv.languages.includes(l)) {
+      inv.languages.push(l);
+      inv.text[l] = Object.assign({}, inv.text[inv.defaultLang] || inv.text.en);
+      if (window.IXStudio) { try { IXStudio.fillDefault(inv, l); } catch (e) { /* keep the copied text */ } }
+    }
+    inv.defaultLang = l; W.lang = l; W.pvLang = l;
+    changed();
+  }
+  // The AI colour set closest to a photo's main colours.
+  async function coloursFromPhoto(file) {
+    const u = URL.createObjectURL(file);
+    try {
+      const img = await IX.loadImage(u);
+      const c = document.createElement('canvas'); c.width = c.height = 40;
+      const x = c.getContext('2d'); x.drawImage(img, 0, 0, 40, 40);
+      const d = x.getImageData(0, 0, 40, 40).data;
+      const px = []; for (let i = 0; i < d.length; i += 4) px.push([d[i], d[i + 1], d[i + 2]]);
+      const sat = (q) => Math.max(...q) - Math.min(...q);
+      const lum = (q) => (0.2126 * q[0] + 0.7152 * q[1] + 0.0722 * q[2]) / 255;
+      const avg = (list) => list.reduce((a, q) => [a[0] + q[0], a[1] + q[1], a[2] + q[2]], [0, 0, 0]).map((v) => v / Math.max(1, list.length));
+      const vivid = px.slice().sort((a, b) => sat(b) - sat(a)).slice(0, 320), main = avg(vivid), all = avg(px);
+      const hx = (h) => { const n = parseInt(h.replace('#', ''), 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
+      const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+      let best = 'auto', bd = Infinity;
+      AI_COLORS.filter(([id]) => id !== 'auto').forEach(([id, , g]) => { const [a, b] = g.split(',').map(hx); const v = Math.min(dist(main, a), dist(main, b)) + 0.5 * Math.min(dist(all, a), dist(all, b)); if (v < bd) { bd = v; best = id; } });
+      return { colors: best, light: lum(all) > 0.6, url: u };
+    } catch (e) { URL.revokeObjectURL(u); throw e; }
+  }
   function renderAi(stepBody) {
     const el = stepBody.querySelector('#aiCard');
     if (!el) return;
     const inv = W.inv, store = H.store;
     const A = (W.ai = W.ai || { style: null, colors: 'auto', words: '', busy: false, results: [], recent: null, credits: null, error: '', picking: '' });
-    const style = A.style || AI_FOR_CAT[inv.category] || 'royal';
-    if (!store.aiAvailable) {
-      el.innerHTML = `<h3 style="margin:0">✨ Let AI paint your card</h3><p class="small muted" style="margin:0">AI designs work in the online version once you are signed in. In this demo copy, choose “Ready designs” or “Your own design” above.</p>`;
-      return;
-    }
-    if (A.credits === null) { A.credits = false; store.aiCredits().then((c) => { A.credits = c; renderAi(stepBody); }).catch(() => { A.credits = { left: null }; renderAi(stepBody); }); }
-    if (A.recent === null) { A.recent = []; store.aiRecent().then((r) => { A.recent = r; renderAi(stepBody); }).catch(() => {}); }
+    if (A.desc === undefined) Object.assign(A, { desc: '', cat: inv.category, refUrl: '', note: '', refine: '' });
+    const style = A.style || AI_FOR_CAT[A.cat] || 'royal';
+    const can = !!store.aiAvailable;
+    if (can && A.credits === null) { A.credits = false; store.aiCredits().then((c) => { A.credits = c; renderAi(stepBody); }).catch(() => { A.credits = { left: null }; renderAi(stepBody); }); }
+    if (can && A.recent === null) { A.recent = []; store.aiRecent().then((r) => { A.recent = r; renderAi(stepBody); }).catch(() => {}); }
     const c = A.credits || {};
     const left = c.left;
     const none = left === 0;
@@ -581,30 +741,81 @@
         <span class="ai-img" style="background-image:url('${esc(u)}')"></span>
         <span class="ai-use">${A.picking === u ? 'Applying…' : inv.design.aiArt === u ? '✓ On your card' : 'Use this design'}</span></button>`;
     const older = (A.recent || []).filter((u) => !A.results.includes(u));
+    const matches = A.desc.trim() ? IXGallery.suggest(A.desc, A.cat) : null;
     el.innerHTML = `
-      <div class="row between"><h3 style="margin:0">✨ Let AI paint your card</h3>
-        <span class="pill ai-left" id="aiLeft">${left == null ? '' : none ? 'No free tries left' : `${left} free ${left === 1 ? 'try' : 'tries'} left`}</span></div>
-      <p class="small muted" style="margin:0">Choose a style and colours. AI paints 4 new background designs just for you, and your names and details are placed on top.</p>
+      <div class="row between"><h3 style="margin:0">✨ AI design assistant</h3>
+        <span class="pill ai-left" id="aiLeft">${!can || left == null ? '' : none ? 'No free tries left' : `${left} free ${left === 1 ? 'try' : 'tries'} left`}</span></div>
+      <p class="small muted" style="margin:0">Describe your idea or add an inspiration photo. AI paints 4 new background designs just for you, and your names and details are placed on top.</p>
+      <div class="ai-ask">
+        <label class="lbl" for="aiDesc">Describe the card you want</label>
+        <textarea class="input" id="aiDesc" rows="3" maxlength="300" placeholder="e.g. A royal Indian wedding invitation with a burgundy background, antique gold details and two golden horses">${esc(A.desc)}</textarea>
+        <div class="ai-ask-row">
+          <button type="button" class="btn sm primary" id="aiUnderstand">Fill the choices from my words</button>
+          <label class="btn sm ghost">📷 ${A.refUrl ? 'Change' : 'Add'} inspiration photo<input type="file" hidden accept="image/*" id="aiRef"></label>
+          ${A.refUrl ? `<span class="ai-ref"><img src="${esc(A.refUrl)}" alt="Your inspiration photo"><button type="button" class="linkbtn" id="aiRefDel">Remove</button></span>` : ''}
+        </div>
+        ${A.note ? `<p class="ai-note" role="status">${A.note}</p>` : '<p class="tiny muted" style="margin:0">Your photo stays on your device. Only its colours are used.</p>'}
+      </div>
+      <div class="ai-two">
+        <label class="field"><span class="lbl">Occasion</span><select class="input" id="aiOcc">${IXT.CATEGORIES.map((x) => `<option value="${x.id}" ${x.id === A.cat ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>
+        <label class="field"><span class="lbl">Card language</span><select class="input" id="aiLang">${Object.entries(LANG_NAMES).map(([l, n]) => `<option value="${l}" ${l === inv.defaultLang ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+      </div>
       <div class="field"><span class="lbl">Style</span>
-        <div class="ai-styles" role="radiogroup" aria-label="AI design style">${AI_STYLES.map((s) => `<button type="button" role="radio" aria-checked="${s.id === style}" class="ai-style ${s.id === style ? 'on' : ''}" data-ai-style="${s.id}">
-          <span class="ai-sw" style="background:${grad(s.g)}" aria-hidden="true">${s.icon}</span><b>${esc(s.name)}${s.id === AI_FOR_CAT[inv.category] ? ' <small>Suggested</small>' : ''}</b><small>${esc(s.hint)}</small></button>`).join('')}</div></div>
+        <div class="ai-styles" role="radiogroup" aria-label="AI design style">${AI_STYLES.map((st) => `<button type="button" role="radio" aria-checked="${st.id === style}" class="ai-style ${st.id === style ? 'on' : ''}" data-ai-style="${st.id}">
+          <span class="ai-sw" style="background:${grad(st.g)}" aria-hidden="true">${st.icon}</span><b>${esc(st.name)}${st.id === AI_FOR_CAT[A.cat] ? ' <small>Suggested</small>' : ''}</b><small>${esc(st.hint)}</small></button>`).join('')}</div></div>
       <div class="field"><span class="lbl">Colours</span>
         <div class="ai-colors" role="radiogroup" aria-label="AI design colours">${AI_COLORS.map(([id, name, g]) => `<button type="button" role="radio" aria-checked="${id === A.colors}" class="ai-color ${id === A.colors ? 'on' : ''}" data-ai-color="${id}"><i style="background:${grad(g)}"></i>${esc(name)}</button>`).join('')}</div></div>
       <label class="field"><span class="lbl">Anything special? <span class="tiny muted">(optional, a few words)</span></span>
         <input class="input" id="aiWords" maxlength="120" placeholder="e.g. elephants and lotus flowers, Ganesha motif, mountains" value="${esc(A.words)}"></label>
-      <div class="row"><button class="btn primary" id="aiGo" ${A.busy || none ? 'disabled' : ''}>${A.busy ? 'Painting…' : A.results.length ? '✨ Paint 4 more designs' : '✨ Paint 4 designs'}</button>
-        <span class="tiny muted">${none ? 'You have used your free AI tries. You can still choose “Ready designs” or “Your own design” above.' : 'Each try paints 4 designs and takes about half a minute.'}</span></div>
+      ${can ? `<div class="row"><button class="btn primary" id="aiGo" ${A.busy || none ? 'disabled' : ''}>${A.busy ? 'Painting…' : A.results.length ? '✨ Paint 4 more designs' : '✨ Paint 4 designs'}</button>
+        <span class="tiny muted">${none ? 'You have used your free AI tries. You can still choose “Ready designs” or “Your own design” above.' : 'Each try paints 4 designs and takes about half a minute.'}</span></div>`
+        : '<p class="notice small" style="margin:0">Painting new designs with AI works in the online version once you are signed in. In this demo copy you can still use your words to find matching ready designs below.</p>'}
+      ${matches && matches.understood ? `<div class="ai-match"><span class="lbl">Ready designs that match your words</span><div class="describe-picks">${matches.designs.map((d) => { const t = IXT.THEMES[d.theme], pl = t.palettes[d.palette] || t.palettes[0]; return `<button type="button" class="describe-pick" data-ai-ready="${d.theme}" data-pal="${d.palette}"><i style="background:linear-gradient(135deg,${pl.bg} 50%,${pl.accent} 50%)"></i><span><b>${esc(t.name.replace(' (blank)', ''))}</b><small>${esc(pl.name)}</small></span></button>`; }).join('')}</div></div>` : ''}
       ${A.error ? `<p class="notice warn" role="alert" style="margin:0">${esc(A.error)}</p>` : ''}
       ${A.busy ? `<div class="ai-grid" aria-live="polite" aria-busy="true">${'<div class="ai-pick ai-wait"><span class="ai-img"></span></div>'.repeat(4)}</div><p class="small muted" style="margin:0;text-align:center">🎨 Painting your designs… please keep this page open.</p>` : ''}
-      ${A.results.length && !A.busy ? `<div class="field"><span class="lbl">Tap a design to put it on your card</span><div class="ai-grid">${A.results.map(thumb).join('')}</div></div>` : ''}
+      ${A.results.length && !A.busy ? `<div class="field"><span class="lbl">Tap a design to put it on your card</span><div class="ai-grid">${A.results.map(thumb).join('')}</div></div>
+        <div class="ai-refine"><label class="lbl" for="aiRefine">Not quite right? Tell AI what to change</label>
+          <div class="describe-row"><input class="input" id="aiRefine" maxlength="100" placeholder="e.g. more pastel, add lotus flowers, less gold" value="${esc(A.refine)}"><button type="button" class="btn" id="aiRefineGo" ${none ? 'disabled' : ''}>✨ Repaint with changes</button></div></div>` : ''}
       ${older.length ? `<details class="ai-older" ${A.results.length ? '' : 'open'}><summary class="small">Your earlier AI designs (${older.length})</summary><div class="ai-grid">${older.map(thumb).join('')}</div></details>` : ''}`;
-    el.querySelectorAll('[data-ai-style]').forEach((b) => (b.onclick = () => { A.style = b.dataset.aiStyle; renderAi(stepBody); }));
-    el.querySelectorAll('[data-ai-color]').forEach((b) => (b.onclick = () => { A.colors = b.dataset.aiColor; renderAi(stepBody); }));
-    el.querySelector('#aiWords').oninput = (e) => (A.words = e.target.value);
-    el.querySelector('#aiGo').onclick = async () => {
-      A.busy = true; A.error = ''; A.style = style; renderAi(stepBody);
+    const $ = (q) => el.querySelector(q);
+    $('#aiDesc').oninput = (e) => (A.desc = e.target.value);
+    $('#aiUnderstand').onclick = () => {
+      A.desc = $('#aiDesc').value;
+      if (!A.desc.trim()) { $('#aiDesc').focus(); A.note = 'Write a few words first, for example “pastel floral with lotus flowers”.'; return renderAi(stepBody); }
+      const r = IXGallery.suggest(A.desc, A.cat);
+      if (r.aiStyle) A.style = r.aiStyle;
+      if (r.aiColors && r.aiColors !== 'auto') A.colors = r.aiColors;
+      A.words = r.words.slice(0, 120);
+      const sn = (AI_STYLES.find((x) => x.id === (A.style || style)) || {}).name, cn = ((AI_COLORS.find(([id]) => id === A.colors) || [])[1] || '');
+      A.note = r.understood ? `Got it: <b>${esc(sn)}</b> style with <b>${esc(cn.toLowerCase())}</b>. Your words are added below. Change anything you like.` : 'I could not pick a style from those words, so I kept your choices. Your words are added below.';
+      renderAi(stepBody);
+    };
+    $('#aiRef').onchange = async (e) => {
+      const f = e.target.files[0]; if (!f) return;
       try {
-        const r = await store.aiGenerate({ style, colors: A.colors, category: inv.category, words: A.words });
+        const r = await coloursFromPhoto(f);
+        if (A.refUrl) URL.revokeObjectURL(A.refUrl);
+        A.refUrl = r.url; A.colors = r.colors;
+        A.note = `From your photo: <b>${esc(((AI_COLORS.find(([id]) => id === r.colors) || [])[1] || '').toLowerCase())}</b> colours${r.light ? ', light and airy' : ', rich and deep'}. Add words above for the style.`;
+      } catch (err) { A.note = 'Could not read that photo. Please try a JPG or PNG.'; }
+      renderAi(stepBody);
+    };
+    const rd = $('#aiRefDel'); if (rd) rd.onclick = () => { URL.revokeObjectURL(A.refUrl); A.refUrl = ''; A.note = ''; renderAi(stepBody); };
+    $('#aiOcc').onchange = (e) => { A.cat = e.target.value; if (!A.styleSetByUser) A.style = null; renderAi(stepBody); };
+    $('#aiLang').onchange = (e) => { setCardLang(e.target.value); IX.toast(`Card language: ${LANG_NAMES[e.target.value]}. Your words can be changed in step 2.`, 'ok'); };
+    el.querySelectorAll('[data-ai-style]').forEach((b) => (b.onclick = () => { A.style = b.dataset.aiStyle; A.styleSetByUser = true; renderAi(stepBody); }));
+    el.querySelectorAll('[data-ai-color]').forEach((b) => (b.onclick = () => { A.colors = b.dataset.aiColor; renderAi(stepBody); }));
+    $('#aiWords').oninput = (e) => (A.words = e.target.value);
+    el.querySelectorAll('[data-ai-ready]').forEach((b) => (b.onclick = () => {
+      if (calligOn(inv)) inv.calligraphy.active = false;
+      if (inv.media.background) removePicture();
+      setTheme(b.dataset.aiReady); inv.paletteIndex = +b.dataset.pal; W.way = 'ready';
+      changed(); step1(stepBody); IX.toast(`“${IXT.THEMES[b.dataset.aiReady].name}” is on your card.`, 'ok');
+    }));
+    const paint = async () => {
+      A.busy = true; A.error = ''; A.style = A.style || style; renderAi(stepBody);
+      try {
+        const r = await store.aiGenerate({ style: A.style, colors: A.colors, category: A.cat, words: A.words });
         A.results = r.images || [];
         A.credits = { ...c, used: r.used, limit: r.limit, left: r.left };
       } catch (e) {
@@ -614,6 +825,22 @@
       A.busy = false;
       if (W.step === 1) renderAi(stepBody);
     };
+    if ($('#aiGo')) $('#aiGo').onclick = paint;
+    const rg = $('#aiRefineGo');
+    if (rg) {
+      $('#aiRefine').oninput = (e) => (A.refine = e.target.value);
+      $('#aiRefine').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); rg.click(); } };
+      rg.onclick = () => {
+        const t = $('#aiRefine').value.trim();
+        if (!t) return $('#aiRefine').focus();
+        const r = IXGallery.suggest(t, A.cat);
+        if (r.aiColors && r.aiColors !== 'auto') A.colors = r.aiColors;
+        if (r.aiStyle && r.understood && /style|royal|floral|temple|minimal|mehndi|pichwai|birthday|corporate/i.test(t)) A.style = r.aiStyle;
+        A.words = [t, A.words].filter(Boolean).join(', ').slice(0, 120);
+        A.refine = '';
+        paint();
+      };
+    }
     el.querySelectorAll('[data-ai-use]').forEach((b) => (b.onclick = () => useAiArt(b.dataset.aiUse, stepBody)));
   }
 
@@ -670,10 +897,9 @@
     body.innerHTML = `
       <div id="fpWords"></div>
       ${panel('fpPhotos', '＋', 'Photos, logo &amp; music', g === 'corp' ? 'Optional: speaker or company photos, logo, background music' : 'Optional: couple or family photos, gallery, logo, music, voice message')}
-      ${panel('fpMessage', '✎', 'Main invitation message', 'Already written in your chosen style – open to read or change it')}
-      ${panel('fpLook', '◐', 'Fonts, colours &amp; sections', 'Optional: fine-tune the look and choose which parts appear')}`;
+      ${panel('fpMessage', '✎', 'Main invitation message', 'Already written in your chosen style – open to read or change it')}`;
     step3(body.querySelector('#fpWords'));
-    const renderers = { fpPhotos: step2, fpMessage: step4, fpLook: step5 };
+    const renderers = { fpPhotos: step2, fpMessage: step4 };
     body.querySelectorAll('.fill-panel').forEach((d) => {
       d.addEventListener('toggle', () => { if (d.open && !d.dataset.drawn) { d.dataset.drawn = '1'; renderers[d.id](d.querySelector('.fp-body')); } });
     });
@@ -1109,6 +1335,46 @@
   }
 
   /* ---------- Step 6: settings & publish ---------- */
+  /* ---------- Step 3: style ----------
+   * Colour theme, calligraphy, fonts, colours, decorations and sections, all on one page. */
+  function stepStyle(body) {
+    const inv = W.inv, th = IXT.THEMES[inv.theme], callig = calligOn(inv);
+    body.innerHTML = `<div class="card stack"><h2>Colour theme</h2>
+        ${inv.media.background ? '<p class="small muted" style="margin:0">Your own picture is the background. The colour theme sets the text and accent colours on top of it.</p>' : ''}
+        <div class="swatches" role="radiogroup" aria-label="Colour theme">${th.palettes.map((p, i) => `<button type="button" class="swatch ${i === inv.paletteIndex ? 'on' : ''}" role="radio" aria-checked="${i === inv.paletteIndex}" data-spal="${i}"><i style="background:linear-gradient(135deg,${p.bg} 50%,${p.accent} 50%)"></i>${esc(p.name)}</button>`).join('')}</div>
+      </div>
+      <div class="card stack style-callig"><h2>Calligraphy</h2>
+        ${callig ? `<p class="small muted" style="margin:0">Your card uses handwritten calligraphy. Change its fonts, inks, paper and flourishes in Calligraphy Studio.</p><a class="btn primary" href="#/calligraphy/${esc(inv.id)}">✒ Open Calligraphy Studio</a>`
+          : `<p class="small muted" style="margin:0">Want names in artistic handwriting with flourishes and paper texture? Choose a calligraphy style in step 1.</p><button type="button" class="btn" id="toCallig">✒ See calligraphy styles</button>`}
+      </div>
+      <div id="styleLook"></div>`;
+    body.querySelectorAll('[data-spal]').forEach((b) => (b.onclick = () => { inv.paletteIndex = +b.dataset.spal; Object.assign(inv.design, { textColor: '', bgColor: '', accentColor: '' }); changed(); goStep(3, true); }));
+    const tc = body.querySelector('#toCallig'); if (tc) tc.onclick = () => { W.way = 'callig'; goStep(1); setTimeout(() => document.getElementById('designCard')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 80); };
+    step5(body.querySelector('#styleLook'));
+  }
+  /* ---------- Step 4: preview ----------
+   * The whole card as guests will see it, page by page, plus a short "ready to share?" check. */
+  function stepPreview(body) {
+    const inv = W.inv, issues = readiness(inv).filter(([, t]) => !/link name/.test(t));
+    const pages = PV_PAGES.map(([id, l]) => `<button type="button" class="pvs-page" data-pvs="${id}"><b>${l}</b><small>${{ cover: 'The first screen with names and date', invite: 'Welcome, family and your message', events: 'Each event, time and place, with directions', rsvp: 'How guests reply' }[id]}</small></button>`).join('');
+    body.innerHTML = `<div class="card stack"><h2>See every page</h2>
+        <p class="small muted" style="margin:0">Tap a page to see it in the preview${matchMedia('(max-width: 1020px)').matches ? '' : ' on the right'}. Switch between phone and computer at the top of the preview.</p>
+        <div class="pvs-pages">${pages}</div>
+        <div class="row" style="gap:.5rem;flex-wrap:wrap"><button type="button" class="btn" id="pvsGuest">▶ Open as a guest sees it</button><button type="button" class="btn ghost" id="pvsDesk">🖥 Computer view</button><button type="button" class="btn ghost" id="pvsMob">📱 Phone view</button></div>
+      </div>
+      <div class="card stack"><h2>Ready to share?</h2>
+        ${issues.length ? `<ul class="ready-list">${issues.map(([k, t]) => `<li class="${k}">${k === 'bad' ? '⚠' : 'ℹ'} ${esc(t)}</li>`).join('')}</ul>
+          <div class="row" style="gap:.5rem"><button type="button" class="btn" data-back="2">← Back to Personalise</button></div>`
+          : '<p class="ready-ok">✓ Names, date, place and message are all in. You can share it next.</p>'}
+        <p class="tiny muted" style="margin:0">Guests can reply on the card. Their answers arrive in your RSVP dashboard after you publish.</p>
+      </div>`;
+    const small = () => matchMedia('(max-width: 1020px)').matches;
+    body.querySelectorAll('[data-pvs]').forEach((b) => (b.onclick = () => { pvGoto(b.dataset.pvs); if (small()) document.getElementById('fabPv').click(); }));
+    body.querySelector('#pvsGuest').onclick = () => { W.pvOpener = true; pvMarkPage('cover'); pushPreview(); document.getElementById(small() ? 'fabPv' : 'pvFull').click(); };
+    body.querySelector('#pvsDesk').onclick = () => document.querySelector('[data-pv=desktop]').click();
+    body.querySelector('#pvsMob').onclick = () => document.querySelector('[data-pv=mobile]').click();
+    body.querySelectorAll('[data-back]').forEach((b) => (b.onclick = () => goStep(+b.dataset.back)));
+  }
   function readiness(inv) {
     const issues = [];
     if (!M.txt(inv, inv.defaultLang, 'title')) issues.push(['bad', 'Add an event title (step 2).']);

@@ -117,5 +117,61 @@
     return (own.length >= 3 ? own : own.concat(FONT_PAIRS.filter((p) => !own.includes(p)))).slice(0, 3);
   };
 
-  window.IXGallery = { META, TABS, TAB_FOR_CAT, inTab, suggest, FONT_PAIRS, pairsFor };
+
+  /* ---------- studio filters: design style, colours, one-line descriptions ---------- */
+  const STYLES = [['royal', 'Royal'], ['traditional', 'Traditional'], ['modern', 'Modern'], ['minimal', 'Minimal'], ['floral', 'Floral'], ['vintage', 'Vintage'], ['calligraphy', 'Calligraphy'], ['luxury', 'Luxury']];
+  const STYLE_OF = {
+    'royal-maroon': ['royal', 'traditional', 'floral', 'luxury'], 'himalayan-dham': ['traditional', 'vintage'], 'blush-rings': ['modern', 'floral'],
+    'confetti-party': ['modern'], 'golden-anniversary': ['luxury', 'vintage', 'minimal'], 'griha-pravesh': ['traditional', 'floral'],
+    'saffron-puja': ['traditional', 'royal'], 'corporate-slate': ['modern', 'minimal'], 'conference-night': ['modern'], 'launch-burst': ['modern'],
+    'campus-stars': ['traditional', 'vintage'], 'sunset-farewell': ['vintage', 'modern'], 'community-leaf': ['modern', 'minimal', 'floral'], 'minimal-ivory': ['minimal', 'luxury', 'modern'],
+  };
+  const DESC = {
+    'royal-maroon': 'Rich maroon with painted roses and palace doors that open.',
+    'himalayan-dham': 'Mountains, deodar trees and a temple roof, in pahadi colours.',
+    'blush-rings': 'Soft blush tones, two rings and an envelope opening.',
+    'confetti-party': 'Balloons and confetti in bright, happy colours.',
+    'golden-anniversary': 'Ivory and gold leaves for a timeless, formal feel.',
+    'griha-pravesh': 'Marigold toran and mango leaves over a festive doorway.',
+    'saffron-puja': 'Saffron mandala and diyas for pujas and festivals.',
+    'corporate-slate': 'Clean lines and calm colours for business meetings.',
+    'conference-night': 'Dark, techy network pattern for summits and events.',
+    'launch-burst': 'Bold burst and big capitals for a launch day.',
+    'campus-stars': 'Stars and classic serif type for school and college.',
+    'sunset-farewell': 'Warm sunset hills for farewells and retirements.',
+    'community-leaf': 'Fresh green leaves and friendly handwriting.',
+    'minimal-ivory': 'Plain ivory paper and fine type. Lets your words lead.',
+  };
+  const COLOURS_F = [['burgundy', 'Burgundy', '#6b1426'], ['gold', 'Gold', '#c9a15a'], ['ivory', 'Ivory', '#f6ecd8'], ['pink', 'Pink', '#f2a7b8'], ['blue', 'Blue', '#2f5bea'], ['green', 'Green', '#2f7a4c'], ['other', 'Other', 'conic-gradient(#ee8a24,#5b2a86,#111,#16747a,#ee8a24)']];
+  const hsl = (h) => {
+    const c = hex(h); if (!c) return null;
+    const [r, g, b] = c.map((v) => v / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+    let hue = 0; const sat = d ? d / (1 - Math.abs(2 * l - 1)) : 0;
+    if (d) hue = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return [(hue * 60 + 360) % 360, sat, l];
+  };
+  // The colour families one colour belongs to.
+  function bucket(h) {
+    const v = hsl(h); if (!v) return [];
+    const [hu, sa, l] = v, red = hu >= 330 || hu < 15;
+    if (l > 0.88 && (sa < 0.75 || (hu > 25 && hu < 60))) return ['ivory'];
+    if (sa < 0.12) return l < 0.2 ? ['other'] : ['other'];
+    if ((red || (hu >= 300 && hu < 330)) && l < 0.4) return ['burgundy'];
+    if ((red || hu >= 300) && l >= 0.55) return ['pink'];
+    if (red) return ['burgundy'];
+    if (hu >= 28 && hu < 55 && sa > 0.25 && l > 0.3 && l < 0.75) return ['gold'];
+    if (hu >= 75 && hu < 175) return ['green'];
+    if (hu >= 175 && hu < 260) return ['blue'];
+    return ['other'];
+  }
+  const palColours = (p) => [...new Set([].concat(bucket(p.bg), bucket(p.accent), bucket(p.gold || p.accent)))];
+  // The first palette of a design that has every chosen colour, or -1.
+  function palFor(themeId, colours) {
+    const th = window.IXT && IXT.THEMES[themeId]; if (!th) return -1;
+    if (!colours || !colours.length) return 0;
+    return th.palettes.findIndex((p) => { const has = palColours(p); return colours.some((c) => has.includes(c)); });
+  }
+  const matches = (id, f) => inTab(id, f.occ || 'all') && (!f.styles || !f.styles.length || f.styles.some((st) => (STYLE_OF[id] || []).includes(st))) && palFor(id, f.colours) >= 0;
+
+  window.IXGallery = { META, TABS, TAB_FOR_CAT, inTab, suggest, FONT_PAIRS, pairsFor, STYLES, STYLE_OF, DESC, COLOURS_F, palColours, palFor, matches };
 })();
