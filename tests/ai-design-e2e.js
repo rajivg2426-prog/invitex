@@ -18,7 +18,7 @@ const ok = (t, c, n = '') => { if (!c) fails++; console.log((c ? 'PASS ' : 'FAIL
   await p.click('text=Create new invitation');
   await p.waitForSelector('#designCard');
   ok('step 1 offers four ways: ready designs, your own design, AI, calligraphy', (await p.locator('[data-way]').count()) === 4);
-  await p.click('.gal-tab >> text=All');
+  await p.selectOption('#galOcc', 'all');
   ok('ready designs show as a gallery of small cards', (await p.locator('.design-pick .mini').count()) >= 14);
   await p.click('[data-way=ai]');
   await p.waitForSelector('#aiCard');
@@ -40,7 +40,7 @@ const ok = (t, c, n = '') => { if (!c) fails++; console.log((c ? 'PASS ' : 'FAIL
   });
   await p.click('[data-cat=housewarming]');
   await p.click('[data-way=ready]');
-  await p.click('.gal-tab >> text=All');
+  await p.selectOption('#galOcc', 'all');
   await p.click('.design-pick[data-theme-pick="royal-maroon"]'); // dark design first, to test the switch to light
   await p.click('[data-way=ai]');
   await p.waitForSelector('.ai-style');

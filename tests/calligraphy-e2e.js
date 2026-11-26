@@ -40,8 +40,8 @@ const watch = (p) => { p.on('pageerror', (e) => errs.push(e.message)); p.on('con
   await p.click('text=Create new invitation');
   await p.waitForSelector('[data-cat=wedding]');
   await p.click('[data-cat=wedding]');
-  ok('“Calligraphy & Handwritten” tab is in the ready-design gallery', await p.locator('[data-gal-tab=calligraphy]').count() === 1);
-  await p.click('[data-gal-tab=calligraphy]');
+  ok('“Calligraphy & Handwritten” tab is in the ready-design gallery', await p.locator('#galOcc option[value=calligraphy]').count() === 1);
+  await p.selectOption('#galOcc', 'calligraphy');
   await p.waitForSelector('[data-callig]');
   ok('the tab shows all 10 styles', (await p.locator('[data-callig]').count()) === 10);
   await p.click('[data-way=callig]');
@@ -192,8 +192,8 @@ const watch = (p) => { p.on('pageerror', (e) => errs.push(e.message)); p.on('con
 
   /* 18. existing ready designs still work */
   await p.goto(BASE + 'index.html'); await p.click('text=Create new invitation'); await p.waitForSelector('[data-cat=wedding]');
-  await p.click('[data-gal-tab=all]');
-  ok('all 17 ready designs are still offered', (await p.locator('.design-tile').count()) === 17);
+  await p.selectOption('#galOcc', 'all');
+  ok('all 19 ready designs are still offered', (await p.locator('.design-tile').count()) === 19);
   await p.click('[data-theme-pick=blush-rings]'); await p.waitForTimeout(800);
   const pv = await p.frameLocator('#pvIframe').locator('.ix-hero').count().catch(() => 0);
   ok('a ready design still previews normally', pv >= 1);

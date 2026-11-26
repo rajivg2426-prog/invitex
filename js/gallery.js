@@ -26,6 +26,8 @@
     'sage-garden': { style: 'Botanical watercolour', occ: ['wedding', 'engagement', 'reception', 'anniversary', 'housewarming', 'family'], tags: 'botanical greenery green sage leaves leaf olive willow watercolour watercolor garden nature ivory gold elegant minimal modern soft eucalyptus rose forest' },
     'eucalyptus-garland': { style: 'Botanical garland', occ: ['wedding', 'engagement', 'reception', 'birthday', 'anniversary', 'housewarming', 'family'], tags: 'botanical greenery green sage eucalyptus garland leaves leaf watercolour watercolor garden nature silver olive cream terracotta boho rustic soft' },
     'fern-meadow': { style: 'Botanical meadow', occ: ['wedding', 'engagement', 'anniversary', 'housewarming', 'family', 'community', 'farewell'], tags: 'botanical greenery green fern ferns meadow grass leaves leaf watercolour watercolor garden nature outdoor rustic moss linen blue fresh' },
+    'champagne-arch': { style: 'Arch & roses', occ: ['wedding', 'engagement', 'reception', 'anniversary'], tags: 'arch arched doorway door roses rose cream champagne beige nude ivory gold elegant luxury luxurious romantic floral flowers sun mandala mocha blush pastel neutral' },
+    'pampas-arch': { style: 'Arch & pampas', occ: ['wedding', 'engagement', 'reception', 'anniversary', 'housewarming', 'family'], tags: 'arch arched doorway pampas grass dried flowers boho bohemian rustic cream sand beige neutral terracotta sage gold sun elegant modern' },
     'minimal-ivory': { style: 'Minimal', occ: ['wedding', 'engagement', 'reception', 'birthday', 'anniversary', 'housewarming', 'religious', 'festival', 'family', 'corporate', 'conference', 'launch', 'school', 'farewell', 'community'], tags: 'minimal minimalist simple clean ivory white plain sage ink modern understated' },
   };
 
@@ -105,14 +107,14 @@
 
   /* ---------- font pairings ---------- */
   const FONT_PAIRS = [
-    { id: 'classic', name: 'Classic royal', fonts: { script: 'Great Vibes', head: 'Cormorant Garamond', body: 'Lora' }, for: ['royal-maroon', 'golden-anniversary', 'blush-rings', 'minimal-ivory', 'eucalyptus-garland', 'sage-garden'] },
-    { id: 'graceful', name: 'Graceful modern', fonts: { script: 'Parisienne', head: 'Playfair Display', body: 'Lato' }, for: ['blush-rings', 'golden-anniversary', 'sunset-farewell', 'minimal-ivory', 'royal-maroon', 'sage-garden', 'eucalyptus-garland', 'fern-meadow'] },
+    { id: 'classic', name: 'Classic royal', fonts: { script: 'Great Vibes', head: 'Cormorant Garamond', body: 'Lora' }, for: ['royal-maroon', 'golden-anniversary', 'blush-rings', 'minimal-ivory', 'eucalyptus-garland', 'sage-garden', 'champagne-arch'] },
+    { id: 'graceful', name: 'Graceful modern', fonts: { script: 'Parisienne', head: 'Playfair Display', body: 'Lato' }, for: ['blush-rings', 'golden-anniversary', 'sunset-farewell', 'minimal-ivory', 'royal-maroon', 'sage-garden', 'eucalyptus-garland', 'fern-meadow', 'champagne-arch', 'pampas-arch'] },
     { id: 'festive', name: 'Festive Indian', fonts: { script: 'Yatra One', head: 'Playfair Display', body: 'Mukta' }, for: ['himalayan-dham', 'griha-pravesh', 'saffron-puja', 'royal-maroon'] },
     { id: 'devotional', name: 'Devotional', fonts: { script: 'Yatra One', head: 'Tiro Devanagari Hindi', body: 'Mukta' }, for: ['saffron-puja', 'griha-pravesh', 'himalayan-dham'] },
     { id: 'hand', name: 'Warm handwritten', fonts: { script: 'Kalam', head: 'Poppins', body: 'Nunito' }, for: ['community-leaf', 'confetti-party', 'sunset-farewell', 'campus-stars', 'fern-meadow', 'eucalyptus-garland'] },
     { id: 'party', name: 'Party fun', fonts: { script: 'Pacifico', head: 'Baloo 2', body: 'Nunito' }, for: ['confetti-party', 'launch-burst', 'campus-stars'] },
     { id: 'business', name: 'Clean business', fonts: { script: 'Montserrat', head: 'Montserrat', body: 'Inter' }, for: ['corporate-slate', 'conference-night', 'launch-burst', 'minimal-ivory'] },
-    { id: 'editorial', name: 'Editorial', fonts: { script: 'Playfair Display', head: 'Playfair Display', body: 'Source Sans 3' }, for: ['corporate-slate', 'campus-stars', 'golden-anniversary', 'minimal-ivory', 'fern-meadow', 'sage-garden'] },
+    { id: 'editorial', name: 'Editorial', fonts: { script: 'Playfair Display', head: 'Playfair Display', body: 'Source Sans 3' }, for: ['corporate-slate', 'campus-stars', 'golden-anniversary', 'minimal-ivory', 'fern-meadow', 'sage-garden', 'pampas-arch'] },
     { id: 'tech', name: 'Tech launch', fonts: { script: 'Bebas Neue', head: 'Space Grotesk', body: 'Inter' }, for: ['conference-night', 'launch-burst'] },
   ];
   const pairsFor = (themeId) => {
@@ -120,5 +122,68 @@
     return (own.length >= 3 ? own : own.concat(FONT_PAIRS.filter((p) => !own.includes(p)))).slice(0, 3);
   };
 
-  window.IXGallery = { META, TABS, TAB_FOR_CAT, inTab, suggest, FONT_PAIRS, pairsFor };
+
+  /* ---------- studio filters: design style, colours, one-line descriptions ---------- */
+  const STYLES = [['royal', 'Royal'], ['traditional', 'Traditional'], ['modern', 'Modern'], ['minimal', 'Minimal'], ['floral', 'Floral'], ['vintage', 'Vintage'], ['calligraphy', 'Calligraphy'], ['luxury', 'Luxury']];
+  const STYLE_OF = {
+    'royal-maroon': ['royal', 'traditional', 'floral', 'luxury'], 'himalayan-dham': ['traditional', 'vintage'], 'blush-rings': ['modern', 'floral'],
+    'confetti-party': ['modern'], 'golden-anniversary': ['luxury', 'vintage', 'minimal'], 'griha-pravesh': ['traditional', 'floral'],
+    'saffron-puja': ['traditional', 'royal'], 'corporate-slate': ['modern', 'minimal'], 'conference-night': ['modern'], 'launch-burst': ['modern'],
+    'campus-stars': ['traditional', 'vintage'], 'sunset-farewell': ['vintage', 'modern'], 'community-leaf': ['modern', 'minimal', 'floral'], 'minimal-ivory': ['minimal', 'luxury', 'modern'],
+    'sage-garden': ['floral', 'minimal', 'modern'], 'eucalyptus-garland': ['floral', 'modern'], 'fern-meadow': ['floral', 'minimal'],
+    'champagne-arch': ['luxury', 'floral', 'royal'], 'pampas-arch': ['luxury', 'vintage', 'modern'],
+  };
+  const DESC = {
+    'royal-maroon': 'Rich maroon with painted roses and palace doors that open.',
+    'himalayan-dham': 'Mountains, deodar trees and a temple roof, in pahadi colours.',
+    'blush-rings': 'Soft blush tones, two rings and an envelope opening.',
+    'confetti-party': 'Balloons and confetti in bright, happy colours.',
+    'golden-anniversary': 'Ivory and gold leaves for a timeless, formal feel.',
+    'griha-pravesh': 'Marigold toran and mango leaves over a festive doorway.',
+    'saffron-puja': 'Saffron mandala and diyas for pujas and festivals.',
+    'corporate-slate': 'Clean lines and calm colours for business meetings.',
+    'conference-night': 'Dark, techy network pattern for summits and events.',
+    'launch-burst': 'Bold burst and big capitals for a launch day.',
+    'campus-stars': 'Stars and classic serif type for school and college.',
+    'sunset-farewell': 'Warm sunset hills for farewells and retirements.',
+    'community-leaf': 'Fresh green leaves and friendly handwriting.',
+    'minimal-ivory': 'Plain ivory paper and fine type. Lets your words lead.',
+    'sage-garden': 'Watercolour sage leaves in two corners, ivory paper and a fine gold frame.',
+    'eucalyptus-garland': 'A soft eucalyptus garland draped across the top of the card.',
+    'fern-meadow': 'Watercolour ferns and wild grasses growing up from the bottom.',
+    'champagne-arch': 'Cream roses over an arched doorway, with a gold sun opening.',
+    'pampas-arch': 'Dried pampas and small roses over an arch, in sand and gold.',
+  };
+  const COLOURS_F = [['burgundy', 'Burgundy', '#6b1426'], ['gold', 'Gold', '#c9a15a'], ['ivory', 'Ivory', '#f6ecd8'], ['pink', 'Pink', '#f2a7b8'], ['blue', 'Blue', '#2f5bea'], ['green', 'Green', '#2f7a4c'], ['other', 'Other', 'conic-gradient(#ee8a24,#5b2a86,#111,#16747a,#ee8a24)']];
+  const hsl = (h) => {
+    const c = hex(h); if (!c) return null;
+    const [r, g, b] = c.map((v) => v / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+    let hue = 0; const sat = d ? d / (1 - Math.abs(2 * l - 1)) : 0;
+    if (d) hue = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return [(hue * 60 + 360) % 360, sat, l];
+  };
+  // The colour families one colour belongs to.
+  function bucket(h) {
+    const v = hsl(h); if (!v) return [];
+    const [hu, sa, l] = v, red = hu >= 330 || hu < 15;
+    if (l > 0.88 && (sa < 0.75 || (hu > 25 && hu < 60))) return ['ivory'];
+    if (sa < 0.12) return l < 0.2 ? ['other'] : ['other'];
+    if ((red || (hu >= 300 && hu < 330)) && l < 0.4) return ['burgundy'];
+    if ((red || hu >= 300) && l >= 0.55) return ['pink'];
+    if (red) return ['burgundy'];
+    if (hu >= 28 && hu < 55 && sa > 0.25 && l > 0.3 && l < 0.75) return ['gold'];
+    if (hu >= 75 && hu < 175) return ['green'];
+    if (hu >= 175 && hu < 260) return ['blue'];
+    return ['other'];
+  }
+  const palColours = (p) => [...new Set([].concat(bucket(p.bg), bucket(p.accent), bucket(p.gold || p.accent)))];
+  // The first palette of a design that has every chosen colour, or -1.
+  function palFor(themeId, colours) {
+    const th = window.IXT && IXT.THEMES[themeId]; if (!th) return -1;
+    if (!colours || !colours.length) return 0;
+    return th.palettes.findIndex((p) => { const has = palColours(p); return colours.some((c) => has.includes(c)); });
+  }
+  const matches = (id, f) => inTab(id, f.occ || 'all') && (!f.styles || !f.styles.length || f.styles.some((st) => (STYLE_OF[id] || []).includes(st))) && palFor(id, f.colours) >= 0;
+
+  window.IXGallery = { META, TABS, TAB_FOR_CAT, inTab, suggest, FONT_PAIRS, pairsFor, STYLES, STYLE_OF, DESC, COLOURS_F, palColours, palFor, matches };
 })();

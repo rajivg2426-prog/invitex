@@ -388,3 +388,36 @@ body.motif-sprig, body.motif-garland, body.motif-fern { --paper: url("data:image
 .motif-fern .ix-hero-art { height: 44%; }
 .motif-fern .ix-hero { padding-bottom: min(30vh, 260px); }
 @media print { :is(.motif-sprig, .motif-garland, .motif-fern) :is(.ix-hero, .ix-closing)::before, :is(.motif-sprig, .motif-garland, .motif-fern) :is(.ix-hero, .ix-closing)::after { inset: 8px; } }
+
+/* Arch collection (Champagne Arch, Pampas Arch): every page sits inside an arched doorway */
+body.motif-arch, body.motif-pampas { --paper: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.6' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .4 0 0 0 0 .25 0 0 0 .06 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23p)'/%3E%3C/svg%3E");
+  background: var(--paper), radial-gradient(120% 80% at 50% 0%, var(--bg) 0%, var(--bg2) 100%) fixed, var(--bg2); }
+@media (min-width: 640px) { body.layout-portrait.motif-arch .ix-page, body.layout-portrait.motif-pampas .ix-page { background: var(--paper), linear-gradient(180deg, var(--bg), var(--bg2)); } }
+:is(.motif-arch, .motif-pampas) { --arch-r: min(calc(50vw - 18px), calc(var(--maxw) / 2 - 18px)); }
+:is(.motif-arch, .motif-pampas) :is(.ix-hero, .ix-closing)::before { content: ''; position: absolute; inset: 22px 18px 18px; border: 1.5px solid color-mix(in srgb, var(--gold) 80%, transparent); border-radius: var(--arch-r) var(--arch-r) 10px 10px; pointer-events: none; z-index: 0; }
+:is(.motif-arch, .motif-pampas) :is(.ix-hero, .ix-closing)::after { content: ''; position: absolute; inset: 30px 26px 26px; border: 1px solid color-mix(in srgb, var(--gold) 30%, transparent); border-radius: calc(var(--arch-r) - 8px) calc(var(--arch-r) - 8px) 6px 6px; pointer-events: none; z-index: 0; }
+:is(.motif-arch, .motif-pampas) .ix-hero { padding-top: min(42vw, 230px); }
+:is(.motif-arch, .motif-pampas) .ix-closing { padding-top: min(30vw, 160px); }
+:is(.motif-arch, .motif-pampas) .ix-hero-art { inset: 4px 4% auto 4%; height: auto; z-index: 1; }
+:is(.motif-arch, .motif-pampas) .ix-hero-art svg { height: auto; display: block; }
+:is(.motif-arch, .motif-pampas) .ix-corner { width: clamp(110px, 32vw, 170px); }
+:is(.motif-arch, .motif-pampas) .ix-title { color: var(--gold); text-shadow: none; }
+:is(.motif-arch, .motif-pampas) .ix-h2 { font-family: var(--f-script); font-weight: 400; font-size: calc(2.3rem * var(--scale)); color: var(--gold); }
+.lang-hi:is(.motif-arch, .motif-pampas) .ix-h2, .lang-pa:is(.motif-arch, .motif-pampas) .ix-h2 { font-family: var(--f-head); font-weight: 600; font-size: calc(1.7rem * var(--scale)); }
+:is(.motif-arch, .motif-pampas) .ix-kicker { letter-spacing: .28em; }
+:is(.motif-arch, .motif-pampas) .ix-card { border-radius: 999px 999px var(--radius) var(--radius) / 130px 130px var(--radius) var(--radius); padding-top: 3.2rem; border: 1px solid color-mix(in srgb, var(--gold) 55%, transparent); box-shadow: inset 0 0 0 5px var(--bg), inset 0 0 0 6px color-mix(in srgb, var(--gold) 22%, transparent); }
+:is(.motif-arch, .motif-pampas) .ix-card::before, :is(.motif-arch, .motif-pampas) .ix-card::after { content: none; }
+:is(.motif-arch, .motif-pampas) .ix-event-dot { background: var(--bg); color: var(--gold); border: 1px solid var(--gold); }
+:is(.motif-arch, .motif-pampas) .ix-events::before { background: color-mix(in srgb, var(--gold) 70%, transparent); }
+:is(.motif-arch, .motif-pampas) .ix-datebar > span:first-child, :is(.motif-arch, .motif-pampas) .ix-datebar > span:last-child { border-color: color-mix(in srgb, var(--gold) 75%, transparent); }
+/* the gold sun seal opening: two soft panels part from the middle */
+.op-sun .ix-op-left, .op-sun .ix-op-right { border: 0; box-shadow: none; background: var(--paper, none), var(--bg); }
+.op-sun .ix-op-right { background: var(--paper, none), color-mix(in srgb, var(--bg2) 70%, var(--bg)); }
+.op-sun .ix-op-left::after, .op-sun .ix-op-right::after { content: none; }
+.ix-sun { width: min(58vw, 230px); margin: 0 auto 1.6rem; animation: sunturn 40s linear infinite; }
+.ix-sun svg { display: block; width: 100%; height: auto; filter: drop-shadow(0 6px 14px color-mix(in srgb, var(--gold) 30%, transparent)); }
+@keyframes sunturn { to { transform: rotate(360deg); } }
+.op-sun .ix-op-btn { background: transparent; color: var(--gold); border: 1.5px solid var(--gold); box-shadow: none; }
+/* dress code colour dots (all designs) */
+.ix-swatches { display: flex; justify-content: center; gap: .55rem; margin: -.2rem 0 1rem; }
+.ix-sw { width: 26px; height: 26px; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--text) 25%, transparent); box-shadow: inset 0 0 0 2px color-mix(in srgb, #fff 35%, transparent); }

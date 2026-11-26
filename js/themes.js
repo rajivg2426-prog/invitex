@@ -163,6 +163,25 @@
         { name: 'Blue Hour', bg: '#eef2f4', bg2: '#dbe3e8', surface: 'rgba(40,60,80,0.05)', text: '#25323d', muted: '#5d6b78', accent: '#3f5f73', accent2: '#a99067', gold: '#a99067', leaf: '#8aa3a6', leaf2: '#4d6b6d', onAccent: '#fff' },
       ],
     },
+    /* Arch collection (recommended): cream roses or pampas over an arched doorway, gold sun seal opening */
+    'champagne-arch': {
+      name: 'Champagne Arch', motif: 'arch', opener: 'sun', featured: true,
+      fonts: { script: 'Great Vibes', head: 'Cormorant Garamond', body: 'Cormorant Garamond' },
+      palettes: [
+        { name: 'Champagne', bg: '#f7f0e5', bg2: '#ecdfca', surface: 'rgba(150,115,60,0.05)', text: '#4f3e2c', muted: '#86705a', accent: '#9c7a46', accent2: '#c9ae84', gold: '#b48c4e', gold2: '#f2d99c', petal: '#fcf7ef', petal2: '#d9bf95', leaf: '#cdb994', leaf2: '#a68d61', onAccent: '#fff' },
+        { name: 'Blush Champagne', bg: '#faf1ec', bg2: '#f0ddd3', surface: 'rgba(150,90,70,0.05)', text: '#4e3530', muted: '#8a6c64', accent: '#a0705b', accent2: '#d3a99a', gold: '#b88d5a', gold2: '#f2d7a8', petal: '#fbeee9', petal2: '#dcab9b', leaf: '#cbb497', leaf2: '#a58866', onAccent: '#fff' },
+        { name: 'Mocha Night', bg: '#3a2d24', bg2: '#241b15', surface: 'rgba(250,235,210,0.06)', text: '#f4e8d6', muted: '#cdb89c', accent: '#d9b77a', accent2: '#b89a72', gold: '#d9b77a', gold2: '#f6e2b0', petal: '#f6ecdc', petal2: '#c8ae8a', leaf: '#a99273', leaf2: '#d1bb93', onAccent: '#2a1f18' },
+      ],
+    },
+    'pampas-arch': {
+      name: 'Pampas Arch', motif: 'pampas', opener: 'sun', featured: true,
+      fonts: { script: 'Allura', head: 'Playfair Display', body: 'Lora' },
+      palettes: [
+        { name: 'Sand & Gold', bg: '#f6efe3', bg2: '#eadbc3', surface: 'rgba(140,110,60,0.05)', text: '#4a3b2a', muted: '#83705a', accent: '#93733f', accent2: '#c6a774', gold: '#b08a4c', gold2: '#f0d698', petal: '#fbf6ee', petal2: '#d6bb8e', leaf: '#c9b28a', leaf2: '#9c845c', onAccent: '#fff' },
+        { name: 'Terracotta Dust', bg: '#f8ede4', bg2: '#eed8c8', surface: 'rgba(150,80,50,0.05)', text: '#4b3026', muted: '#8a685a', accent: '#a65d40', accent2: '#cfa080', gold: '#b98a58', gold2: '#f1d4a4', petal: '#fbf1e8', petal2: '#d9a98b', leaf: '#cfae88', leaf2: '#a77f5b', onAccent: '#fff' },
+        { name: 'Ivory & Sage', bg: '#f6f3ea', bg2: '#e6e4d4', surface: 'rgba(90,100,70,0.05)', text: '#3d4031', muted: '#73766a', accent: '#6b7552', accent2: '#b59a68', gold: '#b39558', gold2: '#efdba2', petal: '#fbf8f0', petal2: '#cdbf9c', leaf: '#b9b48e', leaf2: '#7f855e', onAccent: '#fff' },
+      ],
+    },
     'minimal-ivory': {
       name: 'Minimal Ivory (blank)', motif: 'minimal', opener: 'fade',
       fonts: { script: 'Cormorant Garamond', head: 'Cormorant Garamond', body: 'Inter' },
@@ -412,8 +431,69 @@
       <g>${side}</g><g transform="translate(400 0) scale(-1 1)">${side}</g></g></svg>`;
     return { hero, corner: '', divider: leafDivider(g, l), thumb: 'bottom' };
   };
+  /* ---------- Arch collection (Champagne Arch, Pampas Arch) ----------
+   An arched doorway (drawn in CSS so it fits any screen) crowned with a cluster of
+   hand-built cream roses or dried pampas, a gold "sun" seal for the opening screen. */
+  // a soft cabbage rose: rings of cupped petals, lighter towards the centre
+  const crose = (x, y, r, c, c2, rot = 0) => {
+    let s = `<g transform="translate(${r1(x)} ${r1(y)}) rotate(${rot})">`;
+    s += `<ellipse cx="${r1(r * 0.08)}" cy="${r1(r * 0.12)}" rx="${r1(r * 1.02)}" ry="${r1(r * 0.98)}" fill="${c2}" opacity=".9"/>`;
+    [[1, 8, c, 0.92], [0.8, 7, c2, 0.55], [0.66, 6, c, 0.95], [0.48, 5, c2, 0.6], [0.36, 4, c, 1], [0.22, 3, c2, 0.75]].forEach(([k, n, col, op], ri) => {
+      for (let i = 0; i < n; i++) {
+        const a = (360 / n) * i + ri * 23, rr = r * k;
+        s += `<path d="M0 0 C${r1(rr * 0.9)} ${r1(-rr * 0.55)} ${r1(rr * 1.05)} ${r1(rr * 0.35)} ${r1(rr * 0.3)} ${r1(rr * 0.75)} Z" fill="${col}" opacity="${op}" stroke="${c2}" stroke-width=".7" transform="rotate(${a})"/>`;
+      }
+    });
+    return s + `<circle r="${r1(r * 0.12)}" fill="${c2}" opacity=".8"/></g>`;
+  };
+  const bud = (x, y, r, rot, c, c2, lf) => `<g transform="translate(${x} ${y}) rotate(${rot})"><path d="M0 0 Q${-r} ${-r * 1.3} 0 ${-r * 2.2} Q${r} ${-r * 1.3} 0 0Z" fill="${c}" stroke="${c2}" stroke-width=".6"/>${wleaf(0, 0, r * 1.6, r * 0.45, 120, lf, c2, 0.8)}${wleaf(0, 0, r * 1.6, r * 0.45, 60, lf, c2, 0.8)}</g>`;
+  const plume = (x, y, len, rot, c) => {
+    let s = `<g transform="translate(${x} ${y}) rotate(${rot})"><path d="M0 0 L${len} 0" stroke="${c}" stroke-width=".9" opacity=".8"/>`;
+    for (let i = 4; i < 40; i++) { const t = i / 40, px = len * t, w = Math.sin(Math.PI * t) * len * 0.11; s += `<path d="M${r1(px)} 0 q${r1(w * 0.6)} ${r1(-w)} ${r1(w * 1.4)} ${r1(-w * 1.1)} M${r1(px)} 0 q${r1(w * 0.6)} ${r1(w)} ${r1(w * 1.4)} ${r1(w * 1.1)}" stroke="${c}" stroke-width=".7" opacity=".55" fill="none"/>`; }
+    return s + '</g>';
+  };
+  const sunSeal = (g, g2) => {
+    let s = '<svg viewBox="-100 -100 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">';
+    for (let i = 0; i < 16; i++) s += `<path d="M0 -50 Q14 -70 0 -94 Q-14 -70 0 -50Z" fill="none" stroke="${g}" stroke-width="2.2" transform="rotate(${i * 22.5})"/><circle cx="0" cy="-78" r="3.2" fill="${g}" transform="rotate(${i * 22.5})"/>`;
+    for (let i = 0; i < 16; i++) s += `<path d="M0 -48 Q8 -58 0 -66 Q-8 -58 0 -48Z" fill="${g}" opacity=".8" transform="rotate(${i * 22.5 + 11.25})"/>`;
+    return s + `<defs><radialGradient id="sun-${g.replace('#', '')}" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="${g2}"/><stop offset=".55" stop-color="${g}"/><stop offset="1" stop-color="${g}" stop-opacity=".85"/></radialGradient></defs><circle r="44" fill="url(#sun-${g.replace('#', '')})"/><circle r="44" fill="none" stroke="${g}" stroke-width="1.5"/></svg>`;
+  };
+  const archMotif = (p, kind) => {
+    const k = bkey(p), c = p.petal || '#fbf5ec', c2 = p.petal2 || '#e2cfb2', l = p.leaf || '#c9b48f', l2 = p.leaf2 || '#a48c63', g = p.gold || p.accent;
+    let crown;
+    if (kind === 'rose') {
+      crown = `${wleaf(150, 64, 54, 12, 200, l, l2)}${wleaf(250, 64, 54, 12, -20, l, l2)}${wleaf(120, 80, 40, 10, 160, l2, l)}${wleaf(280, 80, 40, 10, 20, l2, l)}${wleaf(200, 40, 40, 9, -95, l, l2)}
+        ${bud(108, 66, 9, -70, c, c2, l)}${bud(292, 66, 9, 70, c, c2, l)}
+        ${crose(160, 72, 26, c, c2, 10)}${crose(240, 72, 26, c, c2, -20)}${crose(200, 62, 34, c, c2)}${crose(128, 88, 16, c, c2, 40)}${crose(272, 88, 16, c, c2, -30)}`;
+    } else {
+      crown = `${plume(200, 92, 110, -128, l2)}${plume(200, 92, 110, -52, l2)}${plume(200, 92, 96, -150, l)}${plume(200, 92, 96, -30, l)}${plume(200, 92, 80, -90, l2)}
+        ${wleaf(200, 92, 60, 9, 190, l, l2)}${wleaf(200, 92, 60, 9, -10, l, l2)}
+        ${crose(178, 92, 18, c, c2, 15)}${crose(222, 92, 18, c, c2, -10)}${crose(200, 100, 22, c, c2)}${berries([[160, 104, 3], [240, 104, 3], [200, 70, 2.6]], g)}`;
+    }
+    const hero = `<svg viewBox="0 0 400 140" preserveAspectRatio="xMidYMin meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${wcDefs(k)}<g filter="url(#wc-${k})">${crown}</g></svg>`;
+    const corner = `<svg viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${wcDefs(k)}<g filter="url(#wc-${k})">
+      ${kind === 'rose' ? `${wleaf(20, 40, 60, 12, 30, l, l2)}${wleaf(30, 20, 56, 11, 70, l2, l)}${wleaf(10, 70, 46, 10, 10, l, l2)}${crose(34, 34, 28, c, c2)}${crose(76, 22, 16, c, c2, 30)}${crose(22, 84, 15, c, c2, -20)}${bud(100, 34, 7, 70, c, c2, l)}`
+        : `${plume(0, 14, 150, 32, l2)}${plume(0, 40, 130, 12, l)}${plume(14, 0, 130, 58, l)}${wleaf(8, 8, 70, 8, 45, l2, l)}${crose(30, 30, 22, c, c2)}${crose(64, 20, 13, c, c2, 30)}`}</g></svg>`;
+    const divider = `<svg viewBox="0 0 200 24" aria-hidden="true"><path d="M10 12 H80 M120 12 H190" stroke="${g}" stroke-width=".9"/><path d="M100 4 Q106 12 100 20 Q94 12 100 4Z M86 12 q7 -6 12 0 q-5 6 -12 0Z M114 12 q-7 -6 -12 0 q5 6 12 0Z" fill="none" stroke="${g}" stroke-width="1"/><circle cx="100" cy="12" r="1.6" fill="${g}"/></svg>`;
+    return { hero, corner, corners: 'bottom', heroAt: 'top', thumb: 'top', divider, seal: sunSeal(g, p.gold2 || '#f3dca0') };
+  };
+  M.arch = (p) => archMotif(p, 'rose');
+  M.pampas = (p) => archMotif(p, 'pampas');
   M.minimal = (p) => ({ corner: '', hero: '', divider: dividerSVG(p.accent) });
 
+  // Colour words in a dress code (English, Hindi, Punjabi) and the colour to show for each, in the order written.
+  const DRESS = [['ivory', '#f6efe0', 'ivory|cream|off-white|ऑफ़ व्हाइट'], ['white', '#ffffff', 'white|सफ़ेद|सफेद|ਚਿੱਟਾ'], ['gold', '#c9a15a', 'gold|golden|सुनहरा|ਸੁਨਹਿਰੀ'], ['silver', '#c0c4cc', 'silver|चांदी'],
+    ['champagne', '#e6d3ad', 'champagne|beige|nude'], ['blush', '#f1c6cc', 'blush|pastel pink|baby pink'], ['pink', '#e88fa6', 'pink|गुलाबी|ਗੁਲਾਬੀ'], ['peach', '#ffc8a8', 'peach'],
+    ['red', '#b3202a', 'red|लाल|ਲਾਲ'], ['maroon', '#6b1426', 'maroon|burgundy|wine|deep red'], ['orange', '#ee8a24', 'orange|saffron|केसरिया|ਕੇਸਰੀ'], ['yellow', '#f2c53d', 'yellow|पीला|ਪੀਲਾ'],
+    ['sage', '#a9b89a', 'sage|mint|olive'], ['green', '#2f7a4c', 'green|emerald|हरा|ਹਰਾ'], ['blue', '#2f5bea', 'blue|नीला|ਨੀਲਾ'], ['navy', '#13224a', 'navy'], ['teal', '#16747a', 'teal|turquoise|peacock'],
+    ['lavender', '#c9b6e8', 'lavender|lilac'], ['purple', '#5b2a86', 'purple|violet|बैंगनी'], ['grey', '#8a8f98', 'grey|gray'], ['black', '#111111', 'black|काला|ਕਾਲਾ'], ['brown', '#7a4e2d', 'brown|chocolate|mocha']];
+  const dressColours = (text) => {
+    const low = ' ' + String(text || '').toLowerCase() + ' ', hits = [];
+    DRESS.forEach(([n, c, words]) => { words.split('|').forEach((w) => { let i = low.indexOf(w); while (i >= 0 && (/[a-z]/.test(low[i - 1]) || /[a-z]/.test(low[i + w.length]))) i = low.indexOf(w, i + 1); if (i >= 0 && !hits.some((h) => h[0] === n)) hits.push([n, c, i]); }); });
+    // "deep red" is maroon, not red as well
+    const out = hits.filter((h) => !(h[0] === 'red' && hits.some((x) => x[0] === 'maroon' && /deep red/.test(low))) && !(h[0] === 'pink' && hits.some((x) => x[0] === 'blush' && /pastel pink|baby pink/.test(low))));
+    return out.sort((a, b) => a[2] - b[2]).slice(0, 6).map(([n, c]) => [n, c]);
+  };
   // which corners a design decorates: 'all' (default), 'diagonal' (top-left + bottom-right) or 'bottom'
   const cornerOn = (mo, c) => (mo.corners === 'diagonal' ? c === 'tl' || c === 'br' : mo.corners === 'bottom' ? c[0] === 'b' : true);
 
@@ -493,5 +573,5 @@
     { id: 'thankyou', name: 'Thank-you closing' },
   ];
 
-  window.IXT = { CATEGORIES, THEMES, FONT_CHOICES, FONT_URL, STYLES, SECTIONS, fontStack, motif: (id, p) => (M[id] || M.minimal)(p), cornerOn, generateMessage, sampleArt };
+  window.IXT = { CATEGORIES, THEMES, FONT_CHOICES, FONT_URL, STYLES, SECTIONS, fontStack, motif: (id, p) => (M[id] || M.minimal)(p), cornerOn, dressColours, generateMessage, sampleArt };
 })();

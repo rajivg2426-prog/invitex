@@ -47,7 +47,7 @@
           <div class="row small muted"><span class="pill ${inv.status}">${inv.status === 'published' ? '● Published' : 'Draft – not visible to guests'}</span>${inv.slug ? `<a target="_blank" rel="noopener" href="${esc(IX.inviteUrl(inv.slug))}">${esc(IX.inviteUrl(inv.slug))}</a>` : ''}</div></div>
         <div class="row no-print"><button class="btn sm" id="refresh">Refresh</button><a class="btn sm" href="#/edit/${esc(inv.id)}/1">Edit invitation</a>${inv.calligraphy && inv.calligraphy.active !== false && window.IXC && IXC.exporter ? `<a class="btn sm" id="callDl" href="#/calligraphy/${esc(inv.id)}/download" title="PNG, JPG and PDF of your calligraphy card">✒ Download calligraphy card</a>` : ''}<button class="btn sm danger" id="delInv">Delete</button></div>
       </div>
-      ${inv.status !== 'published' ? `<div class="notice warn" style="margin-bottom:1rem">This invitation is a draft. <a href="#/edit/${esc(inv.id)}/6">Publish it</a> to get a shareable link.</div>` : ''}
+      ${inv.status !== 'published' ? `<div class="notice warn" style="margin-bottom:1rem">This invitation is a draft. <a href="#/edit/${esc(inv.id)}/share">Publish it</a> to get a shareable link.</div>` : ''}
       ${IX.isProduction ? '' : '<div class="notice warn no-print" style="margin-bottom:1rem"><b>Demo/Local mode:</b> this dashboard only shows RSVPs submitted in <b>this browser</b>. Responses from guests on other phones are not collected until Production mode is configured.</div>'}
       <div class="tabs" role="tablist">${TABS.map(([k, l]) => `<button class="tab ${k === D.tab ? 'on' : ''}" role="tab" aria-selected="${k === D.tab}" data-tab="${k}">${l}</button>`).join('')}</div>
       <div id="tabBody"></div>`);
@@ -476,7 +476,7 @@
   // Share tab = the sharing campaign step (start / pay / status) on top, then the sharing tools once it is open.
   function share(body) {
     const inv = D.inv;
-    if (inv.status !== 'published') { body.innerHTML = `<div class="card"><p>Publish the invitation to share it.</p><a class="btn primary" href="#/edit/${esc(inv.id)}/6">Go to Publish</a></div>`; return; }
+    if (inv.status !== 'published') { body.innerHTML = `<div class="card"><p>Publish the invitation to share it.</p><a class="btn primary" href="#/edit/${esc(inv.id)}/share">Go to Publish</a></div>`; return; }
     if (!window.IXCampaign) return shareTools(body);
     body.innerHTML = '<div id="cmBox"><div class="page-loading"><div class="spinner"></div></div></div><div id="shareBox"></div>';
     const box = body.querySelector('#shareBox');
@@ -573,8 +573,8 @@
     c.fillStyle = g; c.fillRect(0, 0, W, Hh);
     const loadSvg = (svg) => IX.loadImage('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.replace('<svg ', '<svg width="440" height="440" ')));
     const motif = IXT.motif(IXT.THEMES[inv.theme].motif, p);
-    if (motif.hero && motif.heroAt === 'top') { try { const im = await IX.loadImage('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(motif.hero.replace('<svg ', '<svg width="1080" height="513" '))); c.drawImage(im, 0, 0, W, W * 0.475); } catch (e) { /* skip */ } }
-    else if (motif.hero && !inv.media.cover) { try { const im = await loadSvg(motif.hero.replace('<svg ', '<svg preserveAspectRatio="xMidYMax slice" ')); c.globalAlpha = 0.9; c.drawImage(im, 0, Hh - 560, W, 560); c.globalAlpha = 1; } catch (e) { /* skip */ } }
+    if (motif.hero && motif.heroAt === 'top') { try { const vb = (/viewBox="0 0 (\d+) (\d+)"/.exec(motif.hero) || [0, 400, 190]).slice(1).map(Number), hh = Math.round((W * vb[1]) / vb[0]); const im = await IX.loadImage('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(motif.hero.replace('<svg ', `<svg width="${W}" height="${hh}" `))); c.drawImage(im, 0, 40, W, hh); } catch (e) { /* skip */ } }
+    else if (motif.hero && !inv.media.cover) { try { const im = await loadSvg(/preserveAspectRatio=/.test(motif.hero.slice(0, 200)) ? motif.hero : motif.hero.replace('<svg ', '<svg preserveAspectRatio="xMidYMax slice" ')); c.globalAlpha = 0.9; c.drawImage(im, 0, Hh - 560, W, 560); c.globalAlpha = 1; } catch (e) { /* skip */ } }
     if (motif.corner && inv.design.decorations) {
       try {
         const im = await loadSvg(motif.corner);

@@ -183,7 +183,7 @@
         <div class="hx-actions">
           <a class="hx-qa primary" href="#/edit/${esc(inv.id)}/1">${icon('edit')}<span>Edit</span></a>
           <button class="hx-qa" type="button" data-act="preview" data-id="${esc(inv.id)}">${icon('eye')}<span>Preview</span></button>
-          ${pub ? `<a class="hx-qa" href="#/dash/${esc(inv.id)}/share">${icon('share')}<span>Share</span></a>` : `<a class="hx-qa" href="#/edit/${esc(inv.id)}/3">${icon('send')}<span>Publish</span></a>`}
+          ${pub ? `<a class="hx-qa" href="#/dash/${esc(inv.id)}/share">${icon('share')}<span>Share</span></a>` : `<a class="hx-qa" href="#/edit/${esc(inv.id)}/share">${icon('send')}<span>Publish</span></a>`}
           <a class="hx-qa" href="#/dash/${esc(inv.id)}/guests">${icon('users')}<span>Guests</span></a>
           <a class="hx-qa" href="#/dash/${esc(inv.id)}/overview">${icon('chart')}<span>Analytics</span></a>
           <button class="hx-qa" type="button" data-act="dup" data-id="${esc(inv.id)}">${icon('copy')}<span>Duplicate</span></button>
@@ -249,7 +249,7 @@
       const pub = inv.status === 'published';
       const soon = info && info.upcoming ? info.days : null;
       const when = soon == null ? '' : ` · ${countdown(soon).toLowerCase()}`;
-      if (!pub && soon != null && soon <= 30) out.push({ w: 100 - soon, tone: 'bad', text: `<b>${esc(t)}</b> is still a draft${esc(when)}. Guests cannot open it yet.`, cta: 'Publish', href: `#/edit/${id}/3` });
+      if (!pub && soon != null && soon <= 30) out.push({ w: 100 - soon, tone: 'bad', text: `<b>${esc(t)}</b> is still a draft${esc(when)}. Guests cannot open it yet.`, cta: 'Publish', href: `#/edit/${id}/share` });
       if (!pub) return;
       if (info && !info.upcoming) return; // event over: nothing to chase
       if (f.awaiting && soon != null && soon <= 21) out.push({ w: 80 - soon, tone: 'warn', text: `<b>${f.awaiting}</b> ${f.awaiting === 1 ? 'guest has' : 'guests have'} not replied to <b>${esc(t)}</b>${esc(when)}.`, cta: 'Send reminders', href: `#/dash/${id}/guests/pending` });
@@ -257,7 +257,7 @@
       if (f.maybe && soon != null && soon <= 14) out.push({ w: 50 - soon, tone: 'warn', text: `<b>${f.maybe}</b> ${f.maybe === 1 ? 'guest is' : 'guests are'} not sure yet about <b>${esc(t)}</b>.`, cta: 'See who', href: `#/dash/${id}/responses/maybe` });
       const cap = inv.settings && inv.settings.maxGuestsTotal;
       if (cap && st.attendees >= cap * 0.9) out.push({ w: 90, tone: 'bad', text: `<b>${esc(t)}</b> has ${st.attendees} of ${cap} places taken.`, cta: 'Review', href: `#/dash/${id}/overview` });
-      if (H.hasUnpublished(inv)) out.push({ w: 30, tone: 'info', text: `<b>${esc(t)}</b> has changes guests cannot see yet.`, cta: 'Update', href: `#/edit/${id}/3` });
+      if (H.hasUnpublished(inv)) out.push({ w: 30, tone: 'info', text: `<b>${esc(t)}</b> has changes guests cannot see yet.`, cta: 'Update', href: `#/edit/${id}/share` });
       if (!f.people) out.push({ w: 20, tone: 'info', text: `<b>${esc(t)}</b> is published but not shared with anyone yet.`, cta: 'Share', href: `#/dash/${id}/share` });
     });
     return out.sort((a, b) => b.w - a.w).slice(0, 5);
@@ -441,7 +441,7 @@
       ${progress}
       <div class="hx-next-act">
         <a class="btn sm" href="#/edit/${id}/1">${icon('edit')}Edit</a>
-        ${pub ? `<a class="btn sm primary" href="#/dash/${id}/share">${icon('share')}Share</a>` : `<a class="btn sm primary" href="#/edit/${id}/3">${icon('send')}Publish</a>`}
+        ${pub ? `<a class="btn sm primary" href="#/dash/${id}/share">${icon('share')}Share</a>` : `<a class="btn sm primary" href="#/edit/${id}/share">${icon('send')}Publish</a>`}
         <button class="btn sm" type="button" data-act="preview" data-id="${id}">${icon('eye')}Preview</button>
         <a class="btn sm" href="#/dash/${id}/guests">${icon('users')}Guests</a>
       </div>
