@@ -26,10 +26,32 @@
       window.addEventListener('message', (ev) => {
         if (ev.origin !== location.origin || !ev.data || ev.data.type !== 'ix-preview') return;
         S.inv = ev.data.inv;
+        S.samples = ev.data.samples || [];
         if (ev.data.lang) S.lang = ev.data.lang;
         if (ev.data.opened !== undefined) S.opened = ev.data.opened;
         render(true);
       });
+      // Editor preview controls: jump to a page of the card, zoom, and report which page is in view.
+      window.addEventListener('message', (ev) => {
+        if (ev.origin !== location.origin || !ev.data) return;
+        if (ev.data.type === 'ix-preview-goto') {
+          const el = (ev.data.ids || []).map((id) => document.getElementById('sec-' + id)).find(Boolean);
+          if (ev.data.ids && ev.data.ids[0] === 'opening' && !el) window.scrollTo({ top: 0, behavior: 'smooth' });
+          else if (el) el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+          parent.postMessage({ type: 'ix-preview-goto-done', found: !!el || ev.data.ids[0] === 'opening' }, location.origin);
+        }
+        if (ev.data.type === 'ix-preview-zoom') document.documentElement.style.zoom = String(Math.min(1.6, Math.max(0.5, +ev.data.zoom || 1)));
+      });
+      let pageTick = 0;
+      window.addEventListener('scroll', () => {
+        clearTimeout(pageTick);
+        pageTick = setTimeout(() => {
+          const secs = [...document.querySelectorAll('main > [id^="sec-"]')];
+          const line = innerHeight * 0.35;
+          const cur = secs.filter((s) => s.getBoundingClientRect().top <= line).pop() || secs[0];
+          if (cur) parent.postMessage({ type: 'ix-preview-page', id: cur.id.slice(4) }, location.origin);
+        }, 120);
+      }, { passive: true });
       parent.postMessage({ type: 'ix-preview-ready' }, location.origin);
       return;
     }
@@ -122,6 +144,8 @@
       el.contentEditable = ce;
       el.spellcheck = true;
       if (!el.textContent.trim()) el.dataset.empty = '1';
+      // sample words shown before the host types their own: clear them on the first click
+      if ((S.samples || []).includes(key)) { el.dataset.sample = '1'; el.addEventListener('focus', () => { if (el.dataset.sample) { el.textContent = ''; el.dataset.empty = '1'; delete el.dataset.sample; } }); }
       el.addEventListener('focus', () => parent.postMessage({ type: 'ix-edit-focus', key, lang: S.lang, inline: true }, location.origin));
       el.addEventListener('keydown', (e) => { if (e.key === 'Enter' && ['title', 'subtitle', 'familyName', 'hostName'].includes(key)) { e.preventDefault(); el.blur(); } });
       el.addEventListener('input', () => {
