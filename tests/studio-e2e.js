@@ -21,8 +21,8 @@ const stub = r => r.fulfill({ status: 200, contentType: 'text/javascript', body:
   const corp = await p.locator('.design-tile [data-theme-pick]:not([data-pal-pick])').evaluateAll(els => els.map(e => e.dataset.themePick));
   ok('Corporate tab shows business designs, not wedding ones', corp.includes('corporate-slate') && !corp.includes('royal-maroon'), corp.join());
   await p.selectOption('#galOcc', 'all');
-  ok('All tab shows every design', await p.locator('.design-tile').count() === 14 && wed < 14, 'wedding tab ' + wed);
-  ok('each design shows its style and colour choices', await p.locator('.design-tile .dp-style').count() === 14 && await p.locator('.dp-pal').count() >= 30);
+  ok('All tab shows every design', await p.locator('.design-tile').count() === 19 && wed < 19, 'wedding tab ' + wed);
+  ok('each design shows its style and colour choices', await p.locator('.design-tile .dp-style').count() === 19 && await p.locator('.dp-pal').count() >= 30);
   await p.click('[data-theme-pick="blush-rings"][data-pal-pick="1"]'); await p.waitForTimeout(300);
   let s = await inv();
   ok('a colour dot picks that design in that colour', s.theme === 'blush-rings' && s.pal === 1, s.theme + '/' + s.pal);

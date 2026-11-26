@@ -54,12 +54,12 @@ const saved = (p) => p.evaluate(async () => { const id = location.hash.split('/'
   ok('occasion is a menu, not a sideways strip', (await p.locator('#galOcc').count()) === 1 && (await p.locator('.gal-tab').count()) === 0);
   ok('occasion menu lists every occasion', (await p.locator('#galOcc option').count()) >= 15);
   await p.selectOption('#galOcc', 'all'); await p.waitForTimeout(200);
-  ok('All shows the 14 ready designs', (await p.locator('.design-tile').count()) === 14 && /14 designs/.test(await p.innerText('.gal-sum')));
-  ok('each card has a name, description, favourite, quick look and compare', (await p.locator('.design-tile .dp-desc').count()) === 14 && (await p.locator('.design-tile [data-fav]').count()) === 14 && (await p.locator('.design-tile [data-quick]').count()) === 14 && (await p.locator('.design-tile [data-cmp]').count()) === 14);
+  ok('All shows the 19 ready designs', (await p.locator('.design-tile').count()) === 19 && /19 designs/.test(await p.innerText('.gal-sum')));
+  ok('each card has a name, description, favourite, quick look and compare', (await p.locator('.design-tile .dp-desc').count()) === 19 && (await p.locator('.design-tile [data-fav]').count()) === 19 && (await p.locator('.design-tile [data-quick]').count()) === 19 && (await p.locator('.design-tile [data-cmp]').count()) === 19);
   ok('the chosen design shows a Selected badge', (await p.locator('.design-tile.on .dp-badge').innerText()).includes('Selected'));
   await p.click('[data-gstyle=modern]'); await p.waitForTimeout(200);
   const modern = await p.locator('.design-pick').evaluateAll((els) => els.map((e) => e.dataset.themePick));
-  ok('Style: Modern hides traditional designs', modern.length > 0 && modern.length < 14 && !modern.includes('saffron-puja') && modern.includes('corporate-slate'), modern.join());
+  ok('Style: Modern hides traditional designs', modern.length > 0 && modern.length < 19 && !modern.includes('saffron-puja') && modern.includes('corporate-slate'), modern.join());
   await p.click('[data-gcol=blue]'); await p.waitForTimeout(200);
   const blue = await p.locator('.design-pick').evaluateAll((els) => els.map((e) => [e.dataset.themePick, e.dataset.palPick]));
   ok('Colour: Blue narrows further and shows each design in its blue colours', blue.length > 0 && blue.length < modern.length && blue.every(([, pal]) => pal != null), JSON.stringify(blue));
@@ -68,7 +68,7 @@ const saved = (p) => p.evaluate(async () => { const id = location.hash.split('/'
   await p.click('[data-gfav]'); await p.waitForTimeout(200);
   ok('empty state explains no match and offers Show all', (await p.locator('.gal-empty').count()) === 1, 'tiles before ' + nGreen);
   await p.click('#galClear2'); await p.waitForTimeout(200);
-  ok('Show all designs clears every filter', (await p.locator('.design-tile').count()) === 14 && (await p.locator('.gal-bar .chip.on').count()) === 0);
+  ok('Show all designs clears every filter', (await p.locator('.design-tile').count()) === 19 && (await p.locator('.gal-bar .chip.on').count()) === 0);
   await p.click('[data-fav="golden-anniversary"]'); await p.waitForTimeout(200);
   ok('heart saves a favourite', (await p.getAttribute('[data-fav="golden-anniversary"]', 'aria-pressed')) === 'true');
   await p.selectOption('#galSort', 'fav'); await p.waitForTimeout(200);
@@ -87,7 +87,7 @@ const saved = (p) => p.evaluate(async () => { const id = location.hash.split('/'
   ok('recently viewed lists it', (await p.locator('.recent-chip[data-quick="golden-anniversary"]').count()) === 1);
   // compare
   await p.check('[data-cmp="royal-maroon"]'); await p.check('[data-cmp="blush-rings"]'); await p.check('[data-cmp="minimal-ivory"]');
-  ok('compare allows up to three', (await p.locator('[data-cmp]:disabled').count()) === 11 && /3<\/b> of 3|3 of 3/.test(await p.innerText('.cmp-tray')));
+  ok('compare allows up to three', (await p.locator('[data-cmp]:disabled').count()) === 16 && /3<\/b> of 3|3 of 3/.test(await p.innerText('.cmp-tray')));
   await p.click('#cmpGo'); await p.waitForSelector('.cmp-modal');
   ok('compare shows three designs with colours, fonts and style', (await p.locator('.cmp-col').count()) === 3 && (await p.locator('.cmp-col .ql-facts').first().innerText()).includes('Fonts'));
   await p.screenshot({ path: OUT + '/4-compare.png' });

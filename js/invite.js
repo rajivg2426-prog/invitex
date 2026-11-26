@@ -226,7 +226,7 @@
       <div class="ix-op-left" aria-hidden="true"></div><div class="ix-op-right" aria-hidden="true"></div>
       <div class="ix-op-center">
         ${greet}
-        <div class="ix-seal" aria-hidden="true">${esc((M.txt(inv, S.lang, 'title') || 'I').trim().charAt(0))}</div>
+        ${(() => { const mo = th.opener === 'sun' ? IXT.motif(th.motif, M.palette(inv)) : null; return mo && mo.seal ? `<div class="ix-sun" aria-hidden="true">${mo.seal}</div>` : `<div class="ix-seal" aria-hidden="true">${esc((M.txt(inv, S.lang, 'title') || 'I').trim().charAt(0))}</div>`; })()}
         <button type="button" class="ix-btn ix-btn-primary ix-op-btn" id="openBtn">${esc(t('openInvite'))}</button>
         <p class="ix-op-hint">${esc(t('tapToOpen'))}</p>
       </div></div>`;
@@ -249,9 +249,13 @@
   // In the editor's preview, lines of text are tagged so the host can click and type on the card itself.
   const ed = (key) => (isPreview ? ` data-edit="${key}"` : '');
   const firstEvent = (inv) => (inv.events || []).find((e) => e.id === inv.mainEventId && e.date) || (inv.events || []).filter((e) => e.date).sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start))[0];
-  const deco = (ctx) => (ctx.inv.design.decorations && ctx.motif.corner ? `<div class="ix-corner tl" aria-hidden="true">${ctx.motif.corner}</div><div class="ix-corner tr" aria-hidden="true">${ctx.motif.corner}</div>` : '');
-  const decoB = (ctx) => (ctx.inv.design.decorations && ctx.motif.corner ? `<div class="ix-corner bl" aria-hidden="true">${ctx.motif.corner}</div><div class="ix-corner br" aria-hidden="true">${ctx.motif.corner}</div>` : '');
+  // Corner art: all four corners by default; botanical designs use two opposite corners or the bottom pair only.
+  const cornerSet = (ctx, list) => (ctx.inv.design.decorations && ctx.motif.corner ? list.filter((c) => IXT.cornerOn(ctx.motif, c)).map((c) => `<div class="ix-corner ${c}" aria-hidden="true">${ctx.motif.corner}</div>`).join('') : '');
+  const deco = (ctx) => cornerSet(ctx, ['tl', 'tr']);
+  const decoB = (ctx) => cornerSet(ctx, ['bl', 'br']);
   const divider = (ctx) => `<div class="ix-divider" aria-hidden="true">${ctx.motif.divider}</div>`;
+  // Colour dots under the dress code when it names colours ("ivory, blush or gold")
+  const swatches = (text) => { const cs = IXT.dressColours(text); return cs.length ? `<p class="ix-swatches" aria-hidden="true">${cs.map(([n, c]) => `<span class="ix-sw" style="background:${c}" title="${esc(n)}"></span>`).join('')}</p>` : ''; };
   const sec = (id, inner, cls = '') => `<section class="ix-sec ix-sec-${id} reveal ${cls}" id="sec-${id}" aria-labelledby="h-${id}">${inner}</section>`;
   const h2 = (id, text) => `<h2 class="ix-h2" id="h-${id}">${esc(text)}</h2>`;
 
@@ -405,7 +409,7 @@
       const c = inv.contact || {};
       if (!ins && !extra && !dress && !c.name && !c.phone) return '';
       return sec('instructions', `${h2('instructions', t('instructions'))}${divider(ctx)}
-        ${dress ? `<p><b>${esc(t('dressCode'))}:</b> ${esc(dress)}</p>` : ''}
+        ${dress ? `<p><b>${esc(t('dressCode'))}:</b> ${esc(dress)}</p>${swatches(dress)}` : ''}
         ${ins ? `<p>${IX.nl2br(ins)}</p>` : ''}${extra ? `<p class="ix-muted">${IX.nl2br(extra)}</p>` : ''}
         ${c.name || c.phone ? `<div class="ix-contact"><span>${esc(t('contact'))}: <b>${esc(c.name || '')}</b></span>${c.phone && !isPrint ? `<a class="ix-chip" href="tel:${esc(IX.normPhone(c.phone) ? '+' + IX.normPhone(c.phone) : '')}">${ICON.phone}${esc(t('call'))}</a><a class="ix-chip" target="_blank" rel="noopener" href="${esc(IX.whatsappUrl('', c.phone))}">${ICON.chat}WhatsApp</a>` : ''}</div>` : ''}`);
     },

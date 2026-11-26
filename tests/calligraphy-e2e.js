@@ -193,7 +193,7 @@ const watch = (p) => { p.on('pageerror', (e) => errs.push(e.message)); p.on('con
   /* 18. existing ready designs still work */
   await p.goto(BASE + 'index.html'); await p.click('text=Create new invitation'); await p.waitForSelector('[data-cat=wedding]');
   await p.selectOption('#galOcc', 'all');
-  ok('all 14 ready designs are still offered', (await p.locator('.design-tile').count()) === 14);
+  ok('all 19 ready designs are still offered', (await p.locator('.design-tile').count()) === 19);
   await p.click('[data-theme-pick=blush-rings]'); await p.waitForTimeout(800);
   const pv = await p.frameLocator('#pvIframe').locator('.ix-hero').count().catch(() => 0);
   ok('a ready design still previews normally', pv >= 1);

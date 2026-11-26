@@ -152,7 +152,7 @@
     const L = inv.defaultLang || 'en';
     const sub = M.txt(inv, L, 'familyName') || M.txt(inv, L, 'subtitle');
     return `<div class="hx-thumb ${art.img ? 'has-img' : ''}" style="--t-bg:${esc(p.bg)};--t-bg2:${esc(p.bg2)};--t-ink:${esc(p.text)};--t-acc:${esc(p.accent)}">
-      ${art.img ? `<div class="hx-thumb-img" style="background-image:url('${esc(art.img)}')"></div>` : `${mo.corner ? `<div class="hx-c tl">${mo.corner}</div><div class="hx-c br">${mo.corner}</div>` : ''}`}
+      ${art.img ? `<div class="hx-thumb-img" style="background-image:url('${esc(art.img)}')"></div>` : `${mo.thumb && mo.hero ? `<div class="hx-h ${mo.thumb}">${mo.hero}</div>` : mo.corner ? `<div class="hx-c tl">${mo.corner}</div><div class="hx-c br">${mo.corner}</div>` : ''}`}
       <div class="hx-thumb-txt">
         ${sub ? `<div class="hx-t-sub" lang="${esc(L)}">${esc(sub.slice(0, 48))}</div>` : ''}
         <div class="hx-t-title" lang="${esc(L)}" style="font-family:${esc(IXT.fontStack(art.script, 'script'))}">${esc(title.slice(0, 60))}</div>

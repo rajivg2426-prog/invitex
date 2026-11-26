@@ -421,7 +421,7 @@
     return `<span class="mini mini-${t.motif}" style="--mbg:${p.bg};--mbg2:${p.bg2};--mtx:${p.text};--mac:${p.accent}" aria-hidden="true">
       ${mo.top ? `<span class="mini-top">${mo.top}</span>` : ''}
       ${mo.hero ? `<span class="mini-hero">${mo.hero}</span>` : ''}
-      ${mo.corner ? `<span class="mini-c tl">${mo.corner}</span><span class="mini-c tr">${mo.corner}</span>` : ''}
+      ${mo.corner ? ['tl', 'tr', 'bl', 'br'].filter((c) => (mo.corners ? IXT.cornerOn(mo, c) : c[0] === 't')).map((c) => `<span class="mini-c ${c}">${mo.corner}</span>`).join('') : ''}
       <span class="mini-txt"><small>You are invited</small><b style="font-family:'${t.fonts.script}',cursive">${esc(name)}</b><span class="mini-div">${mo.divider}</span><small>Sat · 14 Feb</small></span></span>`;
   }
 
@@ -433,7 +433,7 @@
     if (!W.gal) { const pr = (window.IXPicks && IXPicks.prefs()) || {}; W.gal = { styles: Array.isArray(pr.styles) ? pr.styles : [], colours: Array.isArray(pr.colours) ? pr.colours : [], sort: pr.sort || 'rec', favOnly: false, cmp: [], open: false }; }
     const guide = body.querySelector('.step-guide')?.outerHTML || '';
     const cat = IXT.CATEGORIES.find((c) => c.id === inv.category);
-    const themeIds = Object.keys(IXT.THEMES).sort((a, b) => (a === cat.theme ? -1 : b === cat.theme ? 1 : 0));
+    const rank = (id) => (id === cat.theme ? 0 : IXT.THEMES[id].featured ? 1 : 2), themeIds = Object.keys(IXT.THEMES).sort((a, b) => rank(a) - rank(b));
     const th = IXT.THEMES[inv.theme];
     const name = M.txt(inv, inv.defaultLang, 'title') || SAMPLE_NAME[inv.category] || 'You are invited';
     const hasPic = !!inv.media.background;
@@ -553,7 +553,7 @@
       const pal = g.colours.length ? Math.max(0, G.palFor(id, g.colours)) : null;
       const picked = g.cmp.includes(id), full = g.cmp.length >= 3 && !picked;
       return `<div class="design-tile ${on ? 'on' : ''}"><button type="button" class="design-pick ${on ? 'on' : ''}" role="radio" aria-checked="${on}" data-theme-pick="${id}" ${pal != null ? `data-pal-pick="${pal}"` : ''} aria-describedby="dd-${id}">
-          ${miniCard(id, inv, name, pal != null ? pal : on ? inv.paletteIndex : 0)}<span class="dp-name">${esc(t.name.replace(' (blank)', ''))}<span class="dp-style">${esc(meta.style || '')}</span><span class="dp-desc" id="dd-${id}">${esc(G.DESC[id] || '')}</span>${id === cat.theme ? '<small>Best for ' + esc(cat.name) + '</small>' : ''}</span>${on ? '<span class="dp-badge sel">✓ Selected</span>' : ''}</button>
+          ${miniCard(id, inv, name, pal != null ? pal : on ? inv.paletteIndex : 0)}<span class="dp-name">${esc(t.name.replace(' (blank)', ''))}<span class="dp-style">${esc(meta.style || '')}</span><span class="dp-desc" id="dd-${id}">${esc(G.DESC[id] || '')}</span>${id === cat.theme ? '<small>Best for ' + esc(cat.name) + '</small>' : ''}</span>${on ? '<span class="dp-badge sel">✓ Selected</span>' : t.featured ? '<span class="dp-badge rec">★ Recommended</span>' : ''}</button>
         <button type="button" class="dp-fav ${fav ? 'on' : ''}" data-fav="${id}" aria-pressed="${fav}" aria-label="${fav ? 'Remove from' : 'Save to'} favourites: ${esc(t.name)}" title="${fav ? 'In your favourites' : 'Save to favourites'}">${fav ? '♥' : '♡'}</button>
         <div class="dp-tools"><button type="button" class="btn sm ghost" data-quick="${id}" ${pal != null ? `data-quick-pal="${pal}"` : ''}>👁 Quick look</button>
           <label class="dp-cmp ${full ? 'off' : ''}" title="${full ? 'You can compare up to 3 designs' : 'Tick 2 or 3 designs to compare them'}"><input type="checkbox" data-cmp="${id}" ${picked ? 'checked' : ''} ${full ? 'disabled' : ''}> Compare</label></div>
