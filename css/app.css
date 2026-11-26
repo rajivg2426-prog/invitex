@@ -611,6 +611,63 @@ details.more-details[open]>summary,details.more-options[open]>summary{margin-bot
 .gal-search-box [hidden] { display: none !important; }
 @media (max-width: 560px) { .gal-search-box { min-height: 46px; } .gal-search-box .input { font-size: 16px; } }
 
+/* InviteX V2 Phase 1: richer template cards and preview affordances */
+.design-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr)); gap: .9rem; align-items: start; }
+.design-tile { position: relative; min-width: 0; padding: .42rem; border: 1px solid var(--line); border-radius: 17px; background: #fff; box-shadow: 0 5px 18px rgba(43,16,34,.045); transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+.design-tile:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(43,16,34,.11); border-color: var(--champagne2); }
+.design-tile.on { border-color: var(--plum2); box-shadow: 0 0 0 2px rgba(75,29,58,.12), 0 10px 26px rgba(43,16,34,.08); }
+.design-tile .design-pick { border: 0; border-radius: 12px; overflow: visible; background: transparent; box-shadow: none; }
+.design-tile .design-pick:hover { border-color: transparent; }
+.dp-visual { display: block; position: relative; overflow: hidden; border-radius: 10px; background: var(--paper); }
+.dp-visual .mini { width: 100%; aspect-ratio: 4 / 5; transition: transform .3s ease; }
+.design-tile:hover .dp-visual .mini { transform: scale(1.018); }
+.dp-visual-hint { position: absolute; right: .5rem; bottom: .5rem; z-index: 4; border-radius: 999px; padding: .22rem .5rem; color: #fff; background: rgba(25,10,22,.68); font-size: 10.5px; opacity: 0; transform: translateY(4px); transition: opacity .18s ease, transform .18s ease; pointer-events: none; }
+.design-tile:hover .dp-visual-hint, .design-pick:focus-visible .dp-visual-hint { opacity: 1; transform: translateY(0); }
+.design-tile .dp-name { display: block; padding: .65rem .35rem .25rem; font-size: 14px; line-height: 1.3; }
+.design-tile .dp-style { margin-top: .12rem; font-size: 11.5px; }
+.design-tile .dp-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.65em; font-size: 11.5px; line-height: 1.35; }
+.dp-badge { top: .75rem; left: .75rem; }
+.dp-card-actions { display: flex; align-items: center; gap: .3rem; padding: .3rem .25rem .2rem; border-top: 1px solid #f1ecef; }
+.dp-card-actions .dp-preview-btn { flex: 1; min-height: 36px; justify-content: center; }
+.dp-card-actions .dp-fav { position: static; flex: none; width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 10px; background: #fff; font-size: 19px; }
+.dp-card-actions .dp-fav.on { color: var(--plum2); background: #fbf4f8; border-color: #e7d4df; }
+.dp-card-actions .dp-cmp { flex: none; font-size: 11.5px; }
+.dp-card-actions .dp-cmp input { accent-color: var(--plum2); }
+.dp-pals { padding: .1rem .3rem .35rem; min-height: 34px; align-items: center; }
+.dp-pal { width: 28px; height: 28px; }
+.design-pick:focus-visible, .dp-preview-btn:focus-visible, .dp-fav:focus-visible, .dp-pal:focus-visible { outline: 3px solid color-mix(in srgb, var(--gold) 75%, white); outline-offset: 2px; }
+@media (max-width: 720px) {
+  .design-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
+  .design-tile { padding: .32rem; border-radius: 14px; }
+  .design-tile .dp-name { padding: .5rem .25rem .2rem; font-size: 13px; }
+  .design-tile .dp-desc { display: none; }
+  .dp-card-actions { gap: .2rem; }
+  .dp-card-actions .dp-cmp { font-size: 10.5px; }
+}
+@media (max-width: 360px) {
+  .dp-card-actions .dp-preview-btn { font-size: 11px; padding-inline: .35rem; }
+  .dp-card-actions .dp-cmp { font-size: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .design-tile, .dp-visual .mini, .dp-visual-hint { transition: none; }
+  .design-tile:hover { transform: none; }
+}
+
+/* Guest-facing preview guidance */
+.pv-context { display: grid; gap: .15rem; margin: .15rem 0 .55rem; }
+.pv-context-title { color: var(--ink); font-weight: 700; font-size: 13px; }
+.pv-context-tip { color: var(--muted); font-size: 11.5px; line-height: 1.4; }
+.wiz-preview { min-width: 0; }
+.wiz-preview .pv-frame { box-shadow: 0 20px 48px rgba(30,10,30,.24); border: 1px solid rgba(255,255,255,.7); }
+.wiz-preview .pv-pages { gap: .25rem; }
+.wiz-preview .pv-page { min-height: 36px; padding-inline: .65rem; }
+.wiz-preview .pv-page[aria-pressed="true"] { font-weight: 700; }
+.wiz-preview .pv-tools { align-items: center; gap: .55rem; }
+@media (max-width: 1020px) {
+  .pv-context { padding-inline: .1rem; }
+  .pv-context-tip { font-size: 12px; }
+}
+
 /* design studio: describe your card, occasion tabs, palette dots, font pairs, undo/redo */
 .describe { display: grid; gap: .5rem; padding: .9rem; border-radius: 14px; background: var(--ivory); border: 1px solid var(--champagne); }
 .describe .lbl { font-weight: 600; font-size: 13px; color: var(--ink2); }

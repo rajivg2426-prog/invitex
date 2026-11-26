@@ -62,10 +62,11 @@
           <div class="pv-tools"><div class="seg" role="group" aria-label="Preview size"><button type="button" data-pv="mobile" class="on" aria-pressed="true">📱 Mobile</button><button type="button" data-pv="desktop" aria-pressed="false">🖥 Desktop</button></div>
             <div class="pv-acts"><div class="pv-zoom" role="group" aria-label="Zoom"><button type="button" class="btn sm ghost iconbtn" data-zoom="-1" aria-label="Zoom out" title="Zoom out">−</button><span id="pvZoomVal" aria-live="polite">100%</span><button type="button" class="btn sm ghost iconbtn" data-zoom="1" aria-label="Zoom in" title="Zoom in">+</button></div>
               <button type="button" class="btn sm ghost iconbtn" id="pvFull" title="Full-screen preview" aria-label="Full-screen preview">⤢</button></div></div>
+          <div class="pv-context"><span class="pv-context-title">Guest-facing preview</span><span class="pv-context-tip">See how your invitation looks when guests open it. Switch pages or device size.</span></div>
           <div class="pv-pages" role="group" aria-label="Preview page"><button type="button" class="pv-arrow" data-pg-step="-1" aria-label="Previous page">‹</button>${PV_PAGES.map(([id, l]) => `<button type="button" class="pv-page" data-pg="${id}" aria-pressed="false">${l}</button>`).join('')}<button type="button" class="pv-arrow" data-pg-step="1" aria-label="Next page">›</button></div>
-          <div class="pv-frame" id="pvFrame"><iframe id="pvIframe" title="Live preview of the invitation" src="invite.html?preview=1"></iframe></div>
+          <div class="pv-frame" id="pvFrame"><iframe id="pvIframe" title="Live guest-facing preview of the invitation" src="invite.html?preview=1"></iframe></div>
           <div class="pv-note"><span id="pvSample" class="pv-sample" hidden>Sample names and dates are shown until you add yours.</span>
-            <span class="tiny muted">Live preview · RSVP is disabled here · <button type="button" class="linkbtn" id="replayOpen" title="Show the opening animation guests see first">▶ Play opening</button></span></div>
+            <span class="tiny muted">Live preview · RSVP is disabled here · <button type="button" class="linkbtn" id="replayOpen" title="Show the opening animation guests see first">▶ Play guest opening</button></span></div>
           <button class="btn pv-close" id="pvClose">✕ Close preview</button>
         </aside>
       </div>
@@ -558,12 +559,17 @@
       const on = designOn(inv, id), t = IXT.THEMES[id], meta = G.META[id] || {}, fav = favs.includes(id);
       const pal = g.colours.length ? Math.max(0, G.palFor(id, g.colours)) : null;
       const picked = g.cmp.includes(id), full = g.cmp.length >= 3 && !picked;
-      return `<div class="design-tile ${on ? 'on' : ''}"><button type="button" class="design-pick ${on ? 'on' : ''}" role="radio" aria-checked="${on}" data-theme-pick="${id}" ${pal != null ? `data-pal-pick="${pal}"` : ''} aria-describedby="dd-${id}">
-          ${miniCard(id, inv, name, pal != null ? pal : on ? inv.paletteIndex : 0)}<span class="dp-name">${esc(t.name.replace(' (blank)', ''))}<span class="dp-style">${esc(meta.style || '')}</span><span class="dp-desc" id="dd-${id}">${esc(G.DESC[id] || '')}</span>${id === cat.theme ? '<small>Best for ' + esc(cat.name) + '</small>' : ''}</span>${on ? '<span class="dp-badge sel">✓ Selected</span>' : ''}</button>
-        <button type="button" class="dp-fav ${fav ? 'on' : ''}" data-fav="${id}" aria-pressed="${fav}" aria-label="${fav ? 'Remove from' : 'Save to'} favourites: ${esc(t.name)}" title="${fav ? 'In your favourites' : 'Save to favourites'}">${fav ? '♥' : '♡'}</button>
-        <div class="dp-tools"><button type="button" class="btn sm ghost" data-quick="${id}" ${pal != null ? `data-quick-pal="${pal}"` : ''}>👁 Quick look</button>
-          <label class="dp-cmp ${full ? 'off' : ''}" title="${full ? 'You can compare up to 3 designs' : 'Tick 2 or 3 designs to compare them'}"><input type="checkbox" data-cmp="${id}" ${picked ? 'checked' : ''} ${full ? 'disabled' : ''}> Compare</label></div>
-        <div class="dp-pals" role="group" aria-label="${esc(t.name)} colours">${t.palettes.map((p, i) => `<button type="button" class="dp-pal ${on && i === inv.paletteIndex ? 'on' : ''}" data-theme-pick="${id}" data-pal-pick="${i}" title="${esc(p.name)}" aria-label="${esc(t.name)}, ${esc(p.name)}"><i style="background:linear-gradient(135deg,${p.bg} 50%,${p.accent} 50%)"></i></button>`).join('')}</div></div>`;
+      return `<article class="design-tile ${on ? 'on' : ''}" aria-label="${esc(t.name)} design">
+        <button type="button" class="design-pick ${on ? 'on' : ''}" role="radio" aria-checked="${on}" data-theme-pick="${id}" ${pal != null ? `data-pal-pick="${pal}"` : ''} aria-describedby="dd-${id}">
+          <span class="dp-visual">${miniCard(id, inv, name, pal != null ? pal : on ? inv.paletteIndex : 0)}<span class="dp-visual-hint">Preview card</span></span>
+          <span class="dp-name">${esc(t.name.replace(' (blank)', ''))}<span class="dp-style">${esc(meta.style || '')}</span><span class="dp-desc" id="dd-${id}">${esc(G.DESC[id] || '')}</span>${id === cat.theme ? '<small>Best for ' + esc(cat.name) + '</small>' : ''}</span>
+          ${on ? '<span class="dp-badge sel">✓ Selected</span>' : ''}</button>
+        <div class="dp-card-actions">
+          <button type="button" class="dp-fav ${fav ? 'on' : ''}" data-fav="${id}" aria-pressed="${fav}" aria-label="${fav ? 'Remove from' : 'Save to'} favourites: ${esc(t.name)}" title="${fav ? 'In your favourites' : 'Save to favourites'}">${fav ? '♥' : '♡'}</button>
+          <button type="button" class="btn sm ghost dp-preview-btn" data-quick="${id}" ${pal != null ? `data-quick-pal="${pal}"` : ''} aria-label="Preview ${esc(t.name)}">◉ Preview design</button>
+          <label class="dp-cmp ${full ? 'off' : ''}" title="${full ? 'You can compare up to 3 designs' : 'Tick 2 or 3 designs to compare them'}"><input type="checkbox" data-cmp="${id}" ${picked ? 'checked' : ''} ${full ? 'disabled' : ''}> Compare</label>
+        </div>
+        <div class="dp-pals" role="group" aria-label="${esc(t.name)} colours">${t.palettes.map((p, i) => `<button type="button" class="dp-pal ${on && i === inv.paletteIndex ? 'on' : ''}" data-theme-pick="${id}" data-pal-pick="${i}" title="${esc(p.name)}" aria-label="${esc(t.name)}, ${esc(p.name)}"><i style="background:linear-gradient(135deg,${p.bg} 50%,${p.accent} 50%)"></i></button>`).join('')}</div></article>`;
     };
     return `<div class="gal-bar">
         <label class="gal-search"><span class="lbl">Find a design</span><span class="gal-search-box"><span aria-hidden="true">⌕</span><input class="input" id="galSearch" type="search" value="${esc(g.search || '')}" placeholder="Search by name, style or description" autocomplete="off"><button type="button" class="linkbtn" id="galSearchClear" ${g.search ? '' : 'hidden'} aria-label="Clear design search">Clear</button></span></label>
