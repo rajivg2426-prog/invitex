@@ -430,7 +430,7 @@
     if (W.bgUrl === undefined) { W.bgUrl = ''; if (inv.media.background) H.store.resolveMedia(inv.media.background).then((u) => { W.bgUrl = u || ''; if (W.step === 1 && u) step1(body); }); }
     if (!W.way) W.way = calligOn(inv) ? 'callig' : inv.design.aiArt ? 'ai' : inv.media.background ? 'own' : 'ready';
     if (!W.galTab) W.galTab = IXGallery.TAB_FOR_CAT[inv.category] || 'all';
-    if (!W.gal) { const pr = (window.IXPicks && IXPicks.prefs()) || {}; W.gal = { styles: Array.isArray(pr.styles) ? pr.styles : [], colours: Array.isArray(pr.colours) ? pr.colours : [], sort: pr.sort || 'rec', favOnly: false, cmp: [], open: false }; }
+    if (!W.gal) { const pr = (window.IXPicks && IXPicks.prefs()) || {}; W.gal = { styles: Array.isArray(pr.styles) ? pr.styles : [], colours: Array.isArray(pr.colours) ? pr.colours : [], sort: pr.sort || 'rec', favOnly: false, cmp: [], open: false, search: '' }; }
     const guide = body.querySelector('.step-guide')?.outerHTML || '';
     const cat = IXT.CATEGORIES.find((c) => c.id === inv.category);
     const themeIds = Object.keys(IXT.THEMES).sort((a, b) => (a === cat.theme ? -1 : b === cat.theme ? 1 : 0));
@@ -540,7 +540,13 @@
     const showCallig = W.galTab === 'calligraphy' || g.styles.includes('calligraphy');
     const onlyCallig = W.galTab === 'calligraphy' || (g.styles.length === 1 && g.styles[0] === 'calligraphy');
     const favs = P ? P.favs() : [], recent = P ? P.recent().filter((id) => IXT.THEMES[id]) : [];
-    let ids = onlyCallig ? [] : themeIds.filter((id) => G.matches(id, f) && (!g.favOnly || favs.includes(id)));
+    const query = String(g.search || '').trim().toLocaleLowerCase();
+    let ids = onlyCallig ? [] : themeIds.filter((id) => {
+      if (!G.matches(id, f) || (g.favOnly && !favs.includes(id))) return false;
+      if (!query) return true;
+      const t = IXT.THEMES[id], meta = G.META[id] || {};
+      return [t.name, meta.style, G.DESC[id], meta.tags].join(' ').toLocaleLowerCase().includes(query);
+    });
     const rank = (list, id) => { const i = list.indexOf(id); return i < 0 ? 99 : i; };
     if (g.sort === 'recent') ids.sort((a, b) => rank(recent, a) - rank(recent, b));
     if (g.sort === 'fav') ids.sort((a, b) => (favs.includes(b) ? 1 : 0) - (favs.includes(a) ? 1 : 0));
@@ -560,6 +566,7 @@
         <div class="dp-pals" role="group" aria-label="${esc(t.name)} colours">${t.palettes.map((p, i) => `<button type="button" class="dp-pal ${on && i === inv.paletteIndex ? 'on' : ''}" data-theme-pick="${id}" data-pal-pick="${i}" title="${esc(p.name)}" aria-label="${esc(t.name)}, ${esc(p.name)}"><i style="background:linear-gradient(135deg,${p.bg} 50%,${p.accent} 50%)"></i></button>`).join('')}</div></div>`;
     };
     return `<div class="gal-bar">
+        <label class="gal-search"><span class="lbl">Find a design</span><span class="gal-search-box"><span aria-hidden="true">⌕</span><input class="input" id="galSearch" type="search" value="${esc(g.search || '')}" placeholder="Search by name, style or description" autocomplete="off"><button type="button" class="linkbtn" id="galSearchClear" ${g.search ? '' : 'hidden'} aria-label="Clear design search">Clear</button></span></label>
         <div class="gal-row">
           <label class="gal-sel"><span class="lbl">Occasion</span><select class="input" id="galOcc">${G.TABS.filter(([t]) => t === 'all' || t === 'calligraphy' || themeIds.some((id) => G.inTab(id, t))).map(([t, l]) => `<option value="${t}" ${t === W.galTab ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
           <label class="gal-sel"><span class="lbl">Sort by</span><select class="input" id="galSort">${SORTS.map(([v, l]) => `<option value="${v}" ${v === g.sort ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
@@ -581,13 +588,23 @@
   function wireGallery(body) {
     const g = W.gal, P = window.IXPicks, again = () => { if (P) P.setPrefs({ styles: g.styles, colours: g.colours, sort: g.sort }); step1(body); };
     const toggle = (list, v) => (list.includes(v) ? list.filter((x) => x !== v) : list.concat(v));
+    const search = body.querySelector('#galSearch');
+    if (search) search.oninput = () => {
+      const value = search.value, start = search.selectionStart;
+      g.search = value;
+      step1(body);
+      const next = body.querySelector('#galSearch');
+      if (next) { next.focus(); try { next.setSelectionRange(start, start); } catch (_) {} }
+    };
+    const clearSearch = body.querySelector('#galSearchClear');
+    if (clearSearch) clearSearch.onclick = () => { g.search = ''; step1(body); body.querySelector('#galSearch')?.focus(); };
     const occ = body.querySelector('#galOcc'); if (occ) occ.onchange = () => { W.galTab = occ.value; step1(body); };
     const so = body.querySelector('#galSort'); if (so) so.onchange = () => { g.sort = so.value; again(); };
     const more = body.querySelector('#galMore'); if (more) more.onclick = () => { g.open = !g.open; step1(body); body.querySelector('#galMore')?.focus(); };
     body.querySelectorAll('[data-gstyle]').forEach((b) => (b.onclick = () => { g.styles = toggle(g.styles, b.dataset.gstyle); again(); body.querySelector(`[data-gstyle="${b.dataset.gstyle}"]`)?.focus(); }));
     body.querySelectorAll('[data-gcol]').forEach((b) => (b.onclick = () => { g.colours = toggle(g.colours, b.dataset.gcol); again(); body.querySelector(`[data-gcol="${b.dataset.gcol}"]`)?.focus(); }));
     body.querySelectorAll('[data-gfav]').forEach((b) => (b.onclick = () => { g.favOnly = !g.favOnly; step1(body); body.querySelector('[data-gfav]')?.focus(); }));
-    body.querySelectorAll('#galClear, #galClear2').forEach((b) => (b.onclick = () => { g.styles = []; g.colours = []; g.favOnly = false; W.galTab = 'all'; again(); }));
+    body.querySelectorAll('#galClear, #galClear2').forEach((b) => (b.onclick = () => { g.styles = []; g.colours = []; g.favOnly = false; g.search = ''; W.galTab = 'all'; again(); }));
     body.querySelectorAll('[data-fav]').forEach((b) => (b.onclick = () => {
       if (!P) return;
       const on = P.toggleFav(b.dataset.fav);
