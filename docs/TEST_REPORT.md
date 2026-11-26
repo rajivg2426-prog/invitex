@@ -94,3 +94,22 @@ The engine checks cover:
 - AI answers with placeholders, links, invented numbers, the wrong script or near-duplicates are rejected.
 
 `tests/e2e.js` was updated for the writing studio (TEST 1b now checks that the studio asks before replacing typed text and keeps it). It still stops at TEST 7 (CSV export file name) and then times out. The same happens on `main` without these changes, because that test predates the 3-step editor and the one-tap RSVP. It needs a separate refresh.
+
+## 6. Paid sharing (InviteX V2.2)
+
+All payment tests use a **fake Razorpay**: no network, no real money.
+
+| Test | Result |
+|---|---|
+| `sh tests/run-billing-sql.sh`: database rules (prices, free-access order, promotions, campaigns, orders, payments, refunds, RLS, roles, audit log) | 108 passed |
+| `node tests/payments-function-test.mjs`: both Edge Functions against the real database | 36 passed |
+| `node tests/billing-e2e.mjs`: browser, real database and real function code | 36 passed |
+| `tests/admin-test.sql` and `node tests/admin-e2e.js` (updated for the Super Admin and new menu) | all passed |
+
+Covered: a free host is never held back; a paying host's guest link says "not open yet" until payment; checkout is opened with the server's order, test key, exact amount and UPI only; a forged checkout signature is refused; closing the window then "I already paid" unlocks through the server; one order per campaign (no double charge); wrong amount, duplicate payment, failed and pending UPI, late webhooks, repeated webhooks, bad webhook signatures, full and partial refunds; price limits ₹10 to ₹100; only the Super Admin can change money settings; live mode refused without the typed approval; test payments kept out of real revenue; CSV export; phone layout.
+
+Bug found by the browser test and fixed: the **Start sharing · Pay** button did nothing, because a variable named like the pay step hid it.
+
+Not tested here:
+- A real Razorpay test-mode payment against Razorpay's servers (needs your test keys; see PAYMENTS_SETUP.md step 7).
+- The older demo-mode browser tests (`tests/e2e.js`, `settings-e2e.js`, `guest-v2-e2e.js`, `whatsapp-card-e2e.js`, `home-e2e.js`, `studio-e2e.js`, `copy-*-e2e.js`, `ai-design-e2e.js`, `rsvp-onetap.js`) were not re-run for this change, because they need a local web server that could not be started in this environment. Demo mode has no payments (sharing is always open there), but please run them once before merging.

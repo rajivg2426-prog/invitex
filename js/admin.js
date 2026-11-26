@@ -21,7 +21,15 @@
     'user.ai_tries': 'Gave AI tries',
     'invitation.unpublish': 'Unpublished invitation',
     'invitation.delete': 'Deleted invitation',
+    'user.make_super_admin': 'Made Super Admin',
+    'pricing.update': 'Changed pricing & payments',
+    'promotion.create': 'Created promotion',
+    'promotion.update': 'Changed promotion',
+    'access.grant': 'Gave free sharing',
+    'access.revoke': 'Ended free sharing',
   };
+  // admin-billing.js adds its screens to these
+  H.adminTabs = TABS; H.adminScreens = {}; H.adminActions = ACTIONS;
   // rough rupee cost per AI image (see docs/AI_DESIGNS_SETUP.md)
   const RS_PER_IMAGE = { google: 3.5, openai: 5 };
 
@@ -46,7 +54,7 @@
     const t = TABS.find((x) => x[0] === tab);
     H.render(`<div class="ax">
       <nav class="hx-rail ax-rail" aria-label="Admin">
-        <div class="ax-who"><span class="ax-badge">Admin</span><small title="${esc(H.user && H.user.email)}">${esc(H.user && H.user.email)}</small></div>
+        <div class="ax-who"><span class="ax-badge">${H.isSuperAdmin && H.isSuperAdmin() ? 'Super Admin' : 'Admin'}</span><small title="${esc(H.user && H.user.email)}">${esc(H.user && H.user.email)}</small></div>
         <ul>${TABS.map(([k, l, ic]) => `<li><a href="#/admin/${k}" class="${k === tab ? 'on' : ''}" ${k === tab ? 'aria-current="page"' : ''}>${icon(ic)}<span>${l}</span></a></li>`).join('')}</ul>
         <ul class="hx-rail-sub"><li><a href="#/">${icon('arrow')}<span>My invitations</span></a></li><li><a href="docs/USER_MANUAL.md" target="_blank" rel="noopener">${icon('open')}<span>Admin guide</span></a></li></ul>
       </nav>
@@ -62,7 +70,7 @@
     H.render(`<div class="card stack" style="max-width:620px;margin:2rem auto"><h1>${esc(title)}</h1>${html}<div class="row"><a class="btn" href="#/">Back to my invitations</a></div></div>`);
   }
 
-  H.routes.admin = async (v, tab) => {
+  H.routes.admin = async (v, tab, ...rest) => {
     if (H.store.mode !== 'supabase') {
       return blocked('Admin needs the live app', '<p>The Admin page works only when InviteX is connected to Supabase (Production mode). In Demo/Local mode there is only one person, this browser, so there is nothing to manage.</p>');
     }
@@ -73,9 +81,10 @@
     if (!H.isAdmin()) {
       return blocked('This page is for admins', '<p>Your account is a host account. Only an InviteX admin can open the Admin page. Ask the person who runs InviteX if you need access.</p>');
     }
-    const T = TABS.some((t) => t[0] === tab) ? tab : 'users';
+    Object.assign(H.adminScreens, { users, invitations, usage, activity }, H.adminScreens);
+    const T = TABS.some((t) => t[0] === tab) ? tab : TABS[0][0];
     const body = shell(T);
-    try { await ({ users, invitations, usage, activity })[T](body); } catch (e) {
+    try { await H.adminScreens[T](body, ...rest.map(decodeURIComponent)); } catch (e) {
       body.innerHTML = `<div class="notice bad">Could not load this screen: ${esc(e.message)}</div>`;
     }
   };
@@ -104,7 +113,7 @@
       rowsEl.innerHTML = S.rows.length ? S.rows.map((u) => {
         const me = H.user && u.id === H.user.id;
         return `<tr data-id="${esc(u.id)}" class="${u.status === 'suspended' ? 'ax-off' : ''}">
-          <td><div class="ax-acc"><b>${esc(u.email || '(no email)')}</b><span>${me ? '<span class="pill">You</span>' : ''}${u.role === 'admin' ? '<span class="pill published">Admin</span>' : ''}${u.status === 'suspended' ? '<span class="pill no">Paused</span>' : ''}</span></div></td>
+          <td><div class="ax-acc"><b>${esc(u.email || '(no email)')}</b><span>${me ? '<span class="pill">You</span>' : ''}${u.role === 'super_admin' ? '<span class="pill published">Super Admin</span>' : u.role === 'admin' ? '<span class="pill published">Admin</span>' : ''}${u.status === 'suspended' ? '<span class="pill no">Paused</span>' : ''}</span></div></td>
           <td>${esc(day(u.created_at))}</td>
           <td>${when(u.last_sign_in_at)}</td>
           <td class="num">${n(u.invitations)}${u.published ? `<small class="muted"> · ${n(u.published)} live</small>` : ''}</td>
@@ -129,7 +138,7 @@
       title: u.email || 'Account',
       body: `<div class="stack ax-manage">
         <dl class="ax-facts">
-          <div><dt>Role</dt><dd>${u.role === 'admin' ? 'Admin' : 'Host'}</dd></div>
+          <div><dt>Role</dt><dd>${u.role === 'super_admin' ? 'Super Admin' : u.role === 'admin' ? 'Admin' : 'Host'}</dd></div>
           <div><dt>Status</dt><dd>${paused ? 'Paused' : 'Active'}</dd></div>
           <div><dt>Invitations</dt><dd>${n(u.invitations)} (${n(u.published)} published)</dd></div>
           <div><dt>Replies received</dt><dd>${n(u.replies)}</dd></div>
@@ -158,11 +167,12 @@
                <label class="check"><input type="checkbox" id="mUnpub"> Also take their published invitations offline${u.published ? ` (${n(u.published)})` : ''}</label>
                <div><button class="btn danger" id="mSus">Pause account</button></div>`}
         </section>
-        <section class="ax-sec">
+        ${H.isSuperAdmin && H.isSuperAdmin() && u.role !== 'super_admin' ? `<section class="ax-sec">
           <h3>Role</h3>
-          <p class="small muted">${u.role === 'admin' ? 'Admins can see every account and invitation and make the changes on this page.' : 'A host sees only their own invitations. Making them admin gives them this whole page.'}</p>
+          <p class="small muted">${u.role === 'admin' ? 'Admins can see every account, invitation and payment, and pause accounts. Only the Super Admin changes prices and free access.' : 'A host sees only their own invitations. Making them admin gives them this page, without price controls.'}</p>
           <button class="btn" id="mRole">${u.role === 'admin' ? 'Remove admin' : 'Make admin'}</button>
-        </section>`}
+        </section>` : u.role === 'super_admin' ? '<p class="small muted">This is the Super Admin account.</p>' : ''}
+        ${H.isSuperAdmin && H.isSuperAdmin() ? `<section class="ax-sec"><h3>Free sharing</h3><p class="small muted">Let this person start sharing campaigns without paying.</p><a class="btn" href="#/admin/free/${encodeURIComponent(u.email || '')}">Give free sharing</a></section>` : ''}`}
       </div>`,
       onOpen: (m, done) => {
         const run = async (btn, fn, msg) => {
@@ -301,7 +311,7 @@
     const S = { f: '', rows: [], total: 0 };
     body.innerHTML = `<section class="hx-panel">
       <div class="ax-tools">
-        <div class="hx-filters" role="group" aria-label="Show">${[['', 'All'], ['user.', 'Accounts'], ['invitation.', 'Invitations']].map(([k, l]) => `<button type="button" data-f="${k}" aria-pressed="${k === ''}" class="${k === '' ? 'on' : ''}">${l}</button>`).join('')}</div>
+        <div class="hx-filters" role="group" aria-label="Show">${[['', 'All'], ['user.', 'Accounts'], ['invitation.', 'Invitations'], ['pricing.', 'Pricing'], ['promotion.', 'Promotions'], ['access.', 'Free sharing']].map(([k, l]) => `<button type="button" data-f="${k}" aria-pressed="${k === ''}" class="${k === '' ? 'on' : ''}">${l}</button>`).join('')}</div>
         <span class="small muted" id="axCount" aria-live="polite"></span>
       </div>
       <ol class="ax-log" id="axRows"></ol>
@@ -318,6 +328,13 @@
       if (d.unpublished) bits.push(`${n(d.unpublished)} invitations taken offline`);
       if (d.reason) bits.push(`reason: “${esc(d.reason)}”`);
       if (d.note) bits.push(`note: “${esc(d.note)}”`);
+      if (d.old && d.new) {
+        const L = { payment_required: 'charging', price_paise: 'price', mode: 'mode', emergency_free: 'emergency free', new_user_free_days: 'new-user free days', free_campaigns_per_user: 'free campaigns per person', guest_cap: 'guest limit', campaign_grace_days: 'days after event' };
+        Object.keys(L).forEach((k) => { if (JSON.stringify(d.old[k]) !== JSON.stringify(d.new[k])) bits.push(`${L[k]}: ${esc(k === 'price_paise' ? '₹' + d.old[k] / 100 : String(d.old[k]))} → ${esc(k === 'price_paise' ? '₹' + d.new[k] / 100 : String(d.new[k]))}`); });
+      }
+      if (d.old_role) bits.push(`${esc(d.old_role)} → ${esc(d.new_role)}`);
+      if (d.until) bits.push(`until ${esc(new Date(d.until).toLocaleDateString('en-IN'))}`);
+      if (d.campaigns) bits.push(`${n(d.campaigns)} campaigns`);
       return bits.join(' · ');
     };
     const load = async (more) => {
@@ -325,10 +342,10 @@
       S.rows = more ? S.rows.concat(r.rows) : r.rows; S.total = r.total;
       body.querySelector('#axCount').textContent = `${n(S.total)} ${S.total === 1 ? 'entry' : 'entries'}`;
       list.innerHTML = S.rows.length ? S.rows.map((a) => {
-        const kind = /^invitation\./.test(a.action) ? 'inv' : 'user';
+        const kind = /^invitation\./.test(a.action) ? 'inv' : /^(pricing|promotion|access)\./.test(a.action) ? 'money' : 'user';
         const bad = /suspend|delete|remove/.test(a.action);
         return `<li class="${bad ? 'bad' : ''}">
-          <span class="ax-log-ic">${icon(kind === 'inv' ? 'send' : 'users')}</span>
+          <span class="ax-log-ic">${icon(kind === 'inv' ? 'send' : kind === 'money' ? 'chart' : 'users')}</span>
           <div><p><b>${esc(ACTIONS[a.action] || a.action)}</b> · ${esc(a.target_label || '')}</p>
           ${detail(a) ? `<p class="small muted">${detail(a)}</p>` : ''}
           <p class="tiny muted">${esc(a.admin_email || 'a removed admin')} · <time datetime="${esc(a.created_at)}">${esc(stamp(a.created_at))}</time></p></div>

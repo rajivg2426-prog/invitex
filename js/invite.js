@@ -47,6 +47,7 @@
         : 'The link may be mistyped, or the invitation has been unpublished or deleted by the host.');
     }
     if (res.status === 'expired') return fatal(res.title || '', t('expired'));
+    if (res.status === 'not_open') return fatal(res.title || t('notFound'), t('notOpen'));
     if (res.status === 'password_required' || res.status === 'wrong_password') return passwordGate(res.status === 'wrong_password');
     S.inv = res.invitation;
     S.guest = res.guest;

@@ -64,7 +64,7 @@
 
   async function reload() {
     D.inv = await H.store.getInvitation(D.inv.id) || D.inv;
-    [D.rsvps, D.guests] = await Promise.all([H.store.listRsvps(D.inv.id), H.store.listGuests(D.inv.id)]);
+    [D.rsvps, D.guests] = await Promise.all([H.store.listRsvps(D.inv.id), H.store.listGuests(D.inv.id), window.IXCampaign && D.inv.status === 'published' ? IXCampaign.load(D.inv) : null]);
     D.stats = M.stats(D.rsvps, D.guests, D.inv.events);
   }
   function renderTab() {
@@ -302,10 +302,14 @@
     apply();
   }
   function guests(body) {
-    const pub = D.inv.status === 'published';
+    const published = D.inv.status === 'published';
+    // sending is open once the sharing campaign is started (free or paid once); adding guests is always free
+    const locked = published && window.IXCampaign && !IXCampaign.canShare();
+    const pub = published && !locked;
     const pending = D.guests.filter((g) => !D.rsvps.some((r) => r.guestId === g.id));
     body.innerHTML = `
-      ${pub ? '' : '<div class="notice warn">Publish the invitation first to send personal links.</div>'}
+      ${published ? '' : '<div class="notice warn">Publish the invitation first to send personal links.</div>'}
+      ${locked ? IXCampaign.lockedNote(D.inv) : ''}
       <div class="grid2" style="margin-bottom:1rem">
         <form class="card stack" id="gf"><h2>Add a guest</h2>
           <div class="f2 stack-sm"><div class="field"><label for="g-n">Name *</label><input class="input" id="g-n" name="name" required placeholder="e.g. Sharma Ji"></div>
@@ -341,7 +345,7 @@
             <td class="acts">${pub ? `<button class="btn sm wa" data-wa="${esc(g.id)}" ${g.phone ? '' : 'title="No number – WhatsApp will ask you to pick a contact"'}>${kind === 'new' ? 'WhatsApp' : 'Resend'}</button>
               ${kind !== 'responded' && g.sentAt ? `<button class="btn sm" data-rem="${esc(g.id)}">Remind</button>` : ''}
               ${g.email ? `<a class="btn sm" data-mail="${esc(g.id)}" href="${esc(IX.mailtoUrl(g.email, 'Invitation: ' + H.title(D.inv), fill(tpl(), g)))}">Email</a>` : ''}
-              <button class="btn sm ghost" data-cp="${esc(link)}">Copy link</button>` : '—'}</td>
+              <button class="btn sm ghost" data-cp="${esc(link)}">Copy link</button>` : locked ? `<a class="btn sm" href="#/dash/${esc(D.inv.id)}/share">Start sharing</a>` : '—'}</td>
             <td><button class="btn sm ghost" data-eg="${esc(g.id)}">Edit</button><button class="btn sm ghost danger" data-dg="${esc(g.id)}" aria-label="Remove guest">✕</button></td></tr>`; }).join('')}
           </tbody></table></div>` : '<p class="muted small">No guests added yet. You can also share one general link from the Share tab – anyone with it can RSVP.</p>'}
       </div>`;
@@ -407,10 +411,11 @@
     body.querySelector('#rtpl').onchange = async (e) => { await setTpl('remind', e.target.value); IX.toast('Template saved', 'ok'); };
     wireLangPicker(body, () => guests(body));
     const mark = async (id, field) => { const g = D.guests.find((x) => x.id === id); g[field] = new Date().toISOString(); await H.store.saveGuest(g); await reload(); guests(body); };
-    body.querySelectorAll('[data-wa]').forEach((b) => (b.onclick = () => { const g = D.guests.find((x) => x.id === b.dataset.wa); window.open(IX.whatsappUrl(fill(tpl(), g), g.phone), '_blank', 'noopener'); mark(g.id, 'sentAt'); }));
-    body.querySelectorAll('[data-rem]').forEach((b) => (b.onclick = () => { const g = D.guests.find((x) => x.id === b.dataset.rem); window.open(IX.whatsappUrl(fill(remTpl(), g), g.phone), '_blank', 'noopener'); mark(g.id, 'remindedAt'); }));
-    body.querySelectorAll('[data-mail]').forEach((a) => a.addEventListener('click', () => mark(a.dataset.mail, 'sentAt')));
-    body.querySelectorAll('[data-cp]').forEach((b) => (b.onclick = async () => { await IX.copy(b.dataset.cp); IX.toast('Personal link copied', 'ok'); }));
+    const track = (gid, ch, action) => window.IXCampaign && IXCampaign.markShared(gid, ch, action);
+    body.querySelectorAll('[data-wa]').forEach((b) => (b.onclick = () => { const g = D.guests.find((x) => x.id === b.dataset.wa); window.open(IX.whatsappUrl(fill(tpl(), g), g.phone), '_blank', 'noopener'); track(g.id, 'whatsapp'); mark(g.id, 'sentAt'); }));
+    body.querySelectorAll('[data-rem]').forEach((b) => (b.onclick = () => { const g = D.guests.find((x) => x.id === b.dataset.rem); window.open(IX.whatsappUrl(fill(remTpl(), g), g.phone), '_blank', 'noopener'); track(g.id, 'whatsapp'); mark(g.id, 'remindedAt'); }));
+    body.querySelectorAll('[data-mail]').forEach((a) => a.addEventListener('click', () => { track(a.dataset.mail, 'email'); mark(a.dataset.mail, 'sentAt'); }));
+    body.querySelectorAll('[data-cp]').forEach((b) => (b.onclick = async () => { await IX.copy(b.dataset.cp); IX.toast('Personal link copied', 'ok'); const g = D.guests.find((x) => b.dataset.cp.includes(x.token)); if (g) track(g.id, 'copy', 'link'); }));
     body.querySelectorAll('[data-dg]').forEach((b) => (b.onclick = async () => {
       if (!(await H.confirm('Remove guest?', 'Their personal link will stop identifying them. Any RSVP they already sent is kept.', 'Remove', true))) return;
       await H.store.deleteGuest(b.dataset.dg); await reload(); guests(body);
@@ -439,6 +444,7 @@
           <div class="stack">${pending.map((g) => `<div class="row between" style="border-bottom:1px solid var(--line);padding:.4rem 0"><span><b>${esc(g.name)}</b> <span class="tiny muted">${esc(IX.maskPhone(g.phone))}</span></span><span class="row">${g.remindedAt ? '<span class="pill maybe">reminded</span>' : ''}<a class="btn sm wa" target="_blank" rel="noopener" data-r1="${esc(g.id)}" href="${esc(IX.whatsappUrl(fill(remTpl(), g), g.phone))}">Remind</a></span></div>`).join('')}</div>`,
         actions: [{ label: 'Done', cls: 'primary' }],
         onOpen: (m) => m.querySelectorAll('[data-r1]').forEach((a) => a.addEventListener('click', async () => {
+          if (window.IXCampaign) IXCampaign.markShared(a.dataset.r1, 'whatsapp');
           const g = D.guests.find((x) => x.id === a.dataset.r1); g.remindedAt = new Date().toISOString(); await H.store.saveGuest(g);
           a.textContent = '✔ Opened'; a.classList.remove('wa');
         })),
@@ -467,9 +473,18 @@
       <p class="tiny muted" style="margin:.6rem 0 0">InviteX can see when <i>you</i> opened WhatsApp or email to send, and when a guest opened their personal link or replied. It cannot see whether a WhatsApp message was delivered or read.</p>
     </div>`;
   }
+  // Share tab = the sharing campaign step (start / pay / status) on top, then the sharing tools once it is open.
   function share(body) {
     const inv = D.inv;
     if (inv.status !== 'published') { body.innerHTML = `<div class="card"><p>Publish the invitation to share it.</p><a class="btn primary" href="#/edit/${esc(inv.id)}/6">Go to Publish</a></div>`; return; }
+    if (!window.IXCampaign) return shareTools(body);
+    body.innerHTML = '<div id="cmBox"><div class="page-loading"><div class="spinner"></div></div></div><div id="shareBox"></div>';
+    const box = body.querySelector('#shareBox');
+    IXCampaign.render(body.querySelector('#cmBox'), inv, () => shareTools(box));
+  }
+  function shareTools(body) {
+    const inv = D.inv;
+    const track = (ch, action) => window.IXCampaign && IXCampaign.markShared(null, ch, action);
     const l = msgLang();
     const link = IX.inviteUrl(inv.slug, l === (inv.defaultLang || 'en') ? {} : { lang: l });
     const msg = generalMsg();
@@ -506,21 +521,24 @@
         </div>
       </div>`;
     body.querySelector('[data-goto=guests]').onclick = () => document.querySelector('[data-tab=guests]').click();
-    wireLangPicker(body, () => share(body));
-    body.querySelector('#cpy').onclick = async () => { await IX.copy(link); IX.toast('Link copied', 'ok'); };
+    wireLangPicker(body, () => shareTools(body));
+    body.querySelector('#cpy').onclick = async () => { await IX.copy(link); IX.toast('Link copied', 'ok'); track('copy', 'share'); };
+    body.querySelector('#waAll').addEventListener('click', () => track('whatsapp'));
+    body.querySelector('#mailAll').addEventListener('click', () => track('email'));
     const mp = body.querySelector('#msgPrev');
     const waText = body.querySelector('#waText');
     const showText = () => { waText.innerHTML = esc(mp.value).replace(/https?:\/\/\S+/g, (u) => `<span class="wa-link">${u}</span>`).replace(/\n/g, '<br>'); };
     mp.oninput = () => { body.querySelector('#waAll').href = IX.whatsappUrl(mp.value); body.querySelector('#mailAll').href = IX.mailtoUrl('', 'Invitation: ' + H.title(inv), mp.value); showText(); };
     showText();
     const ns = body.querySelector('#nshare');
-    if (ns) ns.onclick = () => navigator.share({ title: H.title(inv), text: mp.value.replace(link, '').trim(), url: link }).catch(() => {});
-    body.querySelector('#qrPng').onclick = async () => IX.download((inv.slug || 'invite') + '-qr.png', await IX.qrPNG(link, 800));
+    if (ns) ns.onclick = () => { track('native'); navigator.share({ title: H.title(inv), text: mp.value.replace(link, '').trim(), url: link }).catch(() => {}); };
+    body.querySelector('#qrPng').onclick = async () => { track('qr', 'link'); IX.download((inv.slug || 'invite') + '-qr.png', await IX.qrPNG(link, 800)); };
     const cv = body.querySelector('#cardCanvas');
     drawCard(cv, inv, link).then(() => { body.querySelector('#waImg').src = cv.toDataURL('image/jpeg', 0.85); }).catch((e) => console.warn(e));
     // Card image + message. Phones: the share sheet sends both together (pick WhatsApp, then the chat).
     // Computers can't attach a file through a link, so the image is saved and WhatsApp opens with the message ready.
     body.querySelector('#waCard').onclick = async () => {
+      track('whatsapp');
       const name = (inv.slug || 'invitation') + '.png';
       const blob = dataUrlBlob(cv.toDataURL('image/png'));
       const file = typeof File === 'function' ? new File([blob], name, { type: 'image/png' }) : null;

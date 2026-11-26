@@ -50,6 +50,9 @@ X-Content-Type-Options: nosniff
 ### 2.4 AI card designs (optional)
 The "✨ Or let AI paint your card" option in step 1 needs an image-AI key and the `generate-card-art` Edge Function. Follow [AI_DESIGNS_SETUP.md](AI_DESIGNS_SETUP.md). Without it, the rest of the app works normally and the AI option shows a short "not switched on yet" message when used.
 
+### 2.4b Paid sharing (Razorpay UPI)
+Hosts can be asked to pay once by UPI before sharing an invitation. Setup in test mode: [PAYMENTS_SETUP.md](PAYMENTS_SETUP.md) (`supabase/billing.sql`, two Edge Functions, Razorpay test keys as Supabase secrets, webhook). Real money: [PAYMENTS_GO_LIVE.md](PAYMENTS_GO_LIVE.md). Run order for the SQL files: `schema.sql`, `admin.sql`, `ai-designs.sql`, `billing.sql`; re-run `billing.sql` after re-running either of the first two. The CSP above needs `https://checkout.razorpay.com` in `script-src` and `frame-src`, and `https://api.razorpay.com` in `connect-src`, when payments are on.
+
 ### 2.5 How it behaves in production
 - Hosts sign in (email + password, or a magic link) on `index.html`.
 - Published invitations are readable by anyone with the link through `get_public_invitation`. Drafts are invisible.
@@ -74,6 +77,8 @@ psql -f tests/supabase-stubs.sql && psql -d ivx -c 'create role service_role nol
 # Admin page: database rules, then the page itself (needs a local Postgres you can reach with psql)
 psql -d ivx -f supabase/admin.sql -f tests/admin-test.sql
 psql -f tests/supabase-stubs.sql && psql -d ivx -c 'create role service_role nologin' && psql -d ivx -f supabase/schema.sql -f supabase/admin.sql -f tests/admin-seed.sql && PGDATABASE=ivx node tests/admin-e2e.js
+# Paid sharing: database rules, Edge Functions, browser (fake Razorpay, no money)
+sh tests/run-billing-sql.sh && node tests/payments-function-test.mjs && node tests/billing-e2e.mjs
 # AI designs: server step and editor picker
 node tests/ai-function-test.mjs && node tests/ai-design-e2e.js
 ```

@@ -361,6 +361,15 @@
       for (const x of data.rsvps || []) await this.put('rsvps', x);
     }
     get aiAvailable() { return false; } // AI designs need the online (Supabase) version
+    /* Paid sharing campaigns exist only in Production mode. Here sharing is always open and free. */
+    async campaignState() { return { billing: false, campaign: { id: 'demo', status: 'sharing', can_share: true, demo: true }, quote: { payment_required: false, free_reason: 'demo' } }; }
+    async campaignStart() { return (await this.campaignState()).campaign; }
+    async campaignMarkShared() { return null; }
+    async campaignAction() { return (await this.campaignState()).campaign; }
+    async myCampaigns() { return []; }
+    async myPayments() { return []; }
+    async sharingQuote() { return null; }
+    async payment() { return { status: 'unlocked' }; }
     get aiWriteAvailable() { return false; } // the AI writer needs the online version; the built-in writer is used here
     get aiWriteNote() { return 'AI writing works in the online version. These versions are from InviteX\u2019s built-in writer.'; }
     async wipe() { const db = await this.dbp; db.close(); await reqP(indexedDB.deleteDatabase(DB_NAME)); }
@@ -512,6 +521,44 @@
 
     /* AI card designs (server step: supabase/functions/generate-card-art) */
     get aiAvailable() { return true; }
+
+    /* Paid sharing campaigns (supabase/billing.sql + functions/sharing-campaign). The database decides
+     * who pays and what; these only ask. Before billing.sql is installed, sharing stays open. */
+    _noBilling(error) { return error && /campaign_state|my_sharing_quote|PGRST202|does not exist|Could not find the function/i.test((error.code || '') + ' ' + error.message); }
+    async campaignState(invitationId) {
+      const { data, error } = await this.sb.rpc('campaign_state', { p_invitation: invitationId });
+      if (error && this._noBilling(error)) return { billing: false, campaign: { id: 'none', status: 'sharing', can_share: true }, quote: { payment_required: false, free_reason: 'not_installed' } };
+      if (error) throw new Error(error.message);
+      return Object.assign({ billing: true }, data);
+    }
+    async campaignStart(invitationId, requestId) { return this._check(await this.sb.rpc('campaign_start', { p_invitation: invitationId, p_request_id: requestId || null })); }
+    async campaignMarkShared(campaignId, guestId, channel, action = 'share') {
+      const { data, error } = await this.sb.rpc('campaign_mark_shared', { p_campaign: campaignId, p_guest: guestId || null, p_channel: channel, p_action: action });
+      if (error) console.warn('share not recorded:', error.message);
+      return error ? null : data;
+    }
+    // action: complete | reopen | cancel
+    async campaignAction(action, campaignId) { return this._check(await this.sb.rpc('campaign_' + action, { p_campaign: campaignId })); }
+    async myCampaigns() { const { data, error } = await this.sb.rpc('my_campaigns', { p_invitation: null }); if (error && this._noBilling(error)) return []; return this._check({ data, error }); }
+    async myPayments() { const { data, error } = await this.sb.rpc('my_payments'); if (error && this._noBilling(error)) return []; return this._check({ data, error }); }
+    async sharingQuote() { const { data, error } = await this.sb.rpc('my_sharing_quote'); if (error && this._noBilling(error)) return null; return this._check({ data, error }); }
+    // the payment server step: order | verify | status. Throws with .code.
+    async payment(action, body = {}) {
+      const { data } = await this.sb.auth.getSession();
+      const token = data.session && data.session.access_token;
+      if (!token) throw Object.assign(new Error('Please sign in again.'), { code: 'auth' });
+      let res;
+      try {
+        res = await fetch(`${CFG.SUPABASE_URL.replace(/\/$/, '')}/functions/v1/sharing-campaign`, {
+          method: 'POST', headers: { 'content-type': 'application/json', apikey: CFG.SUPABASE_ANON_KEY, authorization: `Bearer ${token}` },
+          body: JSON.stringify(Object.assign({ action }, body)),
+        });
+      } catch (e) { throw Object.assign(new Error('Could not reach the payment server. Check your internet connection and try again.'), { code: 'network' }); }
+      const j = await res.json().catch(() => ({}));
+      if (res.status === 404 && !j.error) throw Object.assign(new Error('Payments are not switched on yet.'), { code: 'not_configured' });
+      if (!res.ok) throw Object.assign(new Error(j.error || 'The payment step had a problem. Please try again.'), { code: j.code || 'error' });
+      return j;
+    }
     async aiCredits() { return this._check(await this.sb.rpc('my_ai_credits')); }
     async aiGenerate({ style, colors, category, words }) {
       const { data } = await this.sb.auth.getSession();

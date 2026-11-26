@@ -26,13 +26,18 @@
 -- ---------------------------------------------------------------------
 create table if not exists public.profiles (
   user_id          uuid primary key references auth.users(id) on delete cascade,
-  role             text not null default 'host'   check (role in ('host','admin')),
+  role             text not null default 'host'   check (role in ('host','admin','super_admin')),
   status           text not null default 'active' check (status in ('active','suspended')),
   suspended_reason text,
   created_at       timestamptz not null default now(),
   updated_at       timestamptz not null default now()
 );
 alter table public.profiles enable row level security;
+-- Super Admin (owner) role, added with paid sharing campaigns. Re-running is safe.
+do $$ begin
+  alter table public.profiles drop constraint if exists profiles_role_check;
+  alter table public.profiles add constraint profiles_role_check check (role in ('host','admin','super_admin'));
+end $$;
 drop policy if exists profiles_own_read on public.profiles;
 create policy profiles_own_read on public.profiles for select to authenticated using (user_id = auth.uid());
 -- no insert / update / delete policies: only the admin functions below change roles
@@ -55,9 +60,15 @@ insert into public.profiles(user_id) select id from auth.users on conflict (user
 -- ---------------------------------------------------------------------
 -- Role checks (used by the rules below and by every admin function)
 -- ---------------------------------------------------------------------
+-- a Super Admin is also an admin; only a Super Admin may change money settings
 create or replace function public.is_admin() returns boolean
 language sql stable security definer set search_path = public as $$
-  select exists (select 1 from public.profiles where user_id = auth.uid() and role = 'admin' and status = 'active');
+  select exists (select 1 from public.profiles where user_id = auth.uid() and role in ('admin','super_admin') and status = 'active');
+$$;
+
+create or replace function public.is_super_admin() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.profiles where user_id = auth.uid() and role = 'super_admin' and status = 'active');
 $$;
 
 create or replace function public.is_active_user() returns boolean
@@ -70,6 +81,24 @@ language plpgsql stable security definer set search_path = public as $$
 begin
   if auth.uid() is null or not public.is_admin() then
     raise exception 'Only an InviteX admin can do this.' using errcode = '42501';
+  end if;
+end $$;
+
+create or replace function public._require_super_admin() returns void
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if auth.uid() is null or not public.is_super_admin() then
+    raise exception 'Only the InviteX Super Admin can do this.' using errcode = '42501';
+  end if;
+end $$;
+
+-- The first time this runs, the longest-standing admin becomes the Super Admin
+-- (the owner). To choose someone else, see the user manual, Part 3.1.
+do $$ begin
+  if not exists (select 1 from public.profiles where role = 'super_admin') then
+    update public.profiles set role = 'super_admin', updated_at = now()
+     where user_id = (select p.user_id from public.profiles p join auth.users u on u.id = p.user_id
+                       where p.role = 'admin' and p.status = 'active' order by u.created_at, p.created_at limit 1);
   end if;
 end $$;
 
@@ -133,6 +162,12 @@ create table if not exists public.admin_log (
 create index if not exists admin_log_time_idx on public.admin_log(created_at desc);
 alter table public.admin_log enable row level security;  -- no policies on purpose
 revoke all on public.admin_log from anon, authenticated;
+-- the log is append-only: no row can be changed or removed, even by a database function
+create or replace function public.admin_log_append_only() returns trigger language plpgsql as $$
+begin raise exception 'The activity log cannot be changed or deleted.' using errcode = '42501'; end $$;
+drop trigger if exists t_admin_log_append_only on public.admin_log;
+create trigger t_admin_log_append_only before update or delete on public.admin_log
+  for each row execute function public.admin_log_append_only();
 
 create or replace function public._admin_log(p_action text, p_type text, p_id text, p_label text, p_details jsonb default '{}'::jsonb)
 returns void language sql security definer set search_path = public as $$
@@ -193,6 +228,7 @@ begin
   perform public._require_admin();
   if p_status not in ('active', 'suspended') then raise exception 'Unknown status.'; end if;
   if p_user = auth.uid() then raise exception 'You cannot suspend or re-activate your own account.'; end if;
+  if exists (select 1 from profiles where user_id = p_user and role = 'super_admin') then perform public._require_super_admin(); end if;
   select email into v_email from auth.users where id = p_user;
   if not found then raise exception 'That account no longer exists.'; end if;
   insert into profiles(user_id) values (p_user) on conflict (user_id) do nothing;
@@ -210,16 +246,26 @@ end $$;
 
 create or replace function public.admin_set_role(p_user uuid, p_role text)
 returns jsonb language plpgsql security definer set search_path = public as $$
-declare v_email text;
+declare v_email text; v_old text;
 begin
   perform public._require_admin();
-  if p_role not in ('host', 'admin') then raise exception 'Unknown role.'; end if;
+  if p_role not in ('host', 'admin', 'super_admin') then raise exception 'Unknown role.'; end if;
   if p_user = auth.uid() then raise exception 'You cannot change your own role. Ask another admin.'; end if;
   select email into v_email from auth.users where id = p_user;
   if not found then raise exception 'That account no longer exists.'; end if;
   insert into profiles(user_id) values (p_user) on conflict (user_id) do nothing;
+  select role into v_old from profiles where user_id = p_user;
+  -- making or removing admins, and anything to do with Super Admins, is for the Super Admin only
+  if not public.is_super_admin() and (p_role <> 'host' or v_old <> 'host') then
+    perform public._require_super_admin();
+  end if;
+  if v_old = 'super_admin' and p_role <> 'super_admin'
+     and (select count(*) from profiles where role = 'super_admin' and status = 'active') <= 1 then
+    raise exception 'InviteX needs at least one Super Admin.';
+  end if;
   update profiles set role = p_role, updated_at = now() where user_id = p_user;
-  perform public._admin_log(case when p_role = 'admin' then 'user.make_admin' else 'user.remove_admin' end, 'user', p_user::text, v_email, '{}'::jsonb);
+  perform public._admin_log(case p_role when 'super_admin' then 'user.make_super_admin' when 'admin' then 'user.make_admin' else 'user.remove_admin' end,
+    'user', p_user::text, v_email, jsonb_build_object('old_role', v_old, 'new_role', p_role));
   return jsonb_build_object('ok', true);
 end $$;
 
@@ -307,7 +353,7 @@ begin
   return jsonb_build_object(
     'totals', jsonb_build_object(
       'users',       (select count(*) from auth.users),
-      'admins',      (select count(*) from profiles where role = 'admin'),
+      'admins',      (select count(*) from profiles where role in ('admin','super_admin')),
       'suspended',   (select count(*) from profiles where status = 'suspended'),
       'active30',    (select count(*) from auth.users where last_sign_in_at > now() - interval '30 days'),
       'invitations', (select count(*) from invitations),
@@ -362,6 +408,10 @@ end $$;
 revoke all on function public.handle_new_user() from public, anon, authenticated;
 revoke all on function public.ai_credits_block_suspended() from public, anon, authenticated;
 revoke all on function public._require_admin() from public, anon, authenticated;
+revoke all on function public._require_super_admin() from public, anon, authenticated;
+revoke all on function public.admin_log_append_only() from public, anon, authenticated;
+revoke all on function public.is_super_admin() from public, anon;
+grant execute on function public.is_super_admin() to authenticated;
 revoke all on function public._admin_log(text,text,text,text,jsonb) from public, anon, authenticated;
 revoke all on function public.is_admin() from public, anon;
 revoke all on function public.is_active_user() from public, anon;
