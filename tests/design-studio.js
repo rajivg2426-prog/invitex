@@ -34,7 +34,9 @@ fs.mkdirSync(OUT, { recursive: true });
     await page.fill('#galSearch', name);
     await page.click('#galSearchClear');
     check('Clear search restores gallery', await tiles.count() === total);
-    await page.click('#galMore');
+    if (!(await page.locator('[data-gfav]').isVisible())) {
+      await page.locator('#galMore').click();
+    }
     await page.locator('[data-gfav]').waitFor({state:'visible'});
     await page.click('[data-fav="'+id+'"]');
     check('Favourite saved', await page.locator('[data-fav="'+id+'"]').getAttribute('aria-pressed') === 'true');
