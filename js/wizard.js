@@ -861,6 +861,98 @@
       panel.innerHTML = '<h4>Reference image colours</h4><p class="small muted">Dominant colours extracted on this device. Concepts above are ranked by colour similarity, not by image subject or layout.</p><div class="ix-reference-swatches">'+A.reference.swatches.map(h=>'<span><i style="background:'+esc(h)+'"></i>'+esc(h)+'</span>').join('')+'</div>';
       conceptBox.prepend(panel);
     }
+    // Offline visual artwork: original procedural backgrounds, not a remote AI model.
+    const visual = document.createElement('section');
+    visual.className = 'ix-visual-studio stack';
+    visual.innerHTML = '<h4>Visual Design Studio</h4><p class="small muted">Create original decorative backgrounds on your device. No AI credits required. For model-painted artwork, use the existing AI painting controls.</p><label class="field">Decoration<select class="input" id="ixVisualMotif"><option value="floral">Floral</option><option value="royal">Royal arches</option><option value="geometric">Geometric</option><option value="minimal">Minimal</option><option value="lotus">Lotus</option><option value="mandala">Mandala</option><option value="peacock">Peacock</option><option value="horse">Royal horse</option><option value="elephant">Elephant</option><option value="corporate">Corporate</option></select></label><label class="field">Background colour<input type="color" id="ixVisualBg"></label><label class="field">Accent colour<input type="color" id="ixVisualAccent"></label><label class="field">Decoration size<input type="range" id="ixVisualSize" min="50" max="150" value="100"></label><label class="field">Opacity<input type="range" id="ixVisualOpacity" min="10" max="100" value="100"></label><label class="field">Rotation<input type="range" id="ixVisualRotation" min="-180" max="180" value="0"></label><label class="field">Inset<input type="range" id="ixVisualInset" min="100" max="260" value="150"></label><label class="field">Monogram initials<input class="input" id="ixVisualInitials" maxlength="12"></label><button type="button" class="btn" id="ixVisualUndo">Undo generation</button><button type="button" class="btn" id="ixVisualRedo">Redo generation</button><button type="button" class="btn" id="ixVisualReset">Reset controls</button><button type="button" class="btn" id="ixVisualGenerate">Generate 3 visual backgrounds</button><label class="field">Describe a design change<input class="input" id="ixVisualPrompt" maxlength="240" placeholder="Royal gold, pastel pink, larger lotus"></label><button type="button" class="btn" id="ixVisualEdit">Apply local design instruction</button><button type="button" class="btn" id="ixVisualRemote">Generate with AI (local fallback)</button><label class="field">Optional photo overlay<input type="file" accept="image/png,image/jpeg,image/webp" id="ixVisualPhoto"></label><label class="field">Photo horizontal position<input type="range" id="ixVisualPhotoX" min="15" max="85" value="50"></label><label class="field">Photo vertical position<input type="range" id="ixVisualPhotoY" min="15" max="85" value="35"></label><label class="field">Photo size<input type="range" id="ixVisualPhotoSize" min="10" max="60" value="25"></label><label class="field">Photo opacity<input type="range" id="ixVisualPhotoOpacity" min="10" max="100" value="100"></label><label class="field">Photo rotation<input type="range" id="ixVisualPhotoRotation" min="-180" max="180" value="0"></label><button type="button" class="btn" id="ixVisualPhotoRemove">Remove overlay</button><div class="ai-grid" id="ixVisualResults"></div><p role="status" class="small" id="ixVisualStatus"></p>';
+    conceptBox.appendChild(visual);
+    const motif = visual.querySelector('#ixVisualMotif');
+    motif.value = A.visualMotif || (/floral|lotus|flower/i.test(A.desc)?'floral':/royal|arch/i.test(A.desc)?'royal':/minimal/i.test(A.desc)?'minimal':'geometric');
+    motif.onchange=()=>{A.visualMotif=motif.value;};
+    const results=visual.querySelector('#ixVisualResults');
+    const controls=['Bg','Accent','Size','Opacity','Rotation','Inset','Initials','PhotoX','PhotoY','PhotoSize','PhotoOpacity','PhotoRotation'];
+    const field=k=>visual.querySelector('#ixVisual'+k);
+    const pal=IXT.THEMES[inv.theme].palettes[inv.paletteIndex]||IXT.THEMES[inv.theme].palettes[0];
+    const hex=(v,f)=>/^#[0-9a-f]{6}$/i.test(v||'')?v:f;
+    const defaults=()=>({Bg:hex(A.reference?.swatches[0],hex(pal.bg,'#fff4df')),Accent:hex(A.reference?.swatches[1],hex(pal.accent,'#ad8243')),Size:'100',Opacity:'100',Rotation:'0',Inset:'150',Initials:'',PhotoX:'50',PhotoY:'35',PhotoSize:'25',PhotoOpacity:'100',PhotoRotation:'0'});
+    const restore=v=>controls.forEach(k=>field(k).value=v[k]);
+    const settings=()=>Object.fromEntries(controls.map(k=>[k,field(k).value]));
+    restore({...defaults(),...A.visualSettings});
+    controls.forEach(k=>field(k).oninput=()=>{A.visualSettings=settings();});
+    A.visualHistory ||= []; A.visualFuture ||= [];
+    const snapshot=()=>({images:A.visuals||[],settings:A.visualSettings||settings(),motif:A.visualMotif||motif.value});
+    const load=v=>{A.visuals=v.images;A.visualSettings=v.settings;A.visualMotif=v.motif;motif.value=v.motif;restore(v.settings);showVisuals();};
+    field('Undo').onclick=()=>{if(A.visualHistory.length){A.visualFuture.push(snapshot());load(A.visualHistory.pop());}};
+    field('Redo').onclick=()=>{if(A.visualFuture.length){A.visualHistory.push(snapshot());load(A.visualFuture.pop());}};
+    field('Reset').onclick=()=>{restore(defaults());A.visualSettings=settings();};
+    const status=t=>field('Status').textContent=t;
+    field('Photo').onchange=async e=>{
+      const file=e.target.files[0];if(!file)return;
+      if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>15*1024*1024){status('Choose a JPG, PNG or WebP up to 15 MB.');return;}
+      const url=URL.createObjectURL(file);
+      try{const img=await IX.loadImage(url);const c=document.createElement('canvas');const scale=Math.min(1,1200/Math.max(img.width,img.height));c.width=Math.max(1,Math.round(img.width*scale));c.height=Math.max(1,Math.round(img.height*scale));c.getContext('2d').drawImage(img,0,0,c.width,c.height);A.visualPhoto=c;status('Photo ready. Generate backgrounds to composite it.');}catch(e){status('Unable to decode photo.');}finally{URL.revokeObjectURL(url);}
+    };
+    field('PhotoRemove').onclick=()=>{A.visualPhoto=null;field('Photo').value='';status('Photo removed from future generations.');};
+    field('Edit').onclick=()=>{
+      const t=field('Prompt').value.toLowerCase();let understood=false;
+      for(const k of ['floral','royal','geometric','minimal','lotus','mandala','peacock','horse','elephant','corporate'])if(t.includes(k)){motif.value=k;understood=true;}
+      for(const [word,bg,accent] of [['pastel','#f9e1e8','#9b5275'],['gold','#163d36','#d8b66d'],['silver','#17263f','#c4c9d2'],['pink','#f9e1e8','#9b5275'],['blue','#17263f','#c4c9d2']])if(t.includes(word)){field('Bg').value=bg;field('Accent').value=accent;understood=true;}
+      if(/larger|bigger/.test(t)){field('Size').value='140';understood=true;}if(/smaller/.test(t)){field('Size').value='65';understood=true;}
+      if(!understood){status('Local editor understands motif names, gold, silver, pastel, pink, blue, larger and smaller.');return;}
+      field('Generate').click();
+    };
+    field('Remote').onclick=async()=>{
+      if(A.visualRemoteBusy)return;A.visualRemoteBusy=true;field('Remote').disabled=true;status('Requesting AI artwork…');
+      try{const r=await store.aiGenerate({style:A.style||style,colors:A.colors,category:A.cat,words:[field('Prompt').value,A.words].filter(Boolean).join(', ').slice(0,120)});
+        const urls=(r.images||[]).filter(u=>typeof u==='string'&&/^(https:\/\/|data:image\/(png|jpeg|webp);base64,)/i.test(u));if(!urls.length)throw Error('No artwork');
+        if(W.inv!==inv||W.ai!==A||W.step!==1)return;
+        A.visualHistory.push(snapshot());if(A.visualHistory.length>5)A.visualHistory.shift();A.visualFuture=[];A.visuals=urls.slice(0,3);A.credits={...c,used:r.used,limit:r.limit,left:r.left};showVisuals();status('AI artwork ready.');
+      }catch(e){if(W.inv===inv&&W.ai===A&&W.step===1){field('Generate').click();status('AI unavailable. Free local artwork generated instead.');}}
+      finally{A.visualRemoteBusy=false;field('Remote').disabled=false;}
+    };
+    const showVisuals=()=>{
+      results.replaceChildren();
+      (A.visuals||[]).forEach((url,i)=>{
+        const btn=document.createElement('button');btn.type='button';btn.className='ai-pick';btn.dataset.visualUse=String(i);
+        const img=document.createElement('img');img.src=url;img.alt='Original background variation '+(i+1);img.style.cssText='width:100%;display:block;aspect-ratio:2/3;object-fit:cover';
+        const label=document.createElement('span');label.className='ai-use';label.textContent='Apply variation '+(i+1);btn.append(img,label);
+        btn.onclick=async()=>{
+          if(A.picking)return;
+          if((inv.media.background||calligOn(inv))&&!window.confirm('Replace current artwork? Event details and wording will remain.'))return;
+          await useAiArt(url,stepBody,true);
+        };results.append(btn);
+      });
+    };
+    visual.querySelector('#ixVisualGenerate').onclick=()=>{
+      const theme=IXT.THEMES[inv.theme]||Object.values(IXT.THEMES)[0];
+      const p=theme.palettes[inv.paletteIndex]||theme.palettes[0];
+      const valid=(v,f)=>/^#[0-9a-f]{6}$/i.test(v||'')?v:f;
+      const bg=field('Bg').value;
+      const accent=field('Accent').value;
+      A.visualHistory.push(snapshot());if(A.visualHistory.length>5)A.visualHistory.shift();A.visualFuture=[];A.visualSettings=settings();
+      A.visualMotif=motif.value;
+      A.visuals=Array.from({length:3},(_,i)=>{
+        const c=document.createElement('canvas');c.width=1200;c.height=1800;const x=c.getContext('2d');
+        x.fillStyle=bg;x.fillRect(0,0,1200,1800);x.strokeStyle=accent;x.fillStyle=accent;x.lineWidth=3+i*2;
+        const m=45+i*22;x.strokeRect(m,m,1200-2*m,1800-2*m);x.strokeRect(m+14,m+14,1172-2*m,1772-2*m);
+        const q=Number(field('Inset').value);for(const [cx,cy] of [[q,q],[1200-q,q],[q,1800-q],[1200-q,1800-q]]){
+          x.save();x.translate(cx,cy);x.globalAlpha=Number(field('Opacity').value)/100;x.rotate(Number(field('Rotation').value)*Math.PI/180);x.scale(Number(field('Size').value)/100,Number(field('Size').value)/100);
+          if(motif.value==='floral'){for(let k=0;k<8+i*2;k++){x.save();x.rotate(k*Math.PI*2/(8+i*2));x.beginPath();x.ellipse(0,48,17,45,0,0,Math.PI*2);x.stroke();x.restore();}x.beginPath();x.arc(0,0,15,0,Math.PI*2);x.fill();}
+          else if(motif.value==='royal'){for(let k=0;k<3;k++){const a=35+k*22;x.beginPath();x.moveTo(-a,70);x.lineTo(-a,0);x.quadraticCurveTo(-a,-a,0,-a-30);x.quadraticCurveTo(a,-a,a,0);x.lineTo(a,70);x.stroke();}}
+          else if(motif.value==='geometric'){for(let k=0;k<4;k++){x.rotate(Math.PI/4);x.strokeRect(-48-k*5,-48-k*5,96+k*10,96+k*10);}}
+          else if(['lotus','mandala','peacock'].includes(motif.value)){const n=motif.value==='lotus'?6:motif.value==='mandala'?16:9;for(let k=0;k<n;k++){x.save();x.rotate(k*2*Math.PI/n);x.beginPath();x.ellipse(0,35,12,36,0,0,2*Math.PI);x.stroke();x.restore();}x.beginPath();x.arc(0,0,12,0,2*Math.PI);x.stroke();}
+          else if(motif.value==='horse'){x.beginPath();x.moveTo(-50,55);x.bezierCurveTo(-20,25,-35,0,-12,-30);x.lineTo(-5,-65);x.lineTo(12,-45);x.quadraticCurveTo(40,-40,48,-10);x.lineTo(30,8);x.lineTo(10,-4);x.quadraticCurveTo(0,25,28,55);x.closePath();x.stroke();x.beginPath();x.arc(18,-28,3,0,Math.PI*2);x.fill();x.beginPath();x.moveTo(-60,65);x.lineTo(60,65);x.stroke();}
+          else if(motif.value==='elephant'){x.beginPath();x.ellipse(-12,0,48,36,0,0,Math.PI*2);x.stroke();x.beginPath();x.arc(35,-8,23,0,Math.PI*2);x.stroke();x.beginPath();x.moveTo(56,-5);x.quadraticCurveTo(75,50,44,45);x.stroke();for(const leg of [-42,-12,15]){x.strokeRect(leg,27,12,30);}x.strokeRect(-40,-28,50,35);x.beginPath();x.arc(42,-15,3,0,Math.PI*2);x.fill();}
+          else if(motif.value==='corporate'){x.beginPath();x.moveTo(-55,0);x.lineTo(0,-55);x.lineTo(55,0);x.stroke();}
+          else {x.beginPath();x.arc(0,0,12+i*5,0,Math.PI*2);x.stroke();}
+          x.restore();
+        }
+        if(A.visualPhoto){const im=A.visualPhoto;const d=1200*Number(field('PhotoSize').value)/100;const z=Math.max(d/im.width,d/im.height);x.save();x.translate(1200*Number(field('PhotoX').value)/100,1800*Number(field('PhotoY').value)/100);x.rotate(Number(field('PhotoRotation').value)*Math.PI/180);x.globalAlpha=Number(field('PhotoOpacity').value)/100;x.beginPath();x.arc(0,0,d/2,0,Math.PI*2);x.clip();x.drawImage(im,-im.width*z/2,-im.height*z/2,im.width*z,im.height*z);x.restore();x.save();x.translate(1200*Number(field('PhotoX').value)/100,1800*Number(field('PhotoY').value)/100);x.beginPath();x.arc(0,0,d/2,0,Math.PI*2);x.stroke();x.restore();}
+        const initials=field('Initials').value.trim();if(initials){x.save();x.translate(600,220);x.beginPath();x.arc(0,0,82,0,2*Math.PI);x.stroke();x.font='48px Georgia';x.textAlign='center';x.textBaseline='middle';x.fillText(initials,0,0,145);x.restore();}
+        return c.toDataURL('image/png');
+      });showVisuals();visual.querySelector('#ixVisualStatus').textContent='Three backgrounds ready. Select one to preview on your invitation.';
+    };
+    showVisuals();
     const copyLink = document.createElement('button');
     copyLink.type = 'button'; copyLink.className = 'btn'; copyLink.id = 'aiCopyStudio'; copyLink.textContent = 'Continue to Copy Studio';
     copyLink.disabled = !window.IXStudio;
@@ -923,7 +1015,7 @@
   }
 
   // Copy the chosen painting into this invitation's media and make it the card background.
-  async function useAiArt(url, stepBody) {
+  async function useAiArt(url, stepBody, localVisual = false) {
     const inv = W.inv, A = W.ai;
     if (inv.design.aiArt === url && inv.media.background) return;
     A.picking = url; renderAi(stepBody);
@@ -932,7 +1024,8 @@
       const { blob } = await IX.compressImage(src, { maxDim: 1800, quality: 0.86 });
       const ref = await H.store.putMedia(blob, { name: 'ai-design.webp', invitationId: inv.id });
       if (inv.media.background) discard(inv.media.background);
-      inv.media.background = ref; inv.design.bgMode = 'full'; inv.design.aiArt = url;
+      if (localVisual && calligOn(inv)) inv.calligraphy.active = false;
+      inv.media.background = ref; inv.design.bgMode = 'full'; inv.design.aiArt = localVisual ? '' : url;
       matchPaletteTo(src);
       W.bgUrl = await H.store.resolveMedia(ref);
       A.picking = '';
