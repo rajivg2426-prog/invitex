@@ -47,6 +47,10 @@ jobs:
         run: node tests/reference-image.js
         env:
           BASE: http://localhost:8765/
+      - name: Run calligraphy regression tests
+        run: node tests/calligraphy.js
+        env:
+          BASE: http://localhost:8765/
       - name: Upload test evidence
         if: always()
         uses: actions/upload-artifact@v4
