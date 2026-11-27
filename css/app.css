@@ -1207,3 +1207,8 @@ main:has(.ax) { max-width: 1400px; }
 .dp-card-actions, .dp-pals { flex-wrap: wrap; }
 .dp-card-actions .dp-preview-btn { min-width: 0; }
 @media (max-width: 760px) { .design-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.ix-concepts { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr)); gap:.75rem; }
+.ix-concept { display:grid; gap:.5rem; min-width:0; padding:.75rem; border:1px solid #b8a9a580; border-radius:12px; overflow-wrap:anywhere; }
+.ix-concept-swatch { min-height:64px; border-radius:8px; }
+.ix-concept p { margin:0; font-size:.85rem; }
