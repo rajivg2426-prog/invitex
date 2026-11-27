@@ -21,6 +21,7 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Start local server
+        id: server
         run: |
           python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/invitex-server.log 2>&1 &
           for i in $(seq 1 30); do
@@ -31,6 +32,11 @@ jobs:
           exit 1
       - name: Run demo-mode browser tests
         run: node tests/e2e.js
+        env:
+          BASE: http://localhost:8765/
+      - name: Run Design Studio regression tests
+        if: ${{ !cancelled() && steps.server.outcome == 'success' }}
+        run: node tests/design-studio.js
         env:
           BASE: http://localhost:8765/
       - name: Upload test evidence

@@ -1,0 +1,84 @@
+const { chromium } = require('playwright');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const BASE = process.env.BASE || 'http://localhost:8765/';
+const OUT = __dirname + '/e2e-output/design-studio';
+fs.mkdirSync(OUT, { recursive: true });
+(async () => {
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 1366, height: 900 } });
+  await context.route(/js\/config\.js/, r => r.fulfill({contentType:'text/javascript',body:"window.INVITEX_CONFIG={SUPABASE_URL:'',SUPABASE_ANON_KEY:'',DEFAULT_TIMEZONE:'Asia/Kolkata'};"}));
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  const check = (name, condition) => { assert.ok(condition, name); console.log('PASS ' + name); };
+  try {
+    await page.goto(BASE + 'index.html#/new');
+    await page.click('[data-cat=wedding]');
+    await page.click('[data-way=ready]');
+    const tiles = page.locator('.design-tile');
+    await tiles.first().waitFor();
+    await page.selectOption('#galOcc', 'all');
+    await tiles.first().waitFor();
+    const total = await tiles.count();
+    check('Gallery has multiple templates', total >= 3);
+    const id = await tiles.first().locator('.design-pick').getAttribute('data-theme-pick');
+    const name = await tiles.first().locator('.dp-name').evaluate(el => el.firstChild.textContent.trim());
+    await page.fill('#galSearch', name.toUpperCase());
+    check('Case-insensitive name search', await page.locator('.design-pick[data-theme-pick="'+id+'"]').count() === 1);
+    check('Search narrows gallery', await tiles.count() < total);
+    await page.fill('#galSearch', 'zzzz-no-template-123');
+    check('Empty search result', await page.locator('.gal-empty').isVisible());
+    await page.click('#galClear2');
+    check('Reset restores gallery', await tiles.count() === total && await page.inputValue('#galSearch') === '');
+    await page.fill('#galSearch', name);
+    await page.click('#galSearchClear');
+    check('Clear search restores gallery', await tiles.count() === total);
+    if (!(await page.locator('[data-gfav]').isVisible())) {
+      await page.locator('#galMore').click();
+    }
+    await page.locator('[data-gfav]').waitFor({state:'visible'});
+    await page.click('[data-fav="'+id+'"]');
+    check('Favourite saved', await page.locator('[data-fav="'+id+'"]').getAttribute('aria-pressed') === 'true');
+    await page.click('[data-gfav]');
+    check('Favourites filter', await tiles.count() === 1);
+    await page.fill('#galSearch', 'zzzz-no-template-123');
+    check('Search combines with favourites filter', await page.locator('.gal-empty').isVisible());
+    await page.click('#galClear2');
+    await page.click('[data-fav="'+id+'"]');
+    check('Favourite removed', await page.locator('[data-fav="'+id+'"]').getAttribute('aria-pressed') === 'false');
+    await page.locator('.design-tile [data-quick="'+id+'"]').click();
+    await page.locator('.ql-modal iframe').waitFor();
+    check('Quick Look opens preview iframe', await page.locator('.ql-modal iframe').isVisible());
+    await page.screenshot({path:OUT+'/quick-look.png'});
+    await page.locator('.ql-modal button[data-a="0"]').click();
+    await page.locator('.ql-modal').waitFor({state:'hidden'});
+    await page.locator('[data-cmp]').nth(0).check();
+    check('Compare requires two designs', await page.locator('#cmpGo').isDisabled());
+    await page.locator('[data-cmp]').nth(1).check();
+    await page.click('#cmpGo');
+    await page.locator('.cmp-modal iframe').first().waitFor();
+    check('Side-by-side comparison', await page.locator('.cmp-modal iframe').count() === 2);
+    await page.screenshot({path:OUT+'/comparison.png'});
+    await page.locator('.cmp-modal [data-cmp-use]').first().click();
+    await page.locator('.cmp-modal').waitFor({state:'hidden'});
+    check('Compared design selected', await page.locator('.design-pick[aria-checked=true]').count() === 1);
+    const selected = page.locator('.design-tile.on');
+    await selected.locator('.dp-pal').last().click();
+    check('Palette selection', await page.locator('.design-tile.on .dp-pal').last().evaluate(el=>el.classList.contains('on')));
+    await page.locator('#pvIframe').waitFor({state:'attached'});
+    check('Guest preview iframe exists', await page.locator('#pvIframe').count() === 1);
+    for (const width of [360,390,768,1024]) {
+      await page.setViewportSize({width,height:900});
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      const layout = await page.evaluate(() => ({ width: innerWidth, scrollWidth: document.documentElement.scrollWidth, overflow: [...document.querySelectorAll('body *')].filter(el => el.getBoundingClientRect().right > innerWidth+1 && el.getBoundingClientRect().width > 0).slice(0,20).map(el => ({tag:el.tagName, cls:String(el.className), right:el.getBoundingClientRect().right})) }));
+      console.log('Layout diagnostics', JSON.stringify(layout));
+      check('No horizontal page overflow at '+width, layout.scrollWidth <= width+1);
+      await page.screenshot({path:OUT+'/width-'+width+'.png'});
+    }
+    check('No uncaught page errors', errors.length === 0);
+  } catch(e) {
+    await page.screenshot({path:OUT+'/failure.png',fullPage:true}).catch(()=>{});
+    throw e;
+  } finally { await browser.close(); }
+})().catch(e=>{console.error(e);process.exitCode=1;});

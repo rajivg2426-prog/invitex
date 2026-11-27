@@ -1187,3 +1187,23 @@ main:has(.ax) { max-width: 1400px; }
 .ai-match { display: grid; gap: .4rem; }
 .ai-refine { display: grid; gap: .35rem; padding: .8rem; border-radius: 12px; border: 1px dashed var(--champagne2); }
 .ai-refine .describe-row input { flex: 1; min-width: 0; }
+
+/* Keep gallery controls inside narrow cards without hiding content. */
+@media (max-width: 560px) {
+  .design-tile { grid-template-columns: minmax(0, 1fr); }
+  .dp-card-actions { flex-wrap: wrap; min-width: 0; }
+  .dp-card-actions .dp-preview-btn { min-width: 0; }
+  .dp-card-actions .dp-cmp { flex-basis: 100%; }
+  .dp-pals { flex-wrap: wrap; min-width: 0; }
+  .cmp-tray > * { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+  .cmp-tray > .row { flex-wrap: wrap; }
+  .gal-bar, .gal-filters, .gal-search, .gal-tabs { min-width: 0; max-width: 100%; }
+}
+
+/* Constrain intrinsic card widths at every viewport, including tablet grids. */
+.design-grid { grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr)); min-width: 0; }
+.design-tile { grid-template-columns: minmax(0, 1fr); }
+.design-tile .design-pick, .dp-visual, .dp-card-actions, .dp-pals { min-width: 0; max-width: 100%; }
+.dp-card-actions, .dp-pals { flex-wrap: wrap; }
+.dp-card-actions .dp-preview-btn { min-width: 0; }
+@media (max-width: 760px) { .design-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
