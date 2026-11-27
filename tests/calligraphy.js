@@ -51,14 +51,7 @@ const assert=require('node:assert/strict');
    const pending=page.waitForEvent('download',{timeout:90000});
    await page.locator('[data-dl='+type+']').click();
    const download=await pending;
-   assert.match(download.suggestedFilename(),new RegExp('\\.'+ (type==='jpeg'?'jpe?g':ext)+'
- await page.locator('[data-btab=ink]').click();
- assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
- assert.deepEqual(errors,[]);
- console.log('PASS calligraphy metallic presets, live preview, undo and redo');
- } finally {await browser.close();}
-})().catch(e=>{console.error(e);process.exitCode=1;});
-,'i'));
+   assert.ok((type==='jpeg'?['jpg','jpeg']:[ext]).includes(download.suggestedFilename().split('.').pop().toLowerCase()));
    const bytes=require('node:fs').readFileSync(await download.path());
    assert.ok(bytes.length>1000);
    if(type==='png'){assert.equal(bytes.subarray(1,4).toString(),'PNG');assert.ok(bytes.readUInt32BE(16)>=1500);assert.ok(bytes.readUInt32BE(20)>=1500);}
