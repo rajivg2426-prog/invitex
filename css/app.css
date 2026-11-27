@@ -1199,3 +1199,11 @@ main:has(.ax) { max-width: 1400px; }
   .cmp-tray > .row { flex-wrap: wrap; }
   .gal-bar, .gal-filters, .gal-search, .gal-tabs { min-width: 0; max-width: 100%; }
 }
+
+/* Constrain intrinsic card widths at every viewport, including tablet grids. */
+.design-grid { grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr)); min-width: 0; }
+.design-tile { grid-template-columns: minmax(0, 1fr); }
+.design-tile .design-pick, .dp-visual, .dp-card-actions, .dp-pals { min-width: 0; max-width: 100%; }
+.dp-card-actions, .dp-pals { flex-wrap: wrap; }
+.dp-card-actions .dp-preview-btn { min-width: 0; }
+@media (max-width: 760px) { .design-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
