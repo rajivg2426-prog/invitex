@@ -18,6 +18,8 @@ fs.mkdirSync(OUT, { recursive: true });
     await page.click('[data-way=ready]');
     const tiles = page.locator('.design-tile');
     await tiles.first().waitFor();
+    await page.selectOption('#galOcc', 'all');
+    await tiles.first().waitFor();
     const total = await tiles.count();
     check('Gallery has multiple templates', total >= 3);
     const id = await tiles.first().locator('.design-pick').getAttribute('data-theme-pick');
