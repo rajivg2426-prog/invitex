@@ -213,7 +213,7 @@ declare
   v_children int := least(greatest(coalesce((p_payload->>'children')::int, 0), 0), 50);
   v_heads int; v_limit int; v_used int; v_ref text; v_token text; v_phone text; v_hash text;
 begin
-  select * into inv from invitations where slug = lower(p_slug) and status = 'published';
+  select * into inv from invitations where slug = lower(p_slug) and status = 'published' and published is not null for update;
   if not found then return jsonb_build_object('status','error','code','notFound'); end if;
   if not public._guest_access(inv.id) then return jsonb_build_object('status','error','code','notOpen'); end if;
   select password_hash into v_hash from invitation_secrets where invitation_id = inv.id;
@@ -224,7 +224,7 @@ begin
     return jsonb_build_object('status','error','code','rsvpClosed'); end if;
 
   -- validation (mirrors the client)
-  if v_status not in ('yes','no','maybe') then return jsonb_build_object('status','error','code','required'); end if;
+  if v_status is null or v_status not in ('yes','no','maybe') then return jsonb_build_object('status','error','code','required'); end if;
   if char_length(trim(coalesce(p_payload->>'name',''))) < 2 then return jsonb_build_object('status','error','code','required'); end if;
   v_phone := norm_phone(p_payload->>'phone');
   if length(v_phone) < 10 or length(v_phone) > 15 then return jsonb_build_object('status','error','code','invalidPhone'); end if;
@@ -233,7 +233,10 @@ begin
   v_heads := v_adults + v_children;
   if v_status = 'yes' and v_heads < 1 then return jsonb_build_object('status','error','code','needPeople'); end if;
 
-  if p_guest_token is not null then select * into g from guests where token = p_guest_token and invitation_id = inv.id; end if;
+  if p_guest_token is not null then
+    select * into g from guests where token = p_guest_token and invitation_id = inv.id;
+    if not found then return jsonb_build_object('status','error','code','notFound'); end if;
+  end if;
 
   if p_edit_token is not null then
     select * into existing from rsvps where invitation_id = inv.id and edit_token_hash = encode(digest(p_edit_token, 'sha256'), 'hex');
@@ -242,6 +245,9 @@ begin
     return jsonb_build_object('status','error','code','duplicate');
   end if;
 
+  if existing.id is not null and existing.guest_id is not null then
+    select * into g from guests where id = existing.guest_id and invitation_id = inv.id;
+  end if;
   v_limit := coalesce(nullif(g.allowed, 0), inv.max_per_invite);
   if v_status <> 'no' and v_limit > 0 and v_heads > v_limit then
     return jsonb_build_object('status','error','code','maxParty','n', v_limit); end if;

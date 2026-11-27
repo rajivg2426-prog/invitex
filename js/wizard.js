@@ -955,7 +955,7 @@
     showVisuals();
     const copyLink = document.createElement('button');
     copyLink.type = 'button'; copyLink.className = 'btn'; copyLink.id = 'aiCopyStudio'; copyLink.textContent = 'Continue to Copy Studio';
-    copyLink.disabled = !window.IXStudio;
+    copyLink.disabled = !window.IXStudio || !!A.picking;
     copyLink.onclick = () => { W.studio = true; goStep(2); };
     conceptBox.appendChild(copyLink);
     $('#aiRef').onchange = async (e) => {
@@ -1026,8 +1026,10 @@
       if (inv.media.background) discard(inv.media.background);
       if (localVisual && calligOn(inv)) inv.calligraphy.active = false;
       inv.media.background = ref; inv.design.bgMode = 'full'; inv.design.aiArt = localVisual ? '' : url;
-      matchPaletteTo(src);
-      W.bgUrl = await H.store.resolveMedia(ref);
+      await matchPaletteTo(src, false);
+      const bgUrl = await H.store.resolveMedia(ref);
+      if (W.inv !== inv || W.ai !== A || W.step !== 1) { A.picking = ''; return; }
+      W.bgUrl = bgUrl;
       A.picking = '';
       changed(); step1(stepBody);
       IX.toast('Design applied. Your names and details sit on top of it – see the preview.', 'ok', 4000);
@@ -1036,7 +1038,8 @@
     }
   }
   // Light painting → light colour theme (dark text); dark painting → dark theme, so the text panels blend in.
-  async function matchPaletteTo(blob) {
+  async function matchPaletteTo(blob, redraw = true) {
+    const inv = W.inv;
     try {
       const u = URL.createObjectURL(blob); const img = await IX.loadImage(u); URL.revokeObjectURL(u);
       const c = document.createElement('canvas'); c.width = c.height = 24;
@@ -1045,10 +1048,11 @@
       for (let i = 0; i < d.length; i += 4) sum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
       const light = sum / (d.length / 4) / 255 > 0.55;
       const lum = (hex) => { const n = parseInt(String(hex).replace('#', '').slice(0, 6), 16); return isNaN(n) ? 0.5 : ((n >> 16) * 0.2126 + ((n >> 8) & 255) * 0.7152 + (n & 255) * 0.0722) / 255; };
+      if (W.inv !== inv) return;
       const pals = IXT.THEMES[W.inv.theme].palettes;
       if ((lum(pals[W.inv.paletteIndex].bg) > 0.55) === light) return;
       const i = pals.findIndex((p) => (lum(p.bg) > 0.55) === light);
-      if (i >= 0) { W.inv.paletteIndex = i; Object.assign(W.inv.design, { textColor: '', bgColor: '', accentColor: '' }); changed(); if (W.step === 1) step1(document.getElementById('stepBody')); }
+      if (i >= 0) { W.inv.paletteIndex = i; Object.assign(W.inv.design, { textColor: '', bgColor: '', accentColor: '' }); if (redraw) { changed(); if (W.step === 1) step1(document.getElementById('stepBody')); } }
     } catch (e) { /* keep the current colours */ }
   }
   function setTheme(id) {
