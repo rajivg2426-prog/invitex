@@ -12,6 +12,8 @@
    * metal: shown with a soft sheen on screen; flat warm colour in print.
    * We call this "gold-coloured ink", never foil. */
   const INKS = [
+    { id: 'silver', name: 'Silver', color: '#777e88', metal: ['#505762','#a8b0bc','#f2f4f7','#939ba8','#626a75'] },
+    { id: 'rose-gold', name: 'Rose gold', color: '#a56b68', metal: ['#784844','#c58c87','#f6d3c6','#b77973','#89514e'] },
     { id: 'antique-gold', name: 'Antique gold', color: '#9c7a3c', metal: ['#7d5e28', '#c9a55a', '#efd99a', '#b08a44', '#86672d'] },
     { id: 'champagne-gold', name: 'Champagne gold', color: '#bfa26a', metal: ['#9d8250', '#d9c08a', '#f4e6c0', '#c8ab72', '#a68a55'] },
     { id: 'bronze', name: 'Burnished bronze', color: '#8a5a2e', metal: ['#6b4220', '#a8733f', '#d4a26a', '#91602f', '#6e4522'] },
