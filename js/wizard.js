@@ -863,7 +863,7 @@
     }
     // Offline visual artwork: original procedural backgrounds, not a remote AI model.
     const visual = document.createElement('section');
-    visual.className = 'ix-reference stack';
+    visual.className = 'ix-visual-studio stack';
     visual.innerHTML = '<h4>Visual Design Studio</h4><p class="small muted">Create original decorative backgrounds on your device. No AI credits required. For model-painted artwork, use the existing AI painting controls.</p><label class="field">Decoration<select class="input" id="ixVisualMotif"><option value="floral">Floral</option><option value="royal">Royal arches</option><option value="geometric">Geometric</option><option value="minimal">Minimal</option></select></label><button type="button" class="btn" id="ixVisualGenerate">Generate 3 visual backgrounds</button><div class="ai-grid" id="ixVisualResults"></div><p role="status" class="small" id="ixVisualStatus"></p>';
     conceptBox.appendChild(visual);
     const motif = visual.querySelector('#ixVisualMotif');
