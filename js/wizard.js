@@ -766,19 +766,20 @@
     const older = (A.recent || []).filter((u) => !A.results.includes(u));
     const matches = A.desc.trim() ? IXGallery.suggest(A.desc, A.cat) : null;
     el.innerHTML = `
-      <div class="row between"><h3 style="margin:0">✨ AI design assistant</h3>
+      <div class="row between"><h3 style="margin:0">✨ Unified AI Invitation Studio</h3>
         <span class="pill ai-left" id="aiLeft">${!can || left == null ? '' : none ? 'No free tries left' : `${left} free ${left === 1 ? 'try' : 'tries'} left`}</span></div>
       <p class="small muted" style="margin:0">Describe your idea or add an inspiration photo. AI paints 4 new background designs just for you, and your names and details are placed on top.</p>
       <div class="ai-ask">
         <label class="lbl" for="aiDesc">Describe the card you want</label>
         <textarea class="input" id="aiDesc" rows="3" maxlength="300" placeholder="e.g. A royal Indian wedding invitation with a burgundy background, antique gold details and two golden horses">${esc(A.desc)}</textarea>
         <div class="ai-ask-row">
-          <button type="button" class="btn sm primary" id="aiUnderstand">Fill the choices from my words</button>
+          <button type="button" class="btn sm primary" id="aiUnderstand">Generate 3 invitation concepts</button>
           <label class="btn sm ghost">📷 ${A.refUrl ? 'Change' : 'Add'} inspiration photo<input type="file" hidden accept="image/*" id="aiRef"></label>
           ${A.refUrl ? `<span class="ai-ref"><img src="${esc(A.refUrl)}" alt="Your inspiration photo"><button type="button" class="linkbtn" id="aiRefDel">Remove</button></span>` : ''}
         </div>
         ${A.note ? `<p class="ai-note" role="status">${A.note}</p>` : '<p class="tiny muted" style="margin:0">Your photo stays on your device. Only its colours are used.</p>'}
       </div>
+      <div id="aiConcepts" class="stack"></div>
       <div class="ai-two">
         <label class="field"><span class="lbl">Occasion</span><select class="input" id="aiOcc">${IXT.CATEGORIES.map((x) => `<option value="${x.id}" ${x.id === A.cat ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>
         <label class="field"><span class="lbl">Card language</span><select class="input" id="aiLang">${Object.entries(LANG_NAMES).map(([l, n]) => `<option value="${l}" ${l === inv.defaultLang ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
@@ -813,6 +814,34 @@
       A.note = r.understood ? `Got it: <b>${esc(sn)}</b> style with <b>${esc(cn.toLowerCase())}</b>. Your words are added below. Change anything you like.` : 'I could not pick a style from those words, so I kept your choices. Your words are added below.';
       renderAi(stepBody);
     };
+    const conceptBox = $('#aiConcepts');
+    if (A.desc.trim()) {
+      const rec = IXGallery.suggest(A.desc, A.cat);
+      const preferred = IXT.CATEGORIES.find(c => c.id === A.cat)?.theme;
+      const candidates = [...(rec.designs || []), ...[preferred, ...Object.keys(IXT.THEMES)].filter(Boolean).map(theme => ({theme, palette:0}))];
+      const used = new Set();
+      const concepts = candidates.filter(d => IXT.THEMES[d.theme] && !used.has(d.theme) && used.add(d.theme)).slice(0,3);
+      conceptBox.innerHTML = '<h4>Three ready-design concepts</h4><p class="small muted">Local recommendations, not newly painted AI artwork. Preview wording before applying; your event details stay unchanged.</p><div class="ix-concepts">' + concepts.map((d,i) => {
+        const t = IXT.THEMES[d.theme], p = t.palettes[d.palette] || t.palettes[0];
+        const styles = window.IXCopy ? IXCopy.stylesFor(inv.category) : [];
+        const wordingStyle = styles[i % (styles.length || 1)]?.id;
+        const words = window.IXCopy ? IXCopy.defaultWording(inv, inv.defaultLang, wordingStyle || IXCopy.defaultStyle(inv.category)) : {};
+        return '<article class="ix-concept"><div class="ix-concept-swatch" style="background:linear-gradient(135deg,'+esc(p.bg)+','+esc(p.accent)+')"></div><b>'+esc(t.name)+'</b><small>'+esc(p.name)+'</small><p>'+esc(words.subtitle || words.welcome || '')+'</p><button type="button" class="btn sm" data-concept="'+i+'">Use design</button></article>';
+      }).join('') + '</div>';
+      conceptBox.querySelectorAll('[data-concept]').forEach(btn => btn.onclick = () => {
+        const d = concepts[+btn.dataset.concept];
+        if ((inv.media.background || calligOn(inv)) && !window.confirm('Replace the current card artwork with this ready design?')) return;
+        if (calligOn(inv)) inv.calligraphy.active = false;
+        if (inv.media.background) removePicture();
+        setTheme(d.theme); inv.paletteIndex = d.palette || 0; inv.design.aiArt = '';
+        changed(); renderAi(stepBody); IX.toast('Design applied. Your wording is unchanged.', 'ok');
+      });
+    }
+    const copyLink = document.createElement('button');
+    copyLink.type = 'button'; copyLink.className = 'btn'; copyLink.id = 'aiCopyStudio'; copyLink.textContent = 'Continue to Copy Studio';
+    copyLink.disabled = !window.IXStudio;
+    copyLink.onclick = () => { W.studio = true; goStep(2); };
+    conceptBox.appendChild(copyLink);
     $('#aiRef').onchange = async (e) => {
       const f = e.target.files[0]; if (!f) return;
       try {
