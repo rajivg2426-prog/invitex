@@ -12,8 +12,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
       - name: Install Playwright
@@ -47,9 +47,13 @@ jobs:
         run: node tests/reference-image.js
         env:
           BASE: http://localhost:8765/
+      - name: Run calligraphy regression tests
+        run: node tests/calligraphy.js
+        env:
+          BASE: http://localhost:8765/
       - name: Upload test evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: invitex-playwright-results
           path: |
