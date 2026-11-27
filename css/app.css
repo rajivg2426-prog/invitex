@@ -1212,3 +1212,8 @@ main:has(.ax) { max-width: 1400px; }
 .ix-concept { display:grid; gap:.5rem; min-width:0; padding:.75rem; border:1px solid #b8a9a580; border-radius:12px; overflow-wrap:anywhere; }
 .ix-concept-swatch { min-height:64px; border-radius:8px; }
 .ix-concept p { margin:0; font-size:.85rem; }
+
+.ix-reference { padding:.75rem; border:1px solid #b8a9a580; border-radius:12px; }
+.ix-reference-swatches { display:flex; flex-wrap:wrap; gap:.75rem; }
+.ix-reference-swatches span { display:grid; gap:.25rem; font-size:.75rem; }
+.ix-reference-swatches i { display:block; width:64px; height:40px; border:1px solid #888; border-radius:6px; }

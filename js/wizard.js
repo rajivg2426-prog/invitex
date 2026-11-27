@@ -729,13 +729,23 @@
   }
   // The AI colour set closest to a photo's main colours.
   async function coloursFromPhoto(file) {
+    if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type) || file.size > 15*1024*1024) throw Error('Unsupported image');
     const u = URL.createObjectURL(file);
     try {
       const img = await IX.loadImage(u);
       const c = document.createElement('canvas'); c.width = c.height = 40;
       const x = c.getContext('2d'); x.drawImage(img, 0, 0, 40, 40);
       const d = x.getImageData(0, 0, 40, 40).data;
-      const px = []; for (let i = 0; i < d.length; i += 4) px.push([d[i], d[i + 1], d[i + 2]]);
+      const px = []; for (let i = 0; i < d.length; i += 4) if (d[i+3] >= 128) px.push([d[i], d[i + 1], d[i + 2]]);
+      if (!px.length) throw Error('Empty image');
+      const bins = new Map();
+      for (const q of px) {
+        const key = q.map(v=>v>>5).join(',');
+        const bin = bins.get(key) || {n:0,sum:[0,0,0]};
+        bin.n++; q.forEach((v,i)=>bin.sum[i]+=v); bins.set(key,bin);
+      }
+      const hex = q => '#'+q.map(v=>Math.round(v).toString(16).padStart(2,'0')).join('');
+      const swatches = [...bins.values()].sort((a,b)=>b.n-a.n).slice(0,5).map(b=>hex(b.sum.map(v=>v/b.n)));
       const sat = (q) => Math.max(...q) - Math.min(...q);
       const lum = (q) => (0.2126 * q[0] + 0.7152 * q[1] + 0.0722 * q[2]) / 255;
       const avg = (list) => list.reduce((a, q) => [a[0] + q[0], a[1] + q[1], a[2] + q[2]], [0, 0, 0]).map((v) => v / Math.max(1, list.length));
@@ -744,7 +754,7 @@
       const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
       let best = 'auto', bd = Infinity;
       AI_COLORS.filter(([id]) => id !== 'auto').forEach(([id, , g]) => { const [a, b] = g.split(',').map(hx); const v = Math.min(dist(main, a), dist(main, b)) + 0.5 * Math.min(dist(all, a), dist(all, b)); if (v < bd) { bd = v; best = id; } });
-      return { colors: best, light: lum(all) > 0.6, url: u };
+      return { colors: best, light: lum(all) > 0.6, url: u, swatches };
     } catch (e) { URL.revokeObjectURL(u); throw e; }
   }
   function renderAi(stepBody) {
@@ -805,6 +815,7 @@
     $('#aiDesc').oninput = (e) => (A.desc = e.target.value);
     $('#aiUnderstand').onclick = () => {
       A.desc = $('#aiDesc').value;
+      if (!A.desc.trim() && A.reference) return renderAi(stepBody);
       if (!A.desc.trim()) { $('#aiDesc').focus(); A.note = 'Write a few words first, for example “pastel floral with lotus flowers”.'; return renderAi(stepBody); }
       const r = IXGallery.suggest(A.desc, A.cat);
       if (r.aiStyle) A.style = r.aiStyle;
@@ -815,10 +826,17 @@
       renderAi(stepBody);
     };
     const conceptBox = $('#aiConcepts');
-    if (A.desc.trim()) {
+    if (A.desc.trim() || A.reference) {
       const rec = IXGallery.suggest(A.desc, A.cat);
       const preferred = IXT.CATEGORIES.find(c => c.id === A.cat)?.theme;
       const candidates = [...(rec.designs || []), ...[preferred, ...Object.keys(IXT.THEMES)].filter(Boolean).map(theme => ({theme, palette:0}))];
+      if (A.reference) {
+        const rgb = h => /^#[0-9a-f]{6}$/i.test(h) ? [1,3,5].map(i=>parseInt(h.slice(i,i+2),16)) : null;
+        const distance = (a,b) => a && b ? Math.hypot(...a.map((v,i)=>v-b[i])) : 1000;
+        const colors = A.reference.swatches.map(rgb);
+        const ranked = Object.entries(IXT.THEMES).flatMap(([theme,t])=>t.palettes.map((p,palette)=>({theme,palette,score:distance(rgb(p.bg),colors[0])+0.6*Math.min(...colors.map(c=>distance(rgb(p.accent),c)))+(theme===preferred?0:20)}))).sort((a,b)=>a.score-b.score);
+        candidates.unshift(...ranked);
+      }
       const used = new Set();
       const concepts = candidates.filter(d => IXT.THEMES[d.theme] && !used.has(d.theme) && used.add(d.theme)).slice(0,3);
       conceptBox.innerHTML = '<h4>Three ready-design concepts</h4><p class="small muted">Local recommendations, not newly painted AI artwork. Preview wording before applying; your event details stay unchanged.</p><div class="ix-concepts">' + concepts.map((d,i) => {
@@ -837,6 +855,12 @@
         changed(); renderAi(stepBody); IX.toast('Design applied. Your wording is unchanged.', 'ok');
       });
     }
+    if (A.reference) {
+      const panel = document.createElement('section');
+      panel.className = 'ix-reference';
+      panel.innerHTML = '<h4>Reference image colours</h4><p class="small muted">Dominant colours extracted on this device. Concepts above are ranked by colour similarity, not by image subject or layout.</p><div class="ix-reference-swatches">'+A.reference.swatches.map(h=>'<span><i style="background:'+esc(h)+'"></i>'+esc(h)+'</span>').join('')+'</div>';
+      conceptBox.prepend(panel);
+    }
     const copyLink = document.createElement('button');
     copyLink.type = 'button'; copyLink.className = 'btn'; copyLink.id = 'aiCopyStudio'; copyLink.textContent = 'Continue to Copy Studio';
     copyLink.disabled = !window.IXStudio;
@@ -846,13 +870,15 @@
       const f = e.target.files[0]; if (!f) return;
       try {
         const r = await coloursFromPhoto(f);
+        if (W.ai !== A || W.inv !== inv || W.step !== 1) { URL.revokeObjectURL(r.url); return; }
+        A.reference = r;
         if (A.refUrl) URL.revokeObjectURL(A.refUrl);
         A.refUrl = r.url; A.colors = r.colors;
         A.note = `From your photo: <b>${esc(((AI_COLORS.find(([id]) => id === r.colors) || [])[1] || '').toLowerCase())}</b> colours${r.light ? ', light and airy' : ', rich and deep'}. Add words above for the style.`;
-      } catch (err) { A.note = 'Could not read that photo. Please try a JPG or PNG.'; }
+      } catch (err) { A.note = 'Could not read that photo. Use a valid JPG, PNG, WebP or GIF up to 15 MB.'; }
       renderAi(stepBody);
     };
-    const rd = $('#aiRefDel'); if (rd) rd.onclick = () => { URL.revokeObjectURL(A.refUrl); A.refUrl = ''; A.note = ''; renderAi(stepBody); };
+    const rd = $('#aiRefDel'); if (rd) rd.onclick = () => { URL.revokeObjectURL(A.refUrl); A.refUrl = ''; A.reference = null; A.colors = 'auto'; A.note = ''; renderAi(stepBody); };
     $('#aiOcc').onchange = (e) => { A.cat = e.target.value; if (!A.styleSetByUser) A.style = null; renderAi(stepBody); };
     $('#aiLang').onchange = (e) => { setCardLang(e.target.value); IX.toast(`Card language: ${LANG_NAMES[e.target.value]}. Your words can be changed in step 2.`, 'ok'); };
     el.querySelectorAll('[data-ai-style]').forEach((b) => (b.onclick = () => { A.style = b.dataset.aiStyle; A.styleSetByUser = true; renderAi(stepBody); }));
