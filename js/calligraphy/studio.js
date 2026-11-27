@@ -565,8 +565,9 @@
   function panelInk() {
     const cal = S.inv.calligraphy;
     return `<p class="tiny muted">Pick an ink for each part of the card.</p>
+      <div class="ixc-ai"><b>Coordinated ink presets</b><p class="tiny muted">Apply a readable ink scheme matched to your current paper. Words and layout stay unchanged.</p><div class="ixc-wstyles">${[['antique-gold','Royal gold'],['silver','Silver elegance'],['rose-gold','Rose gold']].map(([id,label])=>`<button type="button" data-ink-preset="${id}">${label}</button>`).join('')}</div></div>
       ${INK_ROLES.map(([k, l]) => `<div class="ixc-inkrow"><span>${l}</span>${inkSwatches(cal.inks[k], 'data-ink-' + k)}</div>`).join('')}
-      <label class="ixc-check"><input type="checkbox" id="ixSheen" ${cal.sheen !== false ? 'checked' : ''}> Shimmer on gold, bronze and copper inks</label>
+      <label class="ixc-check"><input type="checkbox" id="ixSheen" ${cal.sheen !== false ? 'checked' : ''}> Shimmer on metallic inks</label>
       <p class="tiny muted">The shimmer is an on-screen effect. Printed cards show a warm gold colour from an ordinary printer. This is gold-coloured ink, not metallic foil.</p>`;
   }
   function wireInkRow(p, prefix, set) {
@@ -575,6 +576,17 @@
   }
   function wireInk(p) {
     const cal = S.inv.calligraphy;
+    p.querySelectorAll('[data-ink-preset]').forEach(btn => btn.onclick = () => {
+      histRecord();
+      const metal = btn.dataset.inkPreset;
+      const dark = LIB.lum(cal.paper.color) < 0.35;
+      const readable = dark ? 'ivory' : 'black';
+      const accent = LIB.contrast(LIB.inkColor(metal), cal.paper.color) >= 4.5 ? metal : readable;
+      INK_ROLES.forEach(([k]) => { cal.inks[k] = ['flourish','initials'].includes(k) ? metal : ['bride','groom','heading','amp'].includes(k) ? accent : readable; });
+      for (const el of Object.values(cal.el)) for (const k of ['ink','inkBride','inkGroom','inkInitials','inkAmp']) delete el[k];
+      cal.paper.borderInk = metal; cal.sheen = true;
+      changed({left:true,right:true}); histRecord();
+    });
     INK_ROLES.forEach(([k]) => wireInkRow(p, 'data-ink-' + k, (v) => { cal.inks[k] = v; if (k === 'bride' || k === 'groom' || k === 'initials') { const n = elOf('names'); delete n['ink' + k[0].toUpperCase() + k.slice(1)]; } changed({ left: true }); }));
     p.querySelector('#ixSheen').onchange = (e) => { cal.sheen = e.target.checked; changed(); };
   }
