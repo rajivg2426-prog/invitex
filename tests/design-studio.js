@@ -70,7 +70,10 @@ fs.mkdirSync(OUT, { recursive: true });
     check('Guest preview iframe exists', await page.locator('#pvIframe').count() === 1);
     for (const width of [360,390,768,1024]) {
       await page.setViewportSize({width,height:900});
-      check('No horizontal page overflow at '+width, await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth+1));
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      const layout = await page.evaluate(() => ({ width: innerWidth, scrollWidth: document.documentElement.scrollWidth, overflow: [...document.querySelectorAll('body *')].filter(el => el.getBoundingClientRect().right > innerWidth+1 && el.getBoundingClientRect().width > 0).slice(0,20).map(el => ({tag:el.tagName, cls:String(el.className), right:el.getBoundingClientRect().right})) }));
+      console.log('Layout diagnostics', JSON.stringify(layout));
+      check('No horizontal page overflow at '+width, layout.scrollWidth <= width+1);
       await page.screenshot({path:OUT+'/width-'+width+'.png'});
     }
     check('No uncaught page errors', errors.length === 0);
