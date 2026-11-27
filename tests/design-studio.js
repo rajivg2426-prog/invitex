@@ -51,7 +51,7 @@ fs.mkdirSync(OUT, { recursive: true });
     await page.locator('.ql-modal iframe').waitFor();
     check('Quick Look opens preview iframe', await page.locator('.ql-modal iframe').isVisible());
     await page.screenshot({path:OUT+'/quick-look.png'});
-    await page.locator('.ql-modal').getByRole('button',{name:'Close',exact:true}).click();
+    await page.locator('.ql-modal button[data-a="0"]').click();
     await page.locator('.ql-modal').waitFor({state:'hidden'});
     await page.locator('[data-cmp]').nth(0).check();
     check('Compare requires two designs', await page.locator('#cmpGo').isDisabled());
