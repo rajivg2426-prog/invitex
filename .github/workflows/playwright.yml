@@ -39,6 +39,10 @@ jobs:
         run: node tests/design-studio.js
         env:
           BASE: http://localhost:8765/
+      - name: Run AI Studio regression tests
+        run: node tests/ai-studio.js
+        env:
+          BASE: http://localhost:8765/
       - name: Upload test evidence
         if: always()
         uses: actions/upload-artifact@v4
