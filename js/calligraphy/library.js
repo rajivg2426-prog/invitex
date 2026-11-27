@@ -147,6 +147,8 @@
   def('corner-leaf', 'Leaf corner', 'corner', 200, 200, () =>
     sprig(16, 16, 180, 30, 6, 22, 0.08) + sprig(16, 16, 30, 180, 6, 22, -0.08) + dot(16, 16, 4));
 
+  def('royal-crown','Royal crown','mark',180,100,()=>hair('M20 20 L45 70 L135 70 L160 20 L115 45 L90 10 L65 45 Z M45 80 H135',3)+dot(20,20,5)+dot(90,10,5)+dot(160,20,5));
+  def('lotus-scroll','Lotus scroll','divider',300,90,()=>hair('M150 70 Q90 40 150 8 Q210 40 150 70 M150 70 Q80 75 60 30 Q115 30 150 70 M150 70 Q220 75 240 30 Q185 30 150 70 M20 75 Q70 50 150 75 Q230 50 280 75',2));
   const ORNAMENTS = Object.values(O);
   /** SVG markup for an ornament drawn in its own box, centred on (0,0). */
   function ornament(id) {
