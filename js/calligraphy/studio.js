@@ -505,6 +505,8 @@
       <h3 class="ixc-h">Names</h3>
       <div class="seg ixc-seg" role="radiogroup" aria-label="Name layout">${ST.NAME_LAYOUTS.map(([v, l]) => `<label><input type="radio" name="nl" value="${v}" ${cal.nameLayout === v ? 'checked' : ''}>${l}</label>`).join('')}</div>
       <div class="seg ixc-seg" role="radiogroup" aria-label="Initials">${ST.INITIALS.map(([v, l]) => `<label><input type="radio" name="ini" value="${v}" ${cal.initials === v ? 'checked' : ''}>${l}</label>`).join('')}</div>
+      <h3 class="ixc-h">Personalised monogram</h3><div class="field"><label for="ixMonogram">Crest from your couple names</label><select class="input" id="ixMonogram">${[['none','None'],['circle','Royal circle'],['diamond','Diamond'],['laurel','Laurel wreath']].map(([v,l])=>`<option value="${v}" ${(cal.monogram||'none')===v?'selected':''}>${l}</option>`).join('')}</select></div>
+      <h3 class="ixc-h">Lettering presets</h3><div class="ixc-wstyles"><button type="button" data-lettering="royal">Royal English</button><button type="button" data-lettering="hindi">Hindi decorative</button><button type="button" data-lettering="punjabi">Punjabi traditional</button></div>
       <h3 class="ixc-h">Card size</h3>
       <div class="seg ixc-seg">${Object.entries(ST.SIZES).map(([k, s]) => `<label><input type="radio" name="csize" value="${k}" ${cal.size === k ? 'checked' : ''}>${s.name}</label>`).join('')}</div>`;
   }
@@ -520,6 +522,15 @@
     p.querySelectorAll('input[name=nl]').forEach((r) => (r.onchange = () => { cal.nameLayout = r.value; changed(); }));
     p.querySelectorAll('input[name=ini]').forEach((r) => (r.onchange = () => { cal.initials = r.value; if (r.value === 'flourished') { cal.orn.initialFlourish = true; cal.orn.sprig = true; } changed({ fonts: true }); }));
     p.querySelectorAll('input[name=csize]').forEach((r) => (r.onchange = () => { cal.size = r.value; changed(); setTimeout(fitZoom, 50); }));
+    p.querySelector('#ixMonogram').onchange = e => { histRecord(); cal.monogram=e.target.value; changed({fonts:true}); histRecord(); };
+    p.querySelectorAll('[data-lettering]').forEach(btn=>btn.onclick=()=>{
+      histRecord();
+      const o=elOf('names');
+      if(btn.dataset.lettering==='royal'){ o.font='Cormorant Garamond'; cal.initials='flourished'; cal.orn.initialFlourish=true; cal.orn.sprig=true; }
+      if(btn.dataset.lettering==='hindi'){ o.fontHi='Amita'; elOf('heading').fontHi='Kalam'; }
+      if(btn.dataset.lettering==='punjabi'){ o.fontPa='Tiro Gurmukhi'; elOf('heading').fontPa='Noto Serif Gurmukhi'; }
+      changed({fonts:true,left:true,right:true}); histRecord();
+    });
     // live mini cards with the host's own names
     p.querySelectorAll('[data-thumb]').forEach(async (el) => {
       const id = el.dataset.thumb, key = id + '|' + S.lang + '|' + ((S.inv.text[S.lang] || {}).bride || '') + ((S.inv.text[S.lang] || {}).groom || '');
@@ -566,6 +577,7 @@
     const cal = S.inv.calligraphy;
     return `<p class="tiny muted">Pick an ink for each part of the card.</p>
       <div class="ixc-ai"><b>Coordinated ink presets</b><p class="tiny muted">Apply a readable ink scheme matched to your current paper. Words and layout stay unchanged.</p><div class="ixc-wstyles">${[['antique-gold','Royal gold'],['silver','Silver elegance'],['rose-gold','Rose gold']].map(([id,label])=>`<button type="button" data-ink-preset="${id}">${label}</button>`).join('')}</div></div>
+      <div class="field"><label for="ixInkRef">Match colours from a reference photo (local only)</label><input class="input" type="file" id="ixInkRef" accept="image/png,image/jpeg,image/webp,image/gif"><p id="ixInkRefStatus" class="tiny muted" role="status"></p><div id="ixInkRefColors" class="ixc-wstyles"></div></div>
       ${INK_ROLES.map(([k, l]) => `<div class="ixc-inkrow"><span>${l}</span>${inkSwatches(cal.inks[k], 'data-ink-' + k)}</div>`).join('')}
       <label class="ixc-check"><input type="checkbox" id="ixSheen" ${cal.sheen !== false ? 'checked' : ''}> Shimmer on metallic inks</label>
       <p class="tiny muted">The shimmer is an on-screen effect. Printed cards show a warm gold colour from an ordinary printer. This is gold-coloured ink, not metallic foil.</p>`;
@@ -587,6 +599,30 @@
       cal.paper.borderInk = metal; cal.sheen = true;
       changed({left:true,right:true}); histRecord();
     });
+    p.querySelector('#ixInkRef').onchange = async e => {
+      const file=e.target.files[0], status=p.querySelector('#ixInkRefStatus'), colors=p.querySelector('#ixInkRefColors'), session=S;
+      colors.replaceChildren(); if(!file)return;
+      let url;
+      try {
+        if(!/^image\/(png|jpeg|webp|gif)$/.test(file.type)||file.size>15*1024*1024)throw Error('Invalid image');
+        url=URL.createObjectURL(file); const img=await IX.loadImage(url);
+        if(S!==session||!p.isConnected)return;
+        const c=document.createElement('canvas');c.width=c.height=64;const ctx=c.getContext('2d');ctx.drawImage(img,0,0,64,64);
+        const data=ctx.getImageData(0,0,64,64).data,bins=new Map();
+        for(let i=0;i<data.length;i+=4){if(data[i+3]<128)continue;const rgb=Array.from(data.slice(i,i+3)),key=rgb.map(v=>v>>5).join(',');const bin=bins.get(key)||{n:0,sum:[0,0,0]};bin.n++;rgb.forEach((v,j)=>bin.sum[j]+=v);bins.set(key,bin);}
+        const palette=[...bins.values()].sort((a,b)=>b.n-a.n).slice(0,5).map(b=>'#'+b.sum.map(v=>Math.round(v/b.n).toString(16).padStart(2,'0')).join(''));
+        if(!palette.length)throw Error('Empty image');
+        status.textContent='Choose a colour for your paper and coordinated inks.';
+        palette.forEach(hex=>{const btn=document.createElement('button');btn.type='button';btn.dataset.refColor=hex;btn.textContent=hex;btn.style.background=hex;btn.style.color=LIB.contrast('#000000',hex)>LIB.contrast('#ffffff',hex)?'#000':'#fff';btn.onclick=()=>{
+          histRecord();cal.paper.color=hex;
+          const readable=LIB.contrast('#1a1714',hex)>LIB.contrast('#f5ecd9',hex)?'black':'ivory';
+          const accent=palette.find(v=>v!==hex&&LIB.contrast(v,hex)>=4.5)||readable;
+          INK_ROLES.forEach(([k])=>cal.inks[k]=['main','details'].includes(k)?readable:accent);
+          for(const el of Object.values(cal.el))for(const k of ['ink','inkBride','inkGroom','inkInitials','inkAmp'])delete el[k];
+          cal.paper.borderInk=accent;changed({left:true,right:true});histRecord();
+        };colors.append(btn);});
+      }catch(err){status.textContent='Use a valid JPG, PNG, WebP or GIF up to 15 MB.';}finally{if(url)URL.revokeObjectURL(url);}
+    };
     INK_ROLES.forEach(([k]) => wireInkRow(p, 'data-ink-' + k, (v) => { cal.inks[k] = v; if (k === 'bride' || k === 'groom' || k === 'initials') { const n = elOf('names'); delete n['ink' + k[0].toUpperCase() + k.slice(1)]; } changed({ left: true }); }));
     p.querySelector('#ixSheen').onchange = (e) => { cal.sheen = e.target.checked; changed(); };
   }
