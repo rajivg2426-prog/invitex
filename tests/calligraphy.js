@@ -46,6 +46,26 @@ const assert=require('node:assert/strict');
  await page.locator('#ixInkRef').setInputFiles({name:'ref.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')});
  await page.locator('[data-ref-color="#aa2233"]').click();
  await page.waitForFunction(()=>document.querySelector('#ixCard svg rect[fill="#aa2233"]'));
+ for(const [type,ext] of [['png','png'],['jpeg','jpg'],['pdf','pdf']]){
+   await page.click('#ixDl');
+   const pending=page.waitForEvent('download',{timeout:90000});
+   await page.locator('[data-dl='+type+']').click();
+   const download=await pending;
+   assert.match(download.suggestedFilename(),new RegExp('\\.'+ (type==='jpeg'?'jpe?g':ext)+'
+ await page.locator('[data-btab=ink]').click();
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+ assert.deepEqual(errors,[]);
+ console.log('PASS calligraphy metallic presets, live preview, undo and redo');
+ } finally {await browser.close();}
+})().catch(e=>{console.error(e);process.exitCode=1;});
+,'i'));
+   const bytes=require('node:fs').readFileSync(await download.path());
+   assert.ok(bytes.length>1000);
+   if(type==='png'){assert.equal(bytes.subarray(1,4).toString(),'PNG');assert.ok(bytes.readUInt32BE(16)>=1500);assert.ok(bytes.readUInt32BE(20)>=1500);}
+   if(type==='jpeg')assert.equal(bytes.readUInt16BE(0),0xffd8);
+   if(type==='pdf')assert.equal(bytes.subarray(0,5).toString(),'%PDF-');
+   await page.locator('#ixDl').waitFor({state:'visible'});
+ }
  await page.setViewportSize({width:390,height:844});
  await page.locator('[data-btab=ink]').click();
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
