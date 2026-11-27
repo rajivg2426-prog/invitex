@@ -469,7 +469,21 @@
         const id = pid(b);
         if (D.cal.removed.includes(id) || (D.cal.el[id] || {}).hidden) return;
         if (kind === 'text') { if (Wd[b] && String(Wd[b]).trim()) items.push(textBlock(D, id, Wd[b], ph[b])); }
-        else if (kind === 'names') { const nb = namesBlock(D, Wd, ph); nb.id = id; items.push(nb); }
+        else if (kind === 'names') { const nb = namesBlock(D, Wd, ph); nb.id = id;
+          if (['circle','diamond','laurel'].includes(cal.monogram) && !ph.bride && !ph.groom && Wd.bride && Wd.groom) {
+            const first = v => [...new Intl.Segmenter(lang, {granularity:'grapheme'}).segment(v.trim())][0]?.segment || '';
+            const initials = first(Wd.bride) + ' & ' + first(Wd.groom);
+            const ff = fontFor(D.cal, style, 'names', D.cal.el.names || {}, initials);
+            const radius = 64 * D.fit, cx = W/2, oldDraw = nb.draw;
+            nb.h += radius*2.4;
+            nb.draw = y => {
+              const cy = y+radius, ink = paintFor(D, cal.inks.initials, 'text'), edge = paintFor(D, cal.inks.flourish, 'orn');
+              const frame = cal.monogram === 'diamond' ? '<path d="M0 -'+radius+' L'+radius+' 0 L0 '+radius+' L-'+radius+' 0Z"/>' : '<circle r="'+radius+'"/>';
+              const px = Math.min(radius*.62, radius*1.5/Math.max(1,measure(initials,ff,1)));
+              return '<g data-monogram="'+cal.monogram+'" transform="translate('+cx+' '+cy+')"><g fill="none" stroke="'+edge+'" stroke-width="2">'+frame+'</g>'+ (cal.monogram==='laurel'? '<g transform="scale('+radius/145+')" color="'+LIB().inkColor(cal.inks.flourish)+'">'+LIB().ornament('laurel')+'</g>':'') + '<text text-anchor="middle" y="'+px*.32+'" font-family="'+esc(ff.family)+'" font-weight="'+ff.w+'" font-size="'+px+'" fill="'+ink+'">'+esc(initials)+'</text></g>'+oldDraw(y+radius*2.4);
+            };
+          }
+          items.push(nb); }
         else if (kind === 'qr') { const q = qrBlock(D, id, inv.slug && IX.inviteUrl ? IX.inviteUrl(inv.slug) : '', opts.placeholders); if (q) items.push(q); }
         else { const ref = (D.cal.el[id] || {}).ref || D.cal.orn[slot]; if (ref) { const ob = ornBlock(D, id, slot, ref); if (ob) items.push(ob); } }
       });
