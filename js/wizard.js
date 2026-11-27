@@ -861,6 +861,51 @@
       panel.innerHTML = '<h4>Reference image colours</h4><p class="small muted">Dominant colours extracted on this device. Concepts above are ranked by colour similarity, not by image subject or layout.</p><div class="ix-reference-swatches">'+A.reference.swatches.map(h=>'<span><i style="background:'+esc(h)+'"></i>'+esc(h)+'</span>').join('')+'</div>';
       conceptBox.prepend(panel);
     }
+    // Offline visual artwork: original procedural backgrounds, not a remote AI model.
+    const visual = document.createElement('section');
+    visual.className = 'ix-reference stack';
+    visual.innerHTML = '<h4>Visual Design Studio</h4><p class="small muted">Create original decorative backgrounds on your device. No AI credits required. For model-painted artwork, use the existing AI painting controls.</p><label class="field">Decoration<select class="input" id="ixVisualMotif"><option value="floral">Floral</option><option value="royal">Royal arches</option><option value="geometric">Geometric</option><option value="minimal">Minimal</option></select></label><button type="button" class="btn" id="ixVisualGenerate">Generate 3 visual backgrounds</button><div class="ai-grid" id="ixVisualResults"></div><p role="status" class="small" id="ixVisualStatus"></p>';
+    conceptBox.appendChild(visual);
+    const motif = visual.querySelector('#ixVisualMotif');
+    motif.value = A.visualMotif || (/floral|lotus|flower/i.test(A.desc)?'floral':/royal|arch/i.test(A.desc)?'royal':/minimal/i.test(A.desc)?'minimal':'geometric');
+    motif.onchange=()=>{A.visualMotif=motif.value;};
+    const results=visual.querySelector('#ixVisualResults');
+    const showVisuals=()=>{
+      results.replaceChildren();
+      (A.visuals||[]).forEach((url,i)=>{
+        const btn=document.createElement('button');btn.type='button';btn.className='ai-pick';btn.dataset.visualUse=String(i);
+        const img=document.createElement('img');img.src=url;img.alt='Original background variation '+(i+1);img.style.cssText='width:100%;display:block;aspect-ratio:2/3;object-fit:cover';
+        const label=document.createElement('span');label.className='ai-use';label.textContent='Apply variation '+(i+1);btn.append(img,label);
+        btn.onclick=async()=>{
+          if(A.picking)return;
+          if((inv.media.background||calligOn(inv))&&!window.confirm('Replace current artwork? Event details and wording will remain.'))return;
+          await useAiArt(url,stepBody,true);
+        };results.append(btn);
+      });
+    };
+    visual.querySelector('#ixVisualGenerate').onclick=()=>{
+      const theme=IXT.THEMES[inv.theme]||Object.values(IXT.THEMES)[0];
+      const p=theme.palettes[inv.paletteIndex]||theme.palettes[0];
+      const valid=(v,f)=>/^#[0-9a-f]{6}$/i.test(v||'')?v:f;
+      const bg=valid(A.reference?.swatches[0],valid(p.bg,'#fff4df'));
+      const accent=valid(A.reference?.swatches[1],valid(p.accent,'#ad8243'));
+      A.visualMotif=motif.value;
+      A.visuals=Array.from({length:3},(_,i)=>{
+        const c=document.createElement('canvas');c.width=1200;c.height=1800;const x=c.getContext('2d');
+        x.fillStyle=bg;x.fillRect(0,0,1200,1800);x.strokeStyle=accent;x.fillStyle=accent;x.lineWidth=3+i*2;
+        const m=45+i*22;x.strokeRect(m,m,1200-2*m,1800-2*m);x.strokeRect(m+14,m+14,1172-2*m,1772-2*m);
+        for(const [cx,cy] of [[150,150],[1050,150],[150,1650],[1050,1650]]){
+          x.save();x.translate(cx,cy);
+          if(motif.value==='floral'){for(let k=0;k<8+i*2;k++){x.save();x.rotate(k*Math.PI*2/(8+i*2));x.beginPath();x.ellipse(0,48,17,45,0,0,Math.PI*2);x.stroke();x.restore();}x.beginPath();x.arc(0,0,15,0,Math.PI*2);x.fill();}
+          else if(motif.value==='royal'){for(let k=0;k<3;k++){const a=35+k*22;x.beginPath();x.moveTo(-a,70);x.lineTo(-a,0);x.quadraticCurveTo(-a,-a,0,-a-30);x.quadraticCurveTo(a,-a,a,0);x.lineTo(a,70);x.stroke();}}
+          else if(motif.value==='geometric'){for(let k=0;k<4;k++){x.rotate(Math.PI/4);x.strokeRect(-48-k*5,-48-k*5,96+k*10,96+k*10);}}
+          else {x.beginPath();x.arc(0,0,12+i*5,0,Math.PI*2);x.stroke();}
+          x.restore();
+        }
+        return c.toDataURL('image/png');
+      });showVisuals();visual.querySelector('#ixVisualStatus').textContent='Three backgrounds ready. Select one to preview on your invitation.';
+    };
+    showVisuals();
     const copyLink = document.createElement('button');
     copyLink.type = 'button'; copyLink.className = 'btn'; copyLink.id = 'aiCopyStudio'; copyLink.textContent = 'Continue to Copy Studio';
     copyLink.disabled = !window.IXStudio;
@@ -923,7 +968,7 @@
   }
 
   // Copy the chosen painting into this invitation's media and make it the card background.
-  async function useAiArt(url, stepBody) {
+  async function useAiArt(url, stepBody, localVisual = false) {
     const inv = W.inv, A = W.ai;
     if (inv.design.aiArt === url && inv.media.background) return;
     A.picking = url; renderAi(stepBody);
@@ -932,7 +977,8 @@
       const { blob } = await IX.compressImage(src, { maxDim: 1800, quality: 0.86 });
       const ref = await H.store.putMedia(blob, { name: 'ai-design.webp', invitationId: inv.id });
       if (inv.media.background) discard(inv.media.background);
-      inv.media.background = ref; inv.design.bgMode = 'full'; inv.design.aiArt = url;
+      if (localVisual && calligOn(inv)) inv.calligraphy.active = false;
+      inv.media.background = ref; inv.design.bgMode = 'full'; inv.design.aiArt = localVisual ? '' : url;
       matchPaletteTo(src);
       W.bgUrl = await H.store.resolveMedia(ref);
       A.picking = '';
