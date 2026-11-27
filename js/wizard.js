@@ -906,7 +906,7 @@
       try{const r=await store.aiGenerate({style:A.style||style,colors:A.colors,category:A.cat,words:[field('Prompt').value,A.words].filter(Boolean).join(', ').slice(0,120)});
         const urls=(r.images||[]).filter(u=>typeof u==='string'&&/^(https:\/\/|data:image\/(png|jpeg|webp);base64,)/i.test(u));if(!urls.length)throw Error('No artwork');
         if(W.inv!==inv||W.ai!==A||W.step!==1)return;
-        A.visualHistory.push(snapshot());if(A.visualHistory.length>5)A.visualHistory.shift();A.visualFuture=[];A.visuals=urls.slice(0,3);showVisuals();status('AI artwork ready.');
+        A.visualHistory.push(snapshot());if(A.visualHistory.length>5)A.visualHistory.shift();A.visualFuture=[];A.visuals=urls.slice(0,3);A.credits={...c,used:r.used,limit:r.limit,left:r.left};showVisuals();status('AI artwork ready.');
       }catch(e){if(W.inv===inv&&W.ai===A&&W.step===1){field('Generate').click();status('AI unavailable. Free local artwork generated instead.');}}
       finally{A.visualRemoteBusy=false;field('Remote').disabled=false;}
     };
@@ -941,7 +941,8 @@
           else if(motif.value==='royal'){for(let k=0;k<3;k++){const a=35+k*22;x.beginPath();x.moveTo(-a,70);x.lineTo(-a,0);x.quadraticCurveTo(-a,-a,0,-a-30);x.quadraticCurveTo(a,-a,a,0);x.lineTo(a,70);x.stroke();}}
           else if(motif.value==='geometric'){for(let k=0;k<4;k++){x.rotate(Math.PI/4);x.strokeRect(-48-k*5,-48-k*5,96+k*10,96+k*10);}}
           else if(['lotus','mandala','peacock'].includes(motif.value)){const n=motif.value==='lotus'?6:motif.value==='mandala'?16:9;for(let k=0;k<n;k++){x.save();x.rotate(k*2*Math.PI/n);x.beginPath();x.ellipse(0,35,12,36,0,0,2*Math.PI);x.stroke();x.restore();}x.beginPath();x.arc(0,0,12,0,2*Math.PI);x.stroke();}
-          else if(motif.value==='horse'||motif.value==='elephant'){x.font='76px serif';x.textAlign='center';x.textBaseline='middle';x.fillText(motif.value==='horse'?'♞':'🐘',0,0);}
+          else if(motif.value==='horse'){x.beginPath();x.moveTo(-50,55);x.bezierCurveTo(-20,25,-35,0,-12,-30);x.lineTo(-5,-65);x.lineTo(12,-45);x.quadraticCurveTo(40,-40,48,-10);x.lineTo(30,8);x.lineTo(10,-4);x.quadraticCurveTo(0,25,28,55);x.closePath();x.stroke();x.beginPath();x.arc(18,-28,3,0,Math.PI*2);x.fill();x.beginPath();x.moveTo(-60,65);x.lineTo(60,65);x.stroke();}
+          else if(motif.value==='elephant'){x.beginPath();x.ellipse(-12,0,48,36,0,0,Math.PI*2);x.stroke();x.beginPath();x.arc(35,-8,23,0,Math.PI*2);x.stroke();x.beginPath();x.moveTo(56,-5);x.quadraticCurveTo(75,50,44,45);x.stroke();for(const leg of [-42,-12,15]){x.strokeRect(leg,27,12,30);}x.strokeRect(-40,-28,50,35);x.beginPath();x.arc(42,-15,3,0,Math.PI*2);x.fill();}
           else if(motif.value==='corporate'){x.beginPath();x.moveTo(-55,0);x.lineTo(0,-55);x.lineTo(55,0);x.stroke();}
           else {x.beginPath();x.arc(0,0,12+i*5,0,Math.PI*2);x.stroke();}
           x.restore();
