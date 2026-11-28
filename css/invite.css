@@ -366,3 +366,15 @@ body.is-preview [data-edit][data-empty="1"]::before { content: 'Click to add tex
 .ix-callig-card { width: min(100%, 560px, calc((100svh - 4rem) * 0.714)); margin: 0 auto; }
 .ix-callig-card svg { display: block; width: 100%; height: auto; filter: drop-shadow(0 10px 26px rgba(40,25,10,.25)); }
 body.is-print .ix-callig-card svg { filter: none; }
+
+/* Motion Studio: original layered envelope, theme-aware and responsive. */
+.op-envelope .ix-op-center{width:min(94vw,420px);padding:1rem;transition:opacity .35s .85s}
+.ix-motion-envelope{position:relative;width:min(78vw,340px);aspect-ratio:1.55;margin:1rem auto 0;perspective:800px;border:1px solid var(--accent);border-radius:6px;background:var(--bg2);box-shadow:0 16px 42px #0003}
+.ix-motion-letter{position:absolute;inset:8% 8% 4%;display:grid;place-items:center;padding:1rem;overflow:hidden;overflow-wrap:anywhere;font:600 clamp(1rem,5vw,1.6rem) var(--f-head);color:var(--text);background:var(--bg);border:3px double var(--accent);transition:transform .55s .35s}
+.ix-motion-pocket,.ix-motion-flap{position:absolute;inset:0;background:linear-gradient(145deg,var(--bg2),var(--accent2));}
+.ix-motion-pocket{clip-path:polygon(0 0,50% 56%,100% 0,100% 100%,0 100%)}
+.ix-motion-flap{clip-path:polygon(0 0,100% 0,50% 65%);transform-origin:top;transition:transform .45s;filter:drop-shadow(0 2px 2px #0004)}
+.op-envelope .ix-seal{position:relative;width:60px;height:60px;font-size:2rem;margin:-3.3rem auto 2.2rem;transition:opacity .2s}
+.op-envelope.opening .ix-seal{opacity:0}.op-envelope.opening .ix-motion-flap{transform:rotateX(180deg)}.op-envelope.opening .ix-motion-letter{transform:translateY(-55%)}
+.op-envelope.opening .ix-op-left{transition-delay:.5s;transition-duration:.7s}
+@media(prefers-reduced-motion:reduce){.ix-motion-envelope *,.op-envelope .ix-op-center,.op-envelope .ix-op-left,.op-envelope .ix-seal{transition:none!important;animation:none!important}}
