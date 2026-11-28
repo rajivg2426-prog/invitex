@@ -107,7 +107,7 @@
   H.hasUnpublished = (inv) => {
     if (!inv.published) return false;
     const a = M.publicSnapshot(inv), b = IX.deepClone(inv.published);
-    ['updatedAt', 'publishedVersionAt', 'status', 'publishedAt'].forEach((k) => { delete a[k]; delete b[k]; });
+    ['updatedAt', 'publishedVersionAt', 'status', 'publishedAt', 'lastUpdate'].forEach((k) => { delete a[k]; delete b[k]; });
     return JSON.stringify(a) !== JSON.stringify(b);
   };
 

@@ -67,8 +67,31 @@
         passwordProtected: false,
         passwordHash: '',
         whatsappToHost: false,
+        questions: [], // host's own RSVP questions: [{id, label, type: 'text'|'choice', options: 'A, B', required}]
       },
     };
+  };
+  /* Host's own RSVP questions, cleaned: at most 5, each with a label. */
+  model.MAX_QUESTIONS = 5;
+  model.rsvpQuestions = (inv) => ((inv && inv.settings && inv.settings.questions) || [])
+    .filter((q) => q && q.id && String(q.label || '').trim())
+    .slice(0, model.MAX_QUESTIONS)
+    .map((q) => ({ id: String(q.id), label: String(q.label).trim().slice(0, 160), type: q.type === 'choice' ? 'choice' : 'text', required: !!q.required,
+      options: q.type === 'choice' ? String(q.options || '').split(',').map((o) => o.trim()).filter(Boolean).slice(0, 12) : [] }));
+  /* The first missing required answer, or null. "No" replies never need answers. */
+  model.missingAnswer = (inv, p) => (p.status === 'no' ? null
+    : model.rsvpQuestions(inv).find((q) => q.required && !String((p.answers || {})[q.id] || '').trim()) || null);
+  /* Snapshot for (re)publishing. A republish carries a "last updated" notice for guests
+   * unless the host switched it off; the note is the host's own words, shown as written. */
+  model.snapshotForPublish = (inv) => {
+    const prev = inv.published;
+    const snap = model.publicSnapshot(inv);
+    const now = new Date().toISOString();
+    snap.publishedVersionAt = now;
+    const u = inv.updateNotice || {};
+    if (prev && u.show !== false) snap.lastUpdate = { at: now, note: String(u.note || '').trim().slice(0, 200) };
+    else if (prev && prev.lastUpdate) snap.lastUpdate = prev.lastUpdate; // quiet update: the earlier notice stays as it was
+    return snap;
   };
   // Text for a language with fallback to default language.
   model.txt = (inv, lang, key) => {
@@ -89,6 +112,7 @@
     const s = IX.deepClone(inv);
     delete s.published;
     delete s.copy; // writing-studio notes (history, personal note) are for the host only
+    delete s.updateNotice; // the host's draft "what changed" note; published as lastUpdate
     if (s.settings) delete s.settings.passwordHash;
     return s;
   };
@@ -125,6 +149,14 @@
     if (p.status === 'yes' && (p.adults || 0) + (p.children || 0) < 1) return 'needPeople';
     return '';
   };
+  // Answers to the host's own questions: {questionId: text}, at most 5, short values.
+  const cleanAnswers = (a) => {
+    const out = {};
+    if (!a || typeof a !== 'object' || Array.isArray(a)) return out;
+    Object.keys(a).slice(0, 5).forEach((k) => { const v = String(a[k] == null ? '' : a[k]).trim().slice(0, 300); if (/^[\w-]{1,40}$/.test(k) && v) out[k] = v; });
+    return out;
+  };
+  model.cleanAnswers = cleanAnswers;
   const cleanRsvp = (p) => ({
     name: String(p.name || '').trim().slice(0, 120),
     phone: String(p.phone || '').trim().slice(0, 20),
@@ -139,6 +171,7 @@
     eventIds: Array.isArray(p.eventIds) ? p.eventIds.slice(0, 20).map(String) : [],
     consent: !!p.consent,
     lang: ['en', 'hi', 'pa'].includes(p.lang) ? p.lang : 'en',
+    answers: cleanAnswers(p.answers),
   });
   model.cleanRsvp = cleanRsvp;
 
@@ -207,8 +240,8 @@
       if (!inv.slug) throw new Error('Choose a link name first.');
       inv.status = 'published';
       inv.publishedAt = inv.publishedAt || new Date().toISOString();
-      inv.published = model.publicSnapshot(inv);
-      inv.published.publishedVersionAt = new Date().toISOString();
+      inv.published = model.snapshotForPublish(inv);
+      inv.updateNotice = { show: true, note: '' }; // the note is for this update only
       return this.saveInvitation(inv);
     }
     async unpublish(inv) { inv.status = 'draft'; inv.published = null; return this.saveInvitation(inv); }
@@ -265,6 +298,7 @@
       r.updatedAt = new Date().toISOString();
       if (!r.id) { r.id = IX.uid('r_'); r.ref = IX.confirmationRef(); r.createdAt = r.updatedAt; r.source = 'host'; }
       r.total = (r.adults || 0) + (r.children || 0);
+      delete r.clearAnswers;
       return this.put('rsvps', r);
     }
     deleteRsvp(id) { return this.del('rsvps', id); }
@@ -317,6 +351,7 @@
       const p = cleanRsvp(payload);
       const vErr = model.validateRsvp(p);
       if (vErr) return { status: 'error', code: vErr };
+      if (model.missingAnswer(pub, p)) return { status: 'error', code: 'needAnswer' };
       const all = await this.all('rsvps', 'invitationId', inv.id);
       const guests = await this.all('guests', 'invitationId', inv.id);
       const guest = guestToken ? guests.find((g) => g.token === guestToken) : null;
@@ -440,8 +475,8 @@
     async publish(inv) {
       inv.status = 'published';
       inv.publishedAt = inv.publishedAt || new Date().toISOString();
-      inv.published = model.publicSnapshot(inv);
-      inv.published.publishedVersionAt = new Date().toISOString();
+      inv.published = model.snapshotForPublish(inv);
+      inv.updateNotice = { show: true, note: '' }; // the note is for this update only
       return this.saveInvitation(inv);
     }
     async unpublish(inv) { inv.status = 'draft'; inv.published = null; return this.saveInvitation(inv); }
@@ -482,10 +517,13 @@
       for (let i = 0; i < rows.length; i += 200) this._check(await this.sb.from('guests').insert(rows.slice(i, i + 200)));
     }
     async deleteGuest(id) { this._check(await this.sb.from('guests').delete().eq('id', id)); }
-    _r(r) { return { id: r.id, invitationId: r.invitation_id, guestId: r.guest_id, ref: r.ref, name: r.name, phone: r.phone, email: r.email || '', status: r.status, adults: r.adults, children: r.children, total: r.adults + r.children, extraNames: r.extra_names || '', food: r.food || '', requirements: r.requirements || '', message: r.message || '', eventIds: r.event_ids || [], consent: r.consent, lang: r.lang, checkedInAt: r.checked_in_at, createdAt: r.created_at, updatedAt: r.updated_at, source: r.source }; }
+    _r(r) { return { id: r.id, invitationId: r.invitation_id, guestId: r.guest_id, ref: r.ref, name: r.name, phone: r.phone, email: r.email || '', status: r.status, adults: r.adults, children: r.children, total: r.adults + r.children, extraNames: r.extra_names || '', food: r.food || '', requirements: r.requirements || '', message: r.message || '', eventIds: r.event_ids || [], consent: r.consent, lang: r.lang, checkedInAt: r.checked_in_at, createdAt: r.created_at, updatedAt: r.updated_at, source: r.source, answers: r.answers || {} }; }
     async listRsvps(invId) { return this._check(await this.sb.from('rsvps').select('*').eq('invitation_id', invId).order('updated_at', { ascending: false })).map((r) => this._r(r)); }
     async hostSaveRsvp(r) {
       const row = { invitation_id: r.invitationId, guest_id: r.guestId || null, name: r.name, phone: r.phone, email: r.email || null, status: r.status, adults: r.adults || 0, children: r.children || 0, extra_names: r.extraNames, food: r.food, requirements: r.requirements, message: r.message, event_ids: r.eventIds || [], consent: true, source: r.source || 'host' };
+      // answers column: supabase/schema.sql (v2.4). Sent only when there is something to save or clear,
+      // so host edits keep working on a database that has not been updated yet.
+      if (r.answers && (Object.keys(r.answers).length || r.clearAnswers)) row.answers = r.answers;
       if (r.id) row.id = r.id; else row.ref = IX.confirmationRef(); // ref is required for new rows
       return this._r(this._check(await this.sb.from('rsvps').upsert(row).select('*').single()));
     }

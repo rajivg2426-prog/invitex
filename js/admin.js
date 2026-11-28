@@ -275,6 +275,8 @@
   }
 
   /* ================= Usage ================= */
+  // 3.5 → "3.5 min"; 95 → "1 h 35 min"; 7200 → "5 days"
+  const mins = (m) => { m = Number(m); if (m < 60) return `${m % 1 ? m.toFixed(1) : m} min`; if (m >= 2880) return `${Math.round(m / 1440)} days`; const h = Math.floor(m / 60); return `${h} h ${Math.round(m - h * 60)} min`; };
   async function usage(body) {
     const u = await H.store.admin('usage', { p_weeks: 8 });
     const T = u.totals || {};
@@ -288,14 +290,15 @@
         ${tile('users', 'Accounts', n(T.users), `${n(T.active30)} signed in this month${T.suspended ? ` · ${n(T.suspended)} paused` : ''}`)}
         ${tile('send', 'Invitations', n(T.invitations), `${n(T.published)} published`)}
         ${tile('check', 'Replies', n(T.replies), `${n(T.coming)} people coming · ${n(T.guests)} guests listed`)}
+        ${tile('clock', 'Time to first invitation', T.ttfi_median_min == null ? '—' : mins(T.ttfi_median_min), T.ttfi_median_min == null ? 'No first invitations published in the last 30 days' : `Median for ${n(T.ttfi_hosts)} new ${Number(T.ttfi_hosts) === 1 ? 'host' : 'hosts'}, last 30 days, from creating to publishing`)}
         ${tile('spark', 'AI designs', n(T.ai_images), `≈ ₹${n(Math.round(cost))} · ${n(T.ai_requests)} requests${T.ai_failed ? `, ${n(T.ai_failed)} failed` : ''}`)}
       </dl>
       <section class="hx-panel">
         <div class="hx-panel-h"><h3>Week by week</h3><span class="tiny muted">Last 8 weeks, weeks start on Monday</span></div>
         <div class="tbl-wrap"><table class="tbl ax-tbl"><thead><tr>
-          <th scope="col">Week of</th><th scope="col" class="num">New accounts</th><th scope="col" class="num">Invitations made</th><th scope="col" class="num">Published</th><th scope="col" class="num">Replies</th><th scope="col" class="num">AI designs</th>
+          <th scope="col">Week of</th><th scope="col" class="num">New accounts</th><th scope="col" class="num">Invitations made</th><th scope="col" class="num">Published</th><th scope="col" class="num">Replies</th><th scope="col" class="num">AI designs</th><th scope="col" class="num">Time to first invitation</th>
         </tr></thead><tbody>${weeks.map((w) => `<tr${w.week === thisWeek ? ' class="ax-now"' : ''}><td>${esc(new Date(w.week + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }))}${w.week === thisWeek ? ' <span class="tiny muted">(this week)</span>' : ''}</td>
-          <td class="num">${n(w.signups)}</td><td class="num">${n(w.created)}</td><td class="num">${n(w.published)}</td><td class="num">${n(w.replies)}</td><td class="num">${n(w.ai_images)}</td></tr>`).join('')}</tbody></table></div>
+          <td class="num">${n(w.signups)}</td><td class="num">${n(w.created)}</td><td class="num">${n(w.published)}</td><td class="num">${n(w.replies)}</td><td class="num">${n(w.ai_images)}</td><td class="num">${w.ttfi_min == null ? '—' : mins(w.ttfi_min)}</td></tr>`).join('')}</tbody></table></div>
       </section>
       <section class="hx-panel">
         <div class="hx-panel-h"><h3>AI design use</h3><span class="tiny muted">Estimate: about ₹${RS_PER_IMAGE.google} per Google image, ₹${RS_PER_IMAGE.openai} per OpenAI image</span></div>
