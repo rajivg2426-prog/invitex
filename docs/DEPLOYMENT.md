@@ -68,6 +68,9 @@ Hosts can be asked to pay once by UPI before sharing an invitation. Setup in tes
 ## 3. Firebase alternative
 The data layer is isolated in `js/store.js`. A `FirebaseStore` class with the same methods (`listInvitations`, `saveInvitation`, `publish`, `getPublic`, `submitRsvp`…) could replace `SupabaseStore`, with Cloud Functions doing the validation in `submit_rsvp`. It is not included; Supabase is the supported production backend.
 
+### Designer marketplace (pilot, India only)
+Run `supabase/marketplace.sql` after `billing.sql`. It adds designer applications, designs and their review, template licences, the earnings ledger and payouts, and three storage buckets (`designer-previews`, `designer-art`, `designer-source`). Admins then see **Designers** and **Design review** on the Admin page. Safe to run again. Buying a design needs the payment step (`_svc_design_sale`), which is not wired to Razorpay yet.
+
 ### Updating to v2.4
 Re-run `supabase/schema.sql` (adds the `rsvps.answers` column and updates `submit_rsvp`) and `supabase/admin.sql` (time to first invitation), then re-run `billing.sql` as usual. Both files are safe to run again. Until `schema.sql` is re-run, guests can still reply, but required custom questions are only checked in the browser and answers are not saved.
 
@@ -82,6 +85,8 @@ psql -d ivx -f supabase/admin.sql -f tests/admin-test.sql
 psql -f tests/supabase-stubs.sql && psql -d ivx -c 'create role service_role nologin' && psql -d ivx -f supabase/schema.sql -f supabase/admin.sql -f tests/admin-seed.sql && PGDATABASE=ivx node tests/admin-e2e.js
 # v2.4: custom RSVP questions and time to first invitation (after schema-test.sql / admin-test.sql), then the browser checks
 psql -d ivx -f tests/rsvp-questions-test.sql && psql -d ivx -f tests/ttfi-test.sql && node tests/v24-e2e.js
+# Designer marketplace: database checks, then the admin screens
+sh tests/run-marketplace-sql.sh && psql -d ivx -f tests/admin-seed.sql && PGDATABASE=ivx node tests/marketplace-admin-e2e.js
 # Paid sharing: database rules, Edge Functions, browser (fake Razorpay, no money)
 sh tests/run-billing-sql.sh && node tests/payments-function-test.mjs && node tests/billing-e2e.mjs
 # AI designs: server step and editor picker

@@ -670,3 +670,37 @@ do $$ declare f text; begin
   execute 'revoke all on function public.marketplace_designs(text,text,int,int) from public';
   execute 'grant execute on function public.marketplace_designs(text,text,int,int) to anon, authenticated';
 end $$;
+
+-- ---------------------------------------------------------------------
+-- Storage for designers
+--   designer-previews (public): watermarked 800px previews shown in the gallery
+--   designer-art      (public read by exact link, no listing): full artwork. Each design's folder name
+--                     carries a random part, and the path is only handed out after purchase (my_design).
+--                     Guests must be able to load it on a published invitation, so it cannot be private.
+--   designer-source   (private): layered source files, readable only by the designer and admins
+-- Designers write only inside a folder named after their own user id.
+-- ---------------------------------------------------------------------
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values
+  ('designer-previews', 'designer-previews', true, 2097152, array['image/webp','image/jpeg','image/png']),
+  ('designer-art', 'designer-art', true, 15728640, array['image/png','image/jpeg','image/svg+xml','image/webp']),
+  ('designer-source', 'designer-source', false, 157286400, array['application/octet-stream','image/vnd.adobe.photoshop','application/pdf','application/postscript','video/mp4','application/zip'])
+on conflict (id) do update set public = excluded.public, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
+
+create or replace function public._mk_is_active_designer() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.designers where user_id = auth.uid() and status = 'active') and public.is_active_user();
+$$;
+
+drop policy if exists mk_designer_files_insert on storage.objects;
+create policy mk_designer_files_insert on storage.objects for insert to authenticated
+  with check (bucket_id in ('designer-previews','designer-art','designer-source')
+              and (storage.foldername(name))[1] = (select auth.uid()::text) and (select public._mk_is_active_designer()));
+drop policy if exists mk_designer_files_own on storage.objects;
+create policy mk_designer_files_own on storage.objects for select to authenticated
+  using (bucket_id in ('designer-previews','designer-art','designer-source') and (storage.foldername(name))[1] = (select auth.uid()::text));
+drop policy if exists mk_designer_files_delete on storage.objects;
+create policy mk_designer_files_delete on storage.objects for delete to authenticated
+  using (bucket_id in ('designer-previews','designer-art','designer-source') and (storage.foldername(name))[1] = (select auth.uid()::text));
+drop policy if exists mk_designer_files_admin on storage.objects;
+create policy mk_designer_files_admin on storage.objects for select to authenticated
+  using (bucket_id in ('designer-previews','designer-art','designer-source') and (select public.is_admin()));
