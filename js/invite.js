@@ -226,6 +226,7 @@
       <div class="ix-op-left" aria-hidden="true"></div><div class="ix-op-right" aria-hidden="true"></div>
       <div class="ix-op-center">
         ${greet}
+        ${th.opener === 'envelope' ? `<div class="ix-motion-envelope" aria-hidden="true"><div class="ix-motion-letter">${esc(M.txt(inv, S.lang, 'title') || 'Invitation')}</div><div class="ix-motion-pocket"></div><div class="ix-motion-flap"></div></div>` : ''}
         <div class="ix-seal" aria-hidden="true">${esc((M.txt(inv, S.lang, 'title') || 'I').trim().charAt(0))}</div>
         <button type="button" class="ix-btn ix-btn-primary ix-op-btn" id="openBtn">${esc(t('openInvite'))}</button>
         <p class="ix-op-hint">${esc(t('tapToOpen'))}</p>
