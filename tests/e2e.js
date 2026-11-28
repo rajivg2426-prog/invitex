@@ -99,6 +99,23 @@ const ok = (t, cond, note = '') => { results.push([t, !!cond, note]); console.lo
   await mob.click('[data-lb="0"]'); const lb = await mob.locator('#lightbox:not([hidden]) img').count(); await mob.keyboard.press('Escape');
   ok('TEST 2b: gallery lightbox opens and closes', lb === 1 && await mob.locator('#lightbox').isHidden());
 
+  // Motion Studio: exercise the actual guest renderer in preview without mutating the published record.
+  const motion = await ctx.newPage(); watch(motion, 'motion');
+  await motion.setViewportSize({width:360,height:640});
+  // Use the existing published local invitation via its public adapter.
+  const inv = await host.evaluate(async () => (await H.store.getPublic('kabir-ananya',{})).invitation);
+  inv.theme='blush-rings';
+  await motion.goto(BASE+'invite.html?preview=1');
+  await motion.waitForFunction(()=>!!window.IXStore);
+  await motion.evaluate(async v=>{await window.IXStore; window.postMessage({type:'ix-preview',inv:v,opened:false,lang:'en'},location.origin)},inv);
+  await motion.locator('.ix-motion-envelope').waitFor();
+  ok('Motion envelope uses personalised title', (await motion.locator('.ix-motion-letter').innerText()).includes('Kabir'));
+  await motion.screenshot({path:OUT+'/motion-envelope.png'});
+  await motion.click('#openBtn');
+  await motion.locator('#opener').waitFor({state:'detached'});
+  ok('Motion envelope opens existing invitation',await motion.locator('main.opened').count()===1 && await motion.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+  await motion.close();
+
   /* TEST 3 */
   await host.goto(BASE + 'index.html#/dash/' + invId + '/guests'); await host.waitForSelector('#gf');
   await host.fill('#g-n', 'Rakesh Verma'); await host.fill('#g-p', '98765 43210'); await host.fill('#g-a', '4'); await host.click('#gf button[type=submit]');
