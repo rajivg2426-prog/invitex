@@ -40,6 +40,16 @@ PUBLIC_BASE_URL: 'https://invites.example.com/', // optional
 - **GitHub Pages**: push the folder and enable Pages on the branch.
 - Serve over **HTTPS** (needed for clipboard, camera check-in and the native share sheet).
 
+### WhatsApp link previews (Cloudflare Pages)
+When a host shares `invite.html?i=<link name>` on WhatsApp (or Facebook, Telegram, X, Slack, LinkedIn), the preview shows that invitation's own title, occasion, date, time, venue and card picture, instead of a general "You're Invited". This is done by `functions/_middleware.js`, a Cloudflare Pages Function that only answers those preview robots. Guests opening the link get the page exactly as before.
+
+- Nothing to set up. It reads the Supabase address and publishable key from `js/config.js`. To use other values, add `SUPABASE_URL` and `SUPABASE_ANON_KEY` under Cloudflare → your Pages project → **Settings → Variables and Secrets**.
+- `_routes.json` limits the function to `/invite` and `/invite.html`, so other pages don't use up the free function allowance.
+- The site must be deployed **from the Git repository** (Cloudflare → Workers & Pages → your project → connected to GitHub), with no build command and the root folder as the output. The dashboard's drag-and-drop upload does not run the `functions` folder.
+- Password-protected invitations, and invitations not shared yet, show a general preview with no details. Calligraphy cards and cards with no picture use `img/og-invite.jpg`.
+- To check one: open `https://<your site>/invite.html?i=<link name>&og=1` and use **View page source**, or paste the link into https://developers.facebook.com/tools/debug/ . WhatsApp remembers a preview for a while, so a link shared before this change can show the old preview. Adding `&v=2` to the link gives a fresh one.
+- Other hosts (Netlify, Vercel) would need their own version of this function. GitHub Pages cannot do it.
+
 Recommended response headers:
 ```
 Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; media-src 'self' blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co; frame-src https://maps.google.com https://www.google.com
@@ -92,6 +102,8 @@ sh tests/run-marketplace-sql.sh && psql -d ivx -f tests/admin-seed.sql && PGDATA
 sh tests/run-marketplace-sql.sh && psql -d ivx -f tests/admin-seed.sql && PGDATABASE=ivx node tests/designer-e2e.js
 # Buying a design: Edge Functions with a fake Razorpay, then the host's side in the browser (each builds its own database)
 node tests/design-purchase-function-test.mjs && node tests/designer-card-e2e.mjs
+# WhatsApp link previews (Cloudflare Pages Function, fake Supabase)
+node tests/og-preview-test.mjs
 # Paid sharing: database rules, Edge Functions, browser (fake Razorpay, no money)
 sh tests/run-billing-sql.sh && node tests/payments-function-test.mjs && node tests/billing-e2e.mjs
 # AI designs: server step and editor picker
