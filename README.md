@@ -71,6 +71,10 @@ supabase/admin.sql    Admin page: roles, admin-only functions, paused accounts, 
 js/admin.js           Admin page (#/admin): Users, Invitations, Usage, Audit log
 js/admin-billing.js   Admin money screens: Overview, Campaigns, Pricing, Free access, Payments, Revenue, System
 js/campaign.js        Sharing campaign panel on the Share tab (start, pay by UPI, status)
+supabase/marketplace.sql  Designer marketplace pilot: designers, designs, review, licences, earnings ledger, payouts
+js/admin-designs.js   Admin screens for the marketplace: Designers (applications) and Design review
+js/designer.js        Designer page (#/designer): apply, agreement, earnings, upload a design and mark where the words go
+js/market-host.js     Designer cards for hosts: pick one in step 1, words written into its boxes, pay once by UPI at Publish
 supabase/billing.sql  Paid sharing: prices, campaigns, orders, payments, refunds, free access, RLS
 supabase/functions/sharing-campaign/  Server step: Razorpay orders and payment checks
 supabase/functions/razorpay-webhook/  Server step: Razorpay webhook (signature checked)

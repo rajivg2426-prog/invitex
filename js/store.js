@@ -439,6 +439,7 @@
       return Object.assign({ role: 'host', status: 'active' }, data, { setup: true });
     }
     async admin(fn, args = {}) { return this._check(await this.sb.rpc('admin_' + fn, args)); }
+    async call(fn, args = {}) { return this._check(await this.sb.rpc(fn, args)); } // signed-in RPCs (designer marketplace)
     async adminDeleteInvitation(id, ownerId, reason = '') {
       // remove its uploaded photos first (admins may delete any invitation's files), then the invitation
       const dir = `${ownerId}/${id}`;

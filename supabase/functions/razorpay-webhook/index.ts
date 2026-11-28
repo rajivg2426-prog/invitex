@@ -11,6 +11,8 @@
 //      database step as the checkout callback (_svc_payment_apply), which only unlocks
 //      a captured payment for the exact order amount, once.
 //   4. refund.created / refund.processed / refund.failed → _svc_refund_apply.
+//   5. Orders and payments that are not sharing campaigns are marketplace design purchases:
+//      _svc_design_payment_apply / _svc_design_refund_payment (supabase/marketplace.sql).
 //
 // Deploy with JWT verification OFF (Razorpay has no Supabase login):
 //   supabase functions deploy razorpay-webhook --no-verify-jwt
@@ -37,6 +39,13 @@ function safeEqual(a: string, b: string): boolean {
   for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return d === 0;
 }
+
+// marketplace.sql not installed: the design step does not exist, so the event is not a design one.
+// Any other error is thrown, so the event is not marked done and Razorpay retries it.
+const notInstalled = (fallback: { result: string }) => (e: Error) => {
+  if (/ 404 |PGRST202|does not exist/.test(String(e?.message))) return fallback;
+  throw e;
+};
 
 const PAYMENT_EVENTS = ['payment.authorized', 'payment.captured', 'payment.failed', 'order.paid'];
 const REFUND_EVENTS = ['refund.created', 'refund.processed', 'refund.failed'];
@@ -81,9 +90,21 @@ export async function handle(req: Request, env: Env, f: Fetch = fetch): Promise<
                      error_code: pay.error_code || null, error_description: pay.error_description || null },
       });
       result = r.result;
+      if (result === 'unknown_order') {   // not a sharing campaign: a marketplace design purchase?
+        const d = await rpc('_svc_design_payment_apply', {
+          p_provider: 'razorpay', p_provider_order_id: pay.order_id, p_via: 'webhook',
+          p_payment: { id: pay.id, status: pay.status, amount: pay.amount, currency: pay.currency, fee: typeof pay.fee === 'number' ? pay.fee : null },
+        }).catch(notInstalled({ result: 'unknown_order' }));
+        result = 'design ' + d.result;
+      }
     } else if (REFUND_EVENTS.includes(type) && refund?.payment_id) {
       const r = await rpc('_svc_refund_apply', { p_provider: 'razorpay', p_refund: { id: refund.id, payment_id: refund.payment_id, amount: refund.amount, status: refund.status } });
       result = 'refund ' + r.result;
+      if (r.result === 'unknown_payment') {
+        const d = await rpc('_svc_design_refund_payment', { p_provider: 'razorpay', p_refund: { id: refund.id, payment_id: refund.payment_id, amount: refund.amount, status: refund.status } })
+          .catch(notInstalled({ result: 'unknown_payment' }));
+        result = 'design refund ' + d.result;
+      }
     }
     await rpc('_svc_webhook_done', { p_provider: 'razorpay', p_event_id: eventId, p_result: result });
     return reply(200, { ok: true, result });

@@ -14,6 +14,13 @@
 //   reconcile                 (service key only, for a scheduled job) re-check orders
 //                             still open after 30 minutes, in case a callback was lost
 //
+// Buying a marketplace design (supabase/marketplace.sql), same keys and checks:
+//   design_order  { design_id, ref? }   Razorpay order for the design's SERVER price
+//   design_verify { design_id, razorpay_order_id, razorpay_payment_id, razorpay_signature }
+//   design_status { design_id }         ask Razorpay about the open order (pending UPI)
+// A verified, captured payment for the exact price grants the host's licence and books
+// the designer's earning once, however many times it is reported.
+//
 // Secrets (Supabase Dashboard → Edge Functions → Secrets):
 //   RAZORPAY_KEY_ID          rzp_test_… while testing, rzp_live_… only after go-live
 //   RAZORPAY_KEY_SECRET      never leaves the server
@@ -28,7 +35,7 @@ type Fetch = typeof fetch;
 
 export type Payment = {
   id: string; order_id?: string; status: string; amount: number; currency: string;
-  method?: string; error_code?: string | null; error_description?: string | null;
+  method?: string; error_code?: string | null; error_description?: string | null; fee?: number;
 };
 
 // A payment provider. Campaigns and unlocks only ever see "a verified payment of X paise",
@@ -127,6 +134,7 @@ export async function handle(req: Request, env: Env, f: Fetch = fetch): Promise<
       if (provider.mode() !== dbMode) throw new UserError(`Payments are set to ${dbMode} mode but the server has ${provider.mode()} keys.`, 503, 'mode_mismatch');
     };
     const apply = async (orderId: string, p: Payment, via: string) => rpc('_svc_payment_apply', { p_provider: provider.name, p_provider_order_id: orderId, p_payment: slim(p), p_via: via });
+    const applyDesign = async (orderId: string, p: Payment, via: string) => rpc('_svc_design_payment_apply', { p_provider: provider.name, p_provider_order_id: orderId, p_payment: { ...slim(p), fee: typeof p.fee === 'number' ? p.fee : null }, p_via: via });
 
     // scheduled reconcile (service key only)
     if (body.action === 'reconcile') {
@@ -138,7 +146,13 @@ export async function handle(req: Request, env: Env, f: Fetch = fetch): Promise<
         try { for (const p of await provider.orderPayments(o.provider_order_id)) out.push(await apply(o.provider_order_id, p, 'reconcile')); }
         catch (e) { console.error('reconcile', o.provider_order_id, e); }
       }
-      return reply(200, { checked: list.length, results: out });
+      // design orders too, when the marketplace (marketplace.sql) is installed
+      const dl = ((await rpc('_svc_design_orders_to_reconcile', { p_min_age_minutes: 30 }).catch(() => [])) || []) as any[];
+      for (const o of dl) {
+        try { for (const p of await provider.orderPayments(o.provider_order_id)) out.push(await applyDesign(o.provider_order_id, p, 'reconcile')); }
+        catch (e) { console.error('reconcile design', o.provider_order_id, e); }
+      }
+      return reply(200, { checked: list.length + dl.length, results: out });
     }
 
     // who is asking?
@@ -146,6 +160,55 @@ export async function handle(req: Request, env: Env, f: Fetch = fetch): Promise<
     const ur = await f(`${SB}/auth/v1/user`, { headers: { apikey: KEY, authorization: `Bearer ${token}` } });
     const user = ur.ok ? await ur.json() : null;
     if (!user?.id) return reply(401, { error: 'Please sign in again.', code: 'auth' });
+
+    if (String(body.action || '').startsWith('design_')) {
+      const design = String(body.design_id || '');
+      if (!/^[0-9a-f-]{36}$/i.test(design)) return reply(400, { error: 'Which design?' });
+      if (body.action === 'design_order') {
+        const ref = /^[A-Za-z0-9_-]{1,40}$/.test(String(body.ref || '')) ? String(body.ref) : null;
+        const prep = await rpc('_svc_design_order_prepare', { p_user: user.id, p_design: design, p_referral: ref, p_provider: provider.name });
+        if (prep.status === 'not_found') return reply(404, { error: 'This design is not for sale any more.', code: 'not_found' });
+        if (prep.status === 'suspended') return reply(403, { error: 'Your account is paused.' });
+        if (prep.status === 'busy') return reply(409, { error: 'A payment is already being set up. Please try again in a moment.', code: 'busy' });
+        if (prep.status === 'owned') return reply(200, { status: 'owned' });
+        try { ready(); } catch (e) {
+          if (prep.status === 'create') await rpc('_svc_design_order_failed', { p_order: prep.order_id, p_error: (e as Error).message }).catch(() => {});
+          throw e;
+        }
+        let orderId = prep.provider_order_id;
+        if (prep.status === 'create') {
+          try {
+            const o = await provider.createOrder({ amount: prep.amount_paise, currency: prep.currency, receipt: String(prep.receipt).slice(0, 40),
+              notes: { design_id: design, user_id: user.id, app: 'InviteX', kind: 'design' } });
+            orderId = o.id;
+            await rpc('_svc_design_order_created', { p_order: prep.order_id, p_provider_order_id: orderId });
+          } catch (e) {
+            await rpc('_svc_design_order_failed', { p_order: prep.order_id, p_error: String((e as Error).message) }).catch(() => {});
+            console.error(e);
+            return reply(502, { error: 'Could not start the payment. Please try again.', code: 'provider' });
+          }
+        }
+        return reply(200, { status: 'checkout', provider: provider.name, key_id: provider.publicKey(), order_id: orderId,
+          amount_paise: prep.amount_paise, currency: prep.currency, is_test: !!prep.is_test, method: 'upi' });
+      }
+      if (body.action === 'design_verify' || body.action === 'design_status') {
+        const ord = await rpc('_svc_design_order', { p_user: user.id, p_design: design });
+        if (!ord?.provider_order_id) return reply(404, { error: 'No payment has been started for this design.' });
+        ready();
+        if (body.action === 'design_verify') {
+          if (body.razorpay_order_id !== ord.provider_order_id) return reply(400, { error: 'That payment is for a different order.', code: 'order_mismatch' });
+          const good = await provider.verifyCheckout({ order_id: body.razorpay_order_id, payment_id: body.razorpay_payment_id, signature: body.razorpay_signature });
+          if (!good) return reply(400, { error: 'The payment could not be verified. Nothing was unlocked.', code: 'invalid_signature' });
+          const p = await provider.fetchPayment(String(body.razorpay_payment_id));
+          if (p.order_id !== ord.provider_order_id) return reply(400, { error: 'That payment is for a different order.', code: 'order_mismatch' });
+          return reply(200, { result: (await applyDesign(ord.provider_order_id, p, 'checkout')).result });
+        }
+        const results: string[] = [];
+        for (const p of await provider.orderPayments(ord.provider_order_id)) results.push((await applyDesign(ord.provider_order_id, p, 'status_check')).result);
+        return reply(200, { result: ['unlocked', 'already_unlocked', 'refund_due', 'pending', 'failed'].find((k) => results.includes(k)) || 'waiting' });
+      }
+      return reply(400, { error: 'Unknown action.' });
+    }
     const campaign = String(body.campaign_id || '');
     if (!/^[0-9a-f-]{36}$/i.test(campaign)) return reply(400, { error: 'Which campaign?' });
 

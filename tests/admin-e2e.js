@@ -90,7 +90,7 @@ const CONFIG = "window.INVITEX_CONFIG={SUPABASE_URL:'https://example.supabase.co
   const p = await open({}, USERS.admin, '#/admin/users');
   await p.waitForSelector('#axRows tr[data-id]');
   ok('admin: Admin link shows in the top menu', await p.locator('#navAdmin').isVisible());
-  ok('admin: left menu has the money screens and Users, Invitations, Usage, Audit log', (await p.locator('.ax-rail ul:first-of-type a').allInnerTexts()).map((s) => s.trim()).join(',') === 'Overview,Users,Invitations,Sharing campaigns,Pricing control,Free access,Payment transactions,Revenue reports,Usage analytics,System settings,Audit log');
+  ok('admin: left menu has the money screens, the marketplace screens and Users, Invitations, Usage, Audit log', (await p.locator('.ax-rail ul:first-of-type a').allInnerTexts()).map((s) => s.trim()).join(',') === 'Overview,Users,Invitations,Sharing campaigns,Pricing control,Free access,Payment transactions,Revenue reports,Designers,Design review,Usage analytics,System settings,Audit log');
   ok('users: lists every account', (await p.locator('#axRows tr[data-id]').count()) === 4, await p.locator('#axCount').innerText());
   const priyaRow = p.locator(`#axRows tr[data-id="${USERS.priya}"]`);
   ok('users: counts for Priya (2 invitations, 1 live, 2 replies, AI 3/3)', /2\s*· 1 live/.test(await priyaRow.innerText()) && /3 \/ 3/.test(await priyaRow.innerText()), (await priyaRow.innerText()).replace(/\s+/g, ' '));
