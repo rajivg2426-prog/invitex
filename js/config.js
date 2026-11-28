@@ -18,6 +18,6 @@ window.INVITEX_CONFIG = {
   MEDIA_BUCKET: 'invite-media',
   // Optional: absolute public URL where invite.html is hosted. When empty the
   // current site location is used.
-  PUBLIC_BASE_URL: 'https://rajivg2426-prog.github.io/invitex/',
+  PUBLIC_BASE_URL: 'https://invitex.pages.dev/',
   DEFAULT_TIMEZONE: 'Asia/Kolkata',
 };
