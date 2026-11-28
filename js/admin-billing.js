@@ -31,7 +31,7 @@
     body.querySelectorAll(`[data-${name}]`).forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', x === b); });
     cb(b.dataset[name]);
   }));
-  const guard = (fn) => async (body, ...a) => { try { await fn(body, ...a); } catch (e) { if (notSetUp(e)) body.innerHTML = setupHelp; else throw e; } };
+  const guard = (fn) => async (body, ...a) => { try { await fn(body, ...a); } catch (e) { if (notSetUp(e)) body.innerHTML = setupHelp + `<p class="tiny muted" style="margin:.5rem 0 0">Details from the database: ${esc(e.message || String(e))}</p>`; else throw e; } };
 
   /* ================= Overview ================= */
   async function overview(body) {

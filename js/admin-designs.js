@@ -16,7 +16,7 @@
   const admin = (fn, args) => H.store.admin(fn, args || {});
   const notSetUp = (e) => /admin_design|admin_designer|PGRST202|does not exist|Could not find the function/i.test(e.message || '');
   const setupHelp = '<div class="notice warn">The designer marketplace is not installed in the database yet. In Supabase, open <b>SQL Editor</b>, paste the whole of <code>supabase/marketplace.sql</code> and press <b>Run</b>.</div>';
-  const guard = (fn) => async (body, ...a) => { try { await fn(body, ...a); } catch (e) { if (notSetUp(e)) body.innerHTML = setupHelp; else throw e; } };
+  const guard = (fn) => async (body, ...a) => { try { await fn(body, ...a); } catch (e) { if (notSetUp(e)) body.innerHTML = setupHelp + `<p class="tiny muted" style="margin:.5rem 0 0">Details from the database: ${esc(e.message || String(e))}</p>`; else throw e; } };
   const filters = (list, on) => `<div class="hx-filters" role="group" aria-label="Show">${list.map(([k, l]) => `<button type="button" data-f="${k}" aria-pressed="${k === on}" class="${k === on ? 'on' : ''}">${l}</button>`).join('')}</div>`;
   const publicUrl = (bucket, path) => (path && H.store.sb ? H.store.sb.storage.from(bucket).getPublicUrl(path).data.publicUrl : '');
 
