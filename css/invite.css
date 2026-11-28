@@ -388,3 +388,15 @@ body.is-print .ix-callig-card svg { filter: none; }
   font-size: 1.4rem; line-height: 1; border-radius: 50%; cursor: pointer; }
 .ix-updated-x:focus-visible { outline: 2px solid var(--accent, #a33); outline-offset: 2px; }
 .ix-questions { display: grid; gap: .75rem; margin: .5rem 0; }
+
+/* Designer card from the InviteX marketplace: artwork + the host's words in the marked boxes */
+.ix-hero.ix-market { min-height: auto; padding: 1.2rem .8rem 3.2rem; display: block; }
+.ix-hero.ix-market .ix-greet { text-align: center; margin: 0 0 .6rem; }
+.ix-mk-card { position: relative; width: min(100%, 560px, calc((100svh - 4rem) * var(--mk-ar, .714))); margin: 0 auto; container-type: inline-size; overflow: hidden; border-radius: 4px; box-shadow: 0 10px 26px rgba(40,25,10,.25); }
+.ix-mk-card > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.ix-mk-z { position: absolute; display: flex; align-items: center; line-height: 1.22; overflow: hidden; }
+.ix-mk-z > span { display: block; max-width: 100%; white-space: pre-line; overflow-wrap: anywhere; }
+.ix-mk-z > span[data-edit] { cursor: text; outline: 1px dashed transparent; }
+.ix-mk-z > span[data-edit]:hover { outline-color: currentColor; }
+body.is-print .ix-mk-card { box-shadow: none; }
+.ix-mk-z.one > span { white-space: nowrap; overflow-wrap: normal; }

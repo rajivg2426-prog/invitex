@@ -213,7 +213,7 @@ try {
 
   /* 5. Super Admin money screens */
   await s.goto(BASE + 'index.html#/admin'); await s.waitForSelector('.hx-tiles');
-  ok('admin menu: money screens in order', (await s.locator('.ax-rail a').allInnerTexts()).map((x) => x.trim()).join(',').startsWith('Overview,Users,Invitations,Sharing campaigns,Pricing control,Free access,Payment transactions,Revenue reports,Usage analytics,System settings,Audit log'),
+  ok('admin menu: money screens in order', (await s.locator('.ax-rail a').allInnerTexts()).map((x) => x.trim()).join(',').startsWith('Overview,Users,Invitations,Sharing campaigns,Pricing control,Free access,Payment transactions,Revenue reports,Designers,Design review,Usage analytics,System settings,Audit log'),
     (await s.locator('.ax-rail a').allInnerTexts()).map((x) => x.trim()).join(','));
   const ov = await text(s);
   ok('overview: charging on ₹20, TEST MODE, 3 campaigns', /Charging ON · ₹20/.test(ov) && /TEST MODE/.test(ov) && /Sharing campaigns\s*3/.test(ov), ov.replace(/\s+/g, ' ').slice(0, 300));

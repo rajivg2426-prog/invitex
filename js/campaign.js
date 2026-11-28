@@ -61,6 +61,7 @@
     s.onerror = () => { rzpLoading = null; rej(new Error('Could not load the Razorpay payment window. Check your internet connection.')); };
     document.head.appendChild(s);
   }));
+  C.loadCheckout = loadCheckout;   // also used for designer cards (market-host.js)
 
   /* ---------- the panel at the top of the Share tab ----------
    * render(el, inv, onReady): draws the right step into el. Calls onReady() when sharing is open. */

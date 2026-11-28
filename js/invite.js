@@ -305,6 +305,8 @@
         const f = (o) => new Intl.DateTimeFormat(IX.locale(S.lang), { ...o, timeZone: tz }).format(d);
         return `<div class="ix-datebar"><span>${esc(f({ weekday: 'long' }))}</span><span class="ix-datebig"><small>${esc(f({ month: 'short' }))}</small><b>${esc(f({ day: 'numeric' }))}</b><small>${esc(f({ year: 'numeric' }))}</small></span><span>${esc(ev.start ? IX.fmtTime(ev.date, ev.start, tz, S.lang) : '')}</span></div>`;
       })() : '';
+      const mk = inv.design && inv.design.market && inv.design.market.image ? inv.design.market : null;
+      if (mk) return marketCard(ctx, mk, ev);
       if (S.callig) return `<section class="ix-hero ix-callig" id="sec-opening" aria-label="${esc(ctx.title)}"><div class="ix-callig-card">${S.callig.svg}</div>${isPrint ? '' : `<a href="#sec-${(inv.design.sectionOrder.find((x) => x !== 'opening' && inv.design.sections[x])) || 'rsvp'}" class="ix-scroll" aria-label="Scroll down"><span aria-hidden="true">⌄</span></a>`}</section>`;
       return `<section class="ix-hero" id="sec-opening" aria-label="${esc(ctx.title)}">
         ${deco(ctx)}
@@ -636,7 +638,54 @@
   }
 
   /* ---------------- interactions ---------------- */
+  /* A designer card from the InviteX marketplace: the designer's artwork, with the host's
+   * words written into the boxes the designer marked (positions are fractions of the card). */
+  function marketCard(ctx, mk, ev) {
+    const { inv } = ctx, tz = inv.timezone;
+    const pal = (mk.palettes || [])[mk.palette || 0] || {};
+    const W = Number(mk.w) || 1000, Hh = Number(mk.h) || 1400;
+    let when = '';
+    if (ev) {
+      const d = IX.zonedToUtc(ev.date, ev.start || '12:00', tz);
+      when = new Intl.DateTimeFormat(IX.locale(S.lang), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: tz }).format(d)
+        + (ev.start ? '\n' + IX.fmtTime(ev.date, ev.start, tz, S.lang) : '');
+    }
+    const TXT = {
+      names: [M.txt(inv, S.lang, 'title') || ctx.title, 'script', 'title', 1],
+      title: [M.txt(inv, S.lang, 'subtitle') || M.txt(inv, S.lang, 'familyName'), 'head', 'subtitle', 1],
+      date: [when, 'body', '', 2],
+      venue: [ev && ev.venue ? ev.venue + (ev.city ? '\n' + ev.city : '') : '', 'body', '', 2],
+      message: [String(M.txt(inv, S.lang, 'welcome') || '').slice(0, 240), 'body', 'welcome', 4],
+    };
+    const zones = (mk.zones || []).map((z) => {
+      const [text, font, key, lines] = TXT[z.key] || ['', 'body', '', 2];
+      const fs = Math.max(1, (z.h * (Hh / W) * 100) / (lines * 1.25));   // in card widths (cqw): fills the box height
+      const al = z.align === 'left' ? 'flex-start' : z.align === 'right' ? 'flex-end' : 'center';
+      return `<div class="ix-mk-z${lines === 1 ? ' one' : ''}" data-k="${esc(z.key)}" style="left:${z.x * 100}%;top:${z.y * 100}%;width:${z.w * 100}%;height:${z.h * 100}%;justify-content:${al};text-align:${esc(z.align || 'center')};font-family:var(--f-${font});font-size:${fs.toFixed(2)}cqw${pal.text ? ';color:' + esc(pal.text) : ''}" data-fs="${fs.toFixed(2)}"><span${key ? ed(key) : ''}>${esc(text)}</span></div>`;
+    }).join('');
+    const next = (inv.design.sectionOrder.find((x) => x !== 'opening' && inv.design.sections[x])) || 'rsvp';
+    return `<section class="ix-hero ix-market" id="sec-opening" aria-label="${esc(ctx.title)}">
+      ${S.guest ? `<p class="ix-greet">${esc(t('dear'))} ${esc(S.guest.name)},</p>` : ''}
+      <div class="ix-mk-card" style="aspect-ratio:${W}/${Hh};--mk-ar:${(W / Hh).toFixed(4)}"><img src="${esc(mk.image)}" alt="" fetchpriority="high" decoding="async">${zones}</div>
+      ${isPrint ? '' : `<a href="#sec-${next}" class="ix-scroll" aria-label="Scroll down"><span aria-hidden="true">⌄</span></a>`}
+    </section>`;
+  }
+  // shrink the words in a designer card's box until they fit
+  function fitMarket() {
+    document.querySelectorAll('.ix-mk-z').forEach((z) => {
+      const sp = z.firstElementChild; if (!sp || !z.clientHeight) return;
+      z.style.fontSize = z.dataset.fs + 'cqw';   // start again from the size that fills the box
+      let px = parseFloat(getComputedStyle(z).fontSize), n = 0;
+      while (n++ < 40 && px > 7 && (sp.scrollHeight > z.clientHeight + 1 || sp.scrollWidth > z.clientWidth + 1)) { px *= 0.92; z.style.fontSize = px + 'px'; }
+    });
+  }
+
   function wire(ctx) {
+    if (document.querySelector('.ix-mk-card')) {
+      fitMarket();
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitMarket);
+      if (!S.mkResize) { S.mkResize = true; window.addEventListener('resize', () => requestAnimationFrame(fitMarket)); }
+    }
     const { inv } = ctx;
     // graceful handling of missing images (no inline handlers, CSP friendly)
     document.querySelectorAll('img[data-fb]').forEach((img) => {

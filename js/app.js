@@ -48,7 +48,7 @@
   async function route() {
     H.cleanup.forEach((f) => { try { f(); } catch (e) { /* ignore */ } });
     H.cleanup = [];
-    const parts = (location.hash.replace(/^#\/?/, '') || '').split('/');
+    const parts = (location.hash.replace(/^#\/?/, '').split('?')[0] || '').split('/');   // "?…" carries extras such as a designer's sales link
     const name = parts[0] || 'home';
     document.querySelectorAll('.topnav a').forEach((a) => a.classList.toggle('on', a.getAttribute('href') === '#/' + (name === 'home' ? '' : name)));
     if (H.store.mode === 'supabase' && !H.user && name !== 'login' && name !== 'help') return H.go('#/login');

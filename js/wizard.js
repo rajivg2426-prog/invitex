@@ -389,7 +389,11 @@
     ['own', '🖼️', 'Your own design', 'Upload a picture'],
     ['ai', '✨', 'Design with AI', 'New art for you'],
     ['callig', '✒️', 'Calligraphy', 'Handwritten look'],
+    ['market', '💎', 'Designer cards', 'By Indian designers'],
   ];
+  const MK = () => window.IXMarket;
+  const ways = () => DESIGN_WAYS.filter(([id]) => id !== 'market' || (MK() && MK().available()));
+  const mkClear = (inv) => { if (MK()) MK().clear(inv); };
   const calligOn = (inv) => !!(inv.calligraphy && inv.calligraphy.active !== false && window.IXC);
   /* Calligraphy & Handwritten Invitations: the 10 styles as live mini cards with the host's own names. */
   function calligPanel(inv) {
@@ -412,6 +416,7 @@
       if (calligOn(inv2) && inv2.calligraphy.style !== id && !(await H.confirm('Switch to this style?', 'Fonts, inks, paper and flourishes change to the new style. Your words stay.', 'Switch style'))) return;
       if (calligOn(inv2) && inv2.calligraphy.style === id) return H.go('#/calligraphy/' + inv2.id);
       if (inv2.media.background) removePicture();
+      mkClear(inv2);
       await save();
       await IXC.studio.start(inv2, id);
     }));
@@ -429,7 +434,7 @@
   function step1(body) {
     const inv = W.inv;
     if (W.bgUrl === undefined) { W.bgUrl = ''; if (inv.media.background) H.store.resolveMedia(inv.media.background).then((u) => { W.bgUrl = u || ''; if (W.step === 1 && u) step1(body); }); }
-    if (!W.way) W.way = calligOn(inv) ? 'callig' : inv.design.aiArt ? 'ai' : inv.media.background ? 'own' : 'ready';
+    if (!W.way) W.way = MK() && MK().on(inv) ? 'market' : calligOn(inv) ? 'callig' : inv.design.aiArt ? 'ai' : inv.media.background ? 'own' : 'ready';
     if (!W.galTab) W.galTab = IXGallery.TAB_FOR_CAT[inv.category] || 'all';
     if (!W.gal) { const pr = (window.IXPicks && IXPicks.prefs()) || {}; W.gal = { styles: Array.isArray(pr.styles) ? pr.styles : [], colours: Array.isArray(pr.colours) ? pr.colours : [], sort: pr.sort || 'rec', favOnly: false, cmp: [], open: false, search: '' }; }
     const guide = body.querySelector('.step-guide')?.outerHTML || '';
@@ -453,6 +458,7 @@
         <p class="tiny muted" style="margin:0">Tip: a tall picture works best. Leave some plain space in the middle so your words are easy to read. You can move and zoom it after choosing.</p>`,
       ai: `<div class="stack ai-card" id="aiCard"></div>`,
       callig: `<div class="stack">${window.IXC ? calligPanel(inv) : ''}</div>`,
+      market: MK() ? MK().panel(inv) : '',
     };
     body.innerHTML = `${guide}<div class="card stack">
       <h2>1. What are you celebrating?</h2>
@@ -460,7 +466,7 @@
     </div>
     <div class="card stack" id="designCard">
       <h2>2. How would you like to design your card?</h2>
-      <div class="ways" role="tablist" aria-label="Ways to design your card">${DESIGN_WAYS.map(([id, ic, t, s]) => `<button type="button" class="way ${W.way === id ? 'on' : ''}" role="tab" aria-selected="${W.way === id}" data-way="${id}"><span class="way-ic" aria-hidden="true">${ic}</span><b>${t}</b><small>${s}</small></button>`).join('')}</div>
+      <div class="ways" role="tablist" aria-label="Ways to design your card">${ways().map(([id, ic, t, s]) => `<button type="button" class="way ${W.way === id ? 'on' : ''}" role="tab" aria-selected="${W.way === id}" data-way="${id}"><span class="way-ic" aria-hidden="true">${ic}</span><b>${t}</b><small>${s}</small></button>`).join('')}</div>
       <div class="way-panel stack" role="tabpanel">${panels[W.way]}</div>
     </div>
     <div class="card stack">
@@ -477,6 +483,7 @@
       const ref = await IXMedia.addImage(f, { invId: inv.id, askCrop: true, aspect: '3:4', maxDim: 1800 });
       if (!ref) return;
       if (inv.media.background) discard(inv.media.background);
+      mkClear(inv);
       inv.media.background = ref; inv.design.bgMode = 'full'; inv.design.aiArt = ''; W.bgUrl = await H.store.resolveMedia(ref);
       changed(); step1(body);
       fetch(W.bgUrl).then((r) => r.blob()).then(matchPaletteTo).catch(() => {}); // light picture → dark text, and the other way round
@@ -503,6 +510,7 @@
       if (calligOn(inv) && !(await H.confirm('Use this ready design?', 'Your calligraphy design will be taken off the card. It is kept, so you can switch back from the Calligraphy choice any time.', 'Use ready design'))) return;
       if (inv.calligraphy) inv.calligraphy.active = false;
       if (inv.media.background) removePicture();
+      mkClear(inv);
       setTheme(b.dataset.themePick);
       if (b.dataset.palPick != null) { inv.paletteIndex = +b.dataset.palPick; Object.assign(inv.design, { textColor: '', bgColor: '', accentColor: '' }); }
       if (window.IXPicks) IXPicks.viewed(b.dataset.themePick);
@@ -520,12 +528,13 @@
     body.querySelectorAll('[data-pal]').forEach((b) => (b.onclick = () => { inv.paletteIndex = +b.dataset.pal; Object.assign(inv.design, { textColor: '', bgColor: '', accentColor: '' }); changed(); step1(body); }));
     body.querySelectorAll('input[name=layout]').forEach((r) => (r.onchange = () => { inv.layout = r.value; changed(); }));
     renderAi(body);
+    if (W.way === 'market' && MK()) MK().wire(body, inv, { changed, rerender: () => step1(body) });
   }
   /* ---------- the ready-design gallery ----------
    * Occasion menu, style and colour chips that wrap (no hidden sideways strip), sorting,
    * favourites, recently viewed, quick look and compare. Filters are remembered on this device. */
   const SORTS = [['rec', 'Recommended'], ['recent', 'Recently viewed'], ['fav', 'Favourites first'], ['az', 'Name A–Z']];
-  const designOn = (inv, id) => id === inv.theme && !inv.media.background && !calligOn(inv);
+  const designOn = (inv, id) => id === inv.theme && !inv.media.background && !calligOn(inv) && !(MK() && MK().on(inv));
   // The invitation as it would look with another design, for quick look and compare (never saved).
   function previewWith(themeId, pal) {
     const inv = IX.deepClone(W.inv), t = IXT.THEMES[themeId];
@@ -1025,6 +1034,7 @@
       const ref = await H.store.putMedia(blob, { name: 'ai-design.webp', invitationId: inv.id });
       if (inv.media.background) discard(inv.media.background);
       if (localVisual && calligOn(inv)) inv.calligraphy.active = false;
+      mkClear(inv);
       inv.media.background = ref; inv.design.bgMode = 'full'; inv.design.aiArt = localVisual ? '' : url;
       matchPaletteTo(src);
       W.bgUrl = await H.store.resolveMedia(ref);
@@ -1691,6 +1701,7 @@
     try {
       await save();
       const wasLive = !!inv.published;
+      if (MK() && !(await MK().ensurePaid(inv, save))) return;   // a designer card is paid for once, before its first publish
       const saved = await H.store.publish(inv);
       W.inv.published = saved.published; W.inv.status = 'published'; W.inv.publishedAt = saved.publishedAt; W.inv.updateNotice = saved.updateNotice;
       W.dirty = false;
