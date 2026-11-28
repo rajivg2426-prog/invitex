@@ -145,6 +145,15 @@
     },
   };
 
+  // Motion collection: independent theme records, using the existing renderer and palette contract.
+  const MOTION_COLLECTION = [["rose-envelope","Vintage Rose Envelope","blush-rings",0,"envelope"],["palace-gold","Royal Palace Gold","royal-maroon",0,"doors"],["emerald-vows","Emerald Vows","royal-maroon",1,"envelope"],["lavender-letter","Lavender Love Letter","blush-rings",1,"envelope"],["ivory-heirloom","Ivory Heirloom","golden-anniversary",0,"envelope"],["midnight-gala","Midnight Gala","golden-anniversary",1,"curtain"],["marigold-welcome","Marigold Welcome","griha-pravesh",0,"doors"],["sacred-light","Sacred Light","saffron-puja",0,"envelope"],["candy-celebration","Candy Celebration","confetti-party",0,"pop"],["alpine-celebration","Alpine Celebration","himalayan-dham",1,"curtain"],["executive-reveal","Executive Reveal","corporate-slate",1,"doors"],["stellar-launch","Stellar Launch","conference-night",0,"pop"]];
+  for (const [id,name,base,palette,opener] of MOTION_COLLECTION) {
+    const source = THEMES[base];
+    THEMES[id] = { ...source, name, opener, premium: true, motion: true,
+      fonts: { ...source.fonts },
+      palettes: [source.palettes[palette], ...source.palettes.filter((_,i)=>i!==palette)].map(p=>({...p})) };
+  }
+
   const FONT_CHOICES = {
     script: ['Great Vibes', 'Parisienne', 'Allura', 'Pacifico', 'Satisfy', 'Kaushan Script', 'Yatra One', 'Dancing Script', 'Kalam'],
     head: ['Cormorant Garamond', 'Playfair Display', 'Montserrat', 'Poppins', 'Merriweather', 'Baloo 2', 'Bebas Neue', 'Space Grotesk', 'Tiro Devanagari Hindi', 'Lora'],
