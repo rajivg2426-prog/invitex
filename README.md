@@ -75,6 +75,9 @@ supabase/marketplace.sql  Designer marketplace pilot: designers, designs, review
 js/admin-designs.js   Admin screens for the marketplace: Designers (applications) and Design review
 js/designer.js        Designer page (#/designer): apply, agreement, earnings, upload a design and mark where the words go
 js/market-host.js     Designer cards for hosts: pick one in step 1, words written into its boxes, pay once by UPI at Publish
+functions/_middleware.js  Cloudflare Pages Function: each invitation link gets its own WhatsApp preview (title, date, venue, picture)
+_routes.json          Runs that function only for invite pages
+img/og-invite.jpg     Default link-preview picture
 supabase/billing.sql  Paid sharing: prices, campaigns, orders, payments, refunds, free access, RLS
 supabase/functions/sharing-campaign/  Server step: Razorpay orders and payment checks
 supabase/functions/razorpay-webhook/  Server step: Razorpay webhook (signature checked)

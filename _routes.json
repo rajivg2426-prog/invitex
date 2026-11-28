@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "include": ["/invite", "/invite.html"],
+  "exclude": []
+}

@@ -30,6 +30,8 @@ jobs:
           done
           cat /tmp/invitex-server.log
           exit 1
+      - name: Run WhatsApp link-preview tests (Cloudflare Pages Function)
+        run: node tests/og-preview-test.mjs
       - name: Run demo-mode browser tests
         run: node tests/e2e.js
         env:
