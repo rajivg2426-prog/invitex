@@ -73,6 +73,7 @@ create table if not exists public.rsvps (
   requirements    text default '' check (char_length(requirements) <= 500),
   message         text default '' check (char_length(message) <= 1000),
   event_ids       text[] not null default '{}',
+  answers         jsonb not null default '{}'::jsonb,  -- answers to the host's own RSVP questions {questionId: text}
   lang            text default 'en',
   consent         boolean not null default false,
   edit_token_hash text,
@@ -81,6 +82,8 @@ create table if not exists public.rsvps (
   created_at      timestamptz not null default now(),
   updated_at      timestamptz not null default now()
 );
+-- v2.4: answers to the host's own RSVP questions (safe to re-run on an existing database)
+alter table public.rsvps add column if not exists answers jsonb not null default '{}'::jsonb;
 create index if not exists rsvps_inv_idx on public.rsvps(invitation_id);
 -- one RSVP per personal invite, and one per mobile number per invitation (duplicate prevention)
 create unique index if not exists rsvps_one_per_guest on public.rsvps(invitation_id, guest_id) where guest_id is not null;
@@ -197,7 +200,7 @@ create or replace function public.get_rsvp_by_edit_token(p_slug text, p_edit_tok
 returns jsonb language sql security definer set search_path = public, extensions stable as $$
   select to_jsonb(x) from (
     select r.ref, r.name, r.phone, r.email, r.status, r.adults, r.children, r.extra_names as "extraNames",
-           r.food, r.requirements, r.message, r.event_ids as "eventIds", r.consent, r.lang
+           r.food, r.requirements, r.message, r.event_ids as "eventIds", r.consent, r.lang, r.answers
       from rsvps r join invitations i on i.id = r.invitation_id
      where i.slug = lower(p_slug) and r.edit_token_hash = encode(digest(p_edit_token, 'sha256'), 'hex')
   ) x;
@@ -212,6 +215,7 @@ declare
   v_adults int := least(greatest(coalesce((p_payload->>'adults')::int, 0), 0), 50);
   v_children int := least(greatest(coalesce((p_payload->>'children')::int, 0), 0), 50);
   v_heads int; v_limit int; v_used int; v_ref text; v_token text; v_phone text; v_hash text;
+  v_answers jsonb;
 begin
   select * into inv from invitations where slug = lower(p_slug) and status = 'published';
   if not found then return jsonb_build_object('status','error','code','notFound'); end if;
@@ -232,6 +236,17 @@ begin
   if v_status = 'no' then v_adults := 0; v_children := 0; end if;
   v_heads := v_adults + v_children;
   if v_status = 'yes' and v_heads < 1 then return jsonb_build_object('status','error','code','needPeople'); end if;
+
+  -- the host's own questions: keep at most 5 short answers, and require the ones marked required (not for "no")
+  select coalesce(jsonb_object_agg(a.key, left(trim(a.value), 300)), '{}'::jsonb) into v_answers
+    from (select key, value from jsonb_each_text(case when jsonb_typeof(p_payload->'answers') = 'object' then p_payload->'answers' else '{}'::jsonb end)
+           where key ~ '^[A-Za-z0-9_-]{1,40}$' and trim(value) <> '' limit 5) a;
+  if v_status <> 'no' and exists (
+       select 1 from jsonb_array_elements(case when jsonb_typeof(inv.published #> '{settings,questions}') = 'array'
+                                               then inv.published #> '{settings,questions}' else '[]'::jsonb end) q
+        where coalesce((q->>'required')::boolean, false) and trim(coalesce(q->>'label', '')) <> ''
+          and coalesce(v_answers->>(q->>'id'), '') = '') then
+    return jsonb_build_object('status','error','code','needAnswer'); end if;
 
   if p_guest_token is not null then select * into g from guests where token = p_guest_token and invitation_id = inv.id; end if;
 
@@ -257,7 +272,8 @@ begin
       status = v_status, adults = v_adults, children = v_children, extra_names = left(coalesce(p_payload->>'extraNames',''),500),
       food = coalesce(p_payload->>'food',''), requirements = left(coalesce(p_payload->>'requirements',''),500),
       message = left(coalesce(p_payload->>'message',''),1000), lang = coalesce(p_payload->>'lang','en'),
-      event_ids = coalesce((select array_agg(x) from jsonb_array_elements_text(p_payload->'eventIds') x), '{}')
+      event_ids = coalesce((select array_agg(x) from jsonb_array_elements_text(p_payload->'eventIds') x), '{}'),
+      answers = v_answers
      where id = existing.id;
     return jsonb_build_object('status','ok','ref', existing.ref, 'editToken', p_edit_token, 'updated', true);
   end if;
@@ -265,11 +281,11 @@ begin
   v_ref := 'IVX-' || upper(substr(encode(gen_random_bytes(6), 'hex'), 1, 6));
   v_token := encode(gen_random_bytes(18), 'hex');
   insert into rsvps(invitation_id, guest_id, ref, name, phone, email, status, adults, children, extra_names, food,
-                    requirements, message, event_ids, lang, consent, edit_token_hash)
+                    requirements, message, event_ids, answers, lang, consent, edit_token_hash)
   values (inv.id, g.id, v_ref, left(trim(p_payload->>'name'),120), left(p_payload->>'phone',20), nullif(left(p_payload->>'email',160),''),
           v_status, v_adults, v_children, left(coalesce(p_payload->>'extraNames',''),500), coalesce(p_payload->>'food',''),
           left(coalesce(p_payload->>'requirements',''),500), left(coalesce(p_payload->>'message',''),1000),
-          coalesce((select array_agg(x) from jsonb_array_elements_text(p_payload->'eventIds') x), '{}'),
+          coalesce((select array_agg(x) from jsonb_array_elements_text(p_payload->'eventIds') x), '{}'), v_answers,
           coalesce(p_payload->>'lang','en'), true, encode(digest(v_token, 'sha256'), 'hex'));
   return jsonb_build_object('status','ok','ref', v_ref, 'editToken', v_token, 'updated', false);
 exception when unique_violation then

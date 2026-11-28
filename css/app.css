@@ -1217,3 +1217,7 @@ main:has(.ax) { max-width: 1400px; }
 .ix-reference-swatches { display:flex; flex-wrap:wrap; gap:.75rem; }
 .ix-reference-swatches span { display:grid; gap:.25rem; font-size:.75rem; }
 .ix-reference-swatches i { display:block; width:64px; height:40px; border:1px solid #888; border-radius:6px; }
+
+/* Share step: host's own RSVP questions and the "Updated" notice (v2.4) */
+.q-row { border: 1px solid var(--line); border-radius: 12px; padding: .75rem; display: grid; gap: .5rem; }
+.upd-notice { border: 1px dashed var(--line); border-radius: 12px; padding: .75rem; }

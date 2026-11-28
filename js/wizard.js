@@ -1569,6 +1569,12 @@
       </div>
       <div class="card stack"><h2>${inv.status === 'published' ? 'Your invitation is live' : 'Ready to publish?'}</h2>
         ${issues.length ? issues.map(([k, m]) => `<div class="notice ${k}">${k === 'bad' ? '✕' : '⚠'} ${esc(m)}</div>`).join('') : '<div class="notice ok">✔ Everything looks good.</div>'}
+        ${inv.status === 'published' && H.hasUnpublished(inv) ? `<div class="stack-sm upd-notice">
+          <label class="check"><input type="checkbox" id="updShow" ${(inv.updateNotice || {}).show !== false ? 'checked' : ''}> Show guests an “Updated” notice</label>
+          <div class="field" id="updNoteRow" ${(inv.updateNotice || {}).show !== false ? '' : 'hidden'}><label for="updNote">What changed? <span class="muted">(optional)</span></label>
+            <input class="input" id="updNote" maxlength="200" placeholder="e.g. The reception now starts at 7:30 pm" value="${esc((inv.updateNotice || {}).note || '')}">
+            <span class="hint">Guests see this at the top of the invitation until they close it. Leave it empty and they see “The host has updated this invitation”.</span></div>
+        </div>` : ''}
         ${inv.status !== 'published' || H.hasUnpublished(inv) ? `<button class="btn gold lg" id="pubBig">🚀 ${inv.status === 'published' ? 'Update published invitation' : 'Publish invitation'}</button>` : ''}
         ${inv.status === 'published' ? `<div class="notice ${H.hasUnpublished(inv) ? 'warn' : 'ok'}">${H.hasUnpublished(inv) ? 'You have edits that guests cannot see yet. Press <b>Update published invitation</b> to make them live.' : 'Guests are seeing the latest version.'}</div>
           <div class="copyrow"><input class="input" readonly value="${esc(link)}" aria-label="Invitation link"><button class="btn" data-copy="${esc(link)}">Copy</button></div>
@@ -1588,6 +1594,11 @@
         <label class="check"><input type="checkbox" data-k="settings.askFood"> Ask for food preference</label>
         <label class="check"><input type="checkbox" data-k="settings.askEvents"> Let guests choose which events they will attend</label>
         <label class="check"><input type="checkbox" data-k="settings.whatsappToHost"> After RSVP, offer guests a button to also send their reply to the contact number on WhatsApp</label>
+        <div class="stack-sm" id="qEditor"><h3 style="margin:.4rem 0 0">Your own questions</h3>
+          <p class="tiny muted" style="margin:0">Ask anything else you need, for example “Arriving by train or car?” or “Song request”. Up to ${M.MAX_QUESTIONS}. Required questions appear above the reply buttons; the rest stay under “Add details”, so replying is still one tap.</p>
+          <div class="stack-sm" id="qList"></div>
+          <div class="row"><button type="button" class="btn sm" id="qAdd">+ Add a question</button></div>
+        </div>
       </div>
       <div class="stack"><h2>Privacy &amp; expiry</h2>
         <div class="row"><label class="check"><input type="checkbox" id="pwOn" ${s.passwordProtected ? 'checked' : ''}> Password-protect this invitation</label><span class="pill ${s.passwordProtected ? 'ok' : ''}">${s.passwordProtected ? 'Password set' : 'Public link'}</span></div>
@@ -1612,6 +1623,7 @@
     }, 350);
     slugIn.addEventListener('input', () => { slugIn.value = slugIn.value.toLowerCase().replace(/\s+/g, '-'); checkSlug(); });
     if (!inv.slug) { slugIn.value = IX.slugify(M.txt(inv, 'en', 'title') || M.txt(inv, inv.defaultLang, 'title')) || ''; if (slugIn.value) checkSlug(); }
+    wireQuestions(body, inv);
     body.querySelector('#pwOn').onchange = async (e) => {
       body.querySelector('#pwRow').hidden = !e.target.checked;
       if (!e.target.checked && s.passwordProtected) { await H.store.setPassword(inv, null); changed(); IX.toast('Password removed', 'ok'); step6(body); }
@@ -1625,11 +1637,51 @@
     };
     body.querySelectorAll('[data-copy]').forEach((b) => (b.onclick = async () => { await IX.copy(b.dataset.copy); IX.toast('Link copied', 'ok'); }));
     const pb = body.querySelector('#pubBig'); if (pb) pb.onclick = () => publish();
+    const updShow = body.querySelector('#updShow'), updNote = body.querySelector('#updNote');
+    const setNotice = () => { inv.updateNotice = { show: updShow.checked, note: updNote.value.slice(0, 200) }; body.querySelector('#updNoteRow').hidden = !updShow.checked; changed(false, false); };
+    if (updShow) { updShow.onchange = setNotice; updNote.oninput = setNotice; }
     const up = body.querySelector('#unpub');
     if (up) up.onclick = async () => {
       if (!(await H.confirm('Unpublish?', 'Guests will no longer be able to open the invitation. Your design and RSVPs are kept.', 'Unpublish', true))) return;
       await H.store.unpublish(inv); IX.toast('Invitation unpublished'); goStep(NSTEPS);
     };
+  }
+
+  /* Host's own RSVP questions (Share step → More options). */
+  function wireQuestions(body, inv) {
+    const list = body.querySelector('#qList'), add = body.querySelector('#qAdd');
+    if (!list) return;
+    const qs = () => (inv.settings.questions = Array.isArray(inv.settings.questions) ? inv.settings.questions : []);
+    const draw = () => {
+      list.innerHTML = qs().map((q, i) => `<div class="q-row card-sub" data-i="${i}">
+        <div class="field"><label for="q-l-${i}">Question ${i + 1}</label><input class="input" id="q-l-${i}" data-f="label" maxlength="160" value="${esc(q.label || '')}" placeholder="e.g. Arriving by train or car?"></div>
+        <div class="row">
+          <select class="input" data-f="type" aria-label="Answer type for question ${i + 1}" style="max-width:220px"><option value="text" ${q.type !== 'choice' ? 'selected' : ''}>Short answer</option><option value="choice" ${q.type === 'choice' ? 'selected' : ''}>Pick one option</option></select>
+          <label class="check"><input type="checkbox" data-f="required" ${q.required ? 'checked' : ''}> Required</label>
+          <button type="button" class="btn sm danger ghost" data-del="${i}" aria-label="Remove question ${i + 1}">Remove</button>
+        </div>
+        ${q.type === 'choice' ? `<div class="field"><label for="q-o-${i}">Options, separated by commas</label><input class="input" id="q-o-${i}" data-f="options" maxlength="400" value="${esc(q.options || '')}" placeholder="Train, Car, Flight"></div>` : ''}
+      </div>`).join('') || '<p class="tiny muted" style="margin:0">No questions yet.</p>';
+      add.disabled = qs().length >= M.MAX_QUESTIONS;
+      list.querySelectorAll('.q-row').forEach((row) => {
+        const q = qs()[+row.dataset.i];
+        row.querySelectorAll('[data-f]').forEach((el) => {
+          el.addEventListener(el.tagName === 'SELECT' || el.type === 'checkbox' ? 'change' : 'input', () => {
+            q[el.dataset.f] = el.type === 'checkbox' ? el.checked : el.value;
+            changed(false);
+            if (el.dataset.f === 'type') draw();
+          });
+        });
+      });
+      list.querySelectorAll('[data-del]').forEach((b) => (b.onclick = () => { qs().splice(+b.dataset.del, 1); changed(false); draw(); }));
+    };
+    add.onclick = () => {
+      if (qs().length >= M.MAX_QUESTIONS) return;
+      qs().push({ id: IX.uid('q'), label: '', type: 'text', options: '', required: false });
+      changed(false); draw();
+      list.querySelector('.q-row:last-child input')?.focus();
+    };
+    draw();
   }
 
   async function publish() {
@@ -1638,10 +1690,15 @@
     if (hard.length) { goStep(NSTEPS); return IX.toast(hard[0][1], 'bad', 5000); }
     try {
       await save();
+      const wasLive = !!inv.published;
       const saved = await H.store.publish(inv);
-      W.inv.published = saved.published; W.inv.status = 'published'; W.inv.publishedAt = saved.publishedAt;
+      W.inv.published = saved.published; W.inv.status = 'published'; W.inv.publishedAt = saved.publishedAt; W.inv.updateNotice = saved.updateNotice;
       W.dirty = false;
-      IX.toast('🎉 Invitation published! Guests now see this version.', 'ok', 4500);
+      IX.toast(wasLive
+        ? (saved.published.lastUpdate && saved.published.lastUpdate.at === saved.published.publishedVersionAt
+          ? '✔ Updated. Guests see an “Updated” notice. To tell them now, send a reminder from the Share tab.'
+          : '✔ Updated quietly. Guests see the new version without a notice.')
+        : '🎉 Invitation published! Guests now see this version.', 'ok', 6000);
       goStep(NSTEPS);
     } catch (e) { IX.toast(e.message, 'bad', 5000); }
   }

@@ -363,7 +363,16 @@ begin
       'coming',      (select coalesce(sum(adults + children), 0) from rsvps where status = 'yes'),
       'ai_requests', (select count(*) from ai_generations),
       'ai_failed',   (select count(*) from ai_generations where not ok),
-      'ai_images',   (select coalesce(sum(images), 0) from ai_generations)
+      'ai_images',   (select coalesce(sum(images), 0) from ai_generations),
+      -- time-to-first-invitation: minutes from creating an account's first published invitation to
+      -- publishing it, median over accounts whose first publish was in the last 30 days
+      'ttfi_median_min', (select round((percentile_cont(0.5) within group (order by extract(epoch from f.published_at - f.created_at) / 60))::numeric, 1)
+                            from (select distinct on (owner_id) created_at, published_at from invitations
+                                   where published_at is not null order by owner_id, published_at) f
+                           where f.published_at > now() - interval '30 days' and f.published_at >= f.created_at),
+      'ttfi_hosts',      (select count(*) from (select distinct on (owner_id) published_at from invitations
+                                   where published_at is not null order by owner_id, published_at) f
+                           where f.published_at > now() - interval '30 days')
     ),
     'ai_by_provider', coalesce((select jsonb_object_agg(coalesce(provider, 'unknown'), imgs) from (
         select provider, sum(images) as imgs from ai_generations group by provider) s), '{}'::jsonb),
@@ -377,7 +386,11 @@ begin
         'created',   (select count(*) from invitations where created_at >= w and created_at < w + interval '7 days'),
         'published', (select count(*) from invitations where published_at >= w and published_at < w + interval '7 days'),
         'replies',   (select count(*) from rsvps where created_at >= w and created_at < w + interval '7 days'),
-        'ai_images', (select coalesce(sum(images), 0) from ai_generations where created_at >= w and created_at < w + interval '7 days')
+        'ai_images', (select coalesce(sum(images), 0) from ai_generations where created_at >= w and created_at < w + interval '7 days'),
+        'ttfi_min',  (select round((percentile_cont(0.5) within group (order by extract(epoch from f.published_at - f.created_at) / 60))::numeric, 1)
+                        from (select distinct on (owner_id) created_at, published_at from invitations
+                               where published_at is not null order by owner_id, published_at) f
+                       where f.published_at >= w and f.published_at < w + interval '7 days' and f.published_at >= f.created_at)
       ) order by w)
       from generate_series(v_start::timestamptz, date_trunc('week', now()), interval '7 days') w)
   );

@@ -378,3 +378,13 @@ body.is-print .ix-callig-card svg { filter: none; }
 .op-envelope.opening .ix-seal{opacity:0}.op-envelope.opening .ix-motion-flap{transform:rotateX(180deg)}.op-envelope.opening .ix-motion-letter{transform:translateY(-55%)}
 .op-envelope.opening .ix-op-left{transition-delay:.5s;transition-duration:.7s}
 @media(prefers-reduced-motion:reduce){.ix-motion-envelope *,.op-envelope .ix-op-center,.op-envelope .ix-op-left,.op-envelope .ix-seal{transition:none!important;animation:none!important}}
+
+/* "Updated" notice after the host republishes (v2.4) */
+.ix-updated { position: relative; z-index: 3; margin: calc(max(10px, env(safe-area-inset-top)) + 3.4rem) auto 0; max-width: 34rem; width: calc(100% - 2rem); padding: .8rem 2.6rem .8rem 1rem;
+  background: var(--surface, #fff); color: var(--text, #222); border: 1px solid var(--accent, #a33); border-left-width: 4px; border-radius: 12px;
+  box-shadow: 0 4px 18px rgba(0,0,0,.08); font-family: var(--f-body); font-size: .95rem; line-height: 1.45; }
+.ix-updated p { margin: 0; }
+.ix-updated-x { position: absolute; top: .35rem; right: .4rem; width: 2.25rem; height: 2.25rem; border: 0; background: transparent; color: inherit;
+  font-size: 1.4rem; line-height: 1; border-radius: 50%; cursor: pointer; }
+.ix-updated-x:focus-visible { outline: 2px solid var(--accent, #a33); outline-offset: 2px; }
+.ix-questions { display: grid; gap: .75rem; margin: .5rem 0; }

@@ -77,11 +77,12 @@
   // The language of WhatsApp / email messages. Only languages the invitation itself has are offered.
   const msgLangs = () => (D.inv.languages || ['en']).filter((l) => l === 'en' || LANG_TPL[l]);
   const msgLang = () => (msgLangs().includes(D.inv.shareLang) ? D.inv.shareLang : msgLangs().includes(D.inv.defaultLang) ? D.inv.defaultLang : 'en');
-  function fill(tpl, guest) {
+  // toRsvp: the link opens straight on the reply form (used by reminders)
+  function fill(tpl, guest, toRsvp = false) {
     const inv = D.inv, ev = (inv.events || []).find((e) => e.date) || inv.events[0] || {};
     const tz = inv.timezone, l = msgLang();
     const extra = l === (inv.defaultLang || 'en') ? {} : { lang: l };
-    const link = guest && guest.token ? IX.inviteUrl(inv.slug, { g: guest.token, ...extra }) : IX.inviteUrl(inv.slug, extra);
+    const link = (guest && guest.token ? IX.inviteUrl(inv.slug, { g: guest.token, ...extra }) : IX.inviteUrl(inv.slug, extra)) + (toRsvp ? '#rsvp' : '');
     return tpl
       .replace(/\{name\}/g, guest ? guest.name : l === 'en' ? 'friend' : LANG_TPL[l].friend)
       .replace(/\{event\}/g, M.txt(inv, l, 'title') || M.txt(inv, 'en', 'title') || M.txt(inv, inv.defaultLang, 'title'))
@@ -179,7 +180,7 @@
         <td class="small">${r.status === 'no' ? '—' : (r.eventIds && r.eventIds.length ? r.eventIds.map(evName).filter(Boolean).map(esc).join(', ') : 'All')}</td>
         <td class="small">${esc(FOOD[r.food] || '')}</td>
         <td class="small"><span class="phone" data-full="${esc(r.phone)}">${esc(IX.maskPhone(r.phone))}</span>${r.email ? `<div class="tiny">${esc(r.email)}</div>` : ''}</td>
-        <td class="small" style="max-width:220px">${r.requirements ? `<div><b>Needs:</b> ${esc(r.requirements)}</div>` : ''}${r.message ? `<div class="muted">“${esc(r.message)}”</div>` : ''}</td>
+        <td class="small" style="max-width:220px">${r.requirements ? `<div><b>Needs:</b> ${esc(r.requirements)}</div>` : ''}${answersHTML(r)}${r.message ? `<div class="muted">“${esc(r.message)}”</div>` : ''}</td>
         <td class="tiny"><code>${esc(r.ref)}</code><div class="muted">${esc(new Date(r.updatedAt).toLocaleString())}</div></td>
         ${actions ? `<td class="acts no-print"><button class="btn sm" data-edit="${esc(r.id)}">Edit</button> <button class="btn sm danger ghost" data-delr="${esc(r.id)}" aria-label="Delete response">✕</button></td>` : ''}
       </tr>`).join('')}</tbody></table>`;
@@ -215,13 +216,19 @@
       await H.store.deleteRsvp(b.dataset.delr); await reload(); renderTab();
     }));
   }
+  // Answers to the host's own questions, labelled with the current question wording.
+  function answersHTML(r) {
+    const a = r.answers || {};
+    return M.rsvpQuestions(D.inv).filter((q) => a[q.id]).map((q) => `<div><b>${esc(q.label)}:</b> ${esc(a[q.id])}</div>`).join('');
+  }
   function exportCSV() {
     const evName = (id) => (D.inv.events.find((e) => e.id === id) || {}).name || '';
     const gName = (id) => (D.guests.find((g) => g.id === id) || {}).name || '';
-    const rows = [['Reference', 'Guest name', 'Mobile', 'Email', 'Response', 'Adults', 'Children', 'Total attendees', 'Events', 'Food preference', 'Additional guests', 'Special requirements', 'Message to host', 'Checked in', 'Personal invite', 'Language', 'First response', 'Last updated']];
+    const qs = M.rsvpQuestions(D.inv);
+    const rows = [['Reference', 'Guest name', 'Mobile', 'Email', 'Response', 'Adults', 'Children', 'Total attendees', 'Events', 'Food preference', 'Additional guests', 'Special requirements', 'Message to host', 'Checked in', 'Personal invite', 'Language', 'First response', 'Last updated', ...qs.map((q) => q.label)]];
     D.rsvps.forEach((r) => {
       const n = r.status === 'no';
-      rows.push([r.ref, r.name, r.phone, r.email, STATUS[r.status], n ? 0 : r.adults, n ? 0 : r.children, n ? 0 : r.adults + r.children, n ? '' : (r.eventIds && r.eventIds.length ? r.eventIds.map(evName).join('; ') : 'All'), FOOD[r.food] || '', r.extraNames, r.requirements, r.message, r.checkedInAt ? new Date(r.checkedInAt).toLocaleString() : '', gName(r.guestId), r.lang || '', new Date(r.createdAt).toLocaleString(), new Date(r.updatedAt).toLocaleString()]);
+      rows.push([r.ref, r.name, r.phone, r.email, STATUS[r.status], n ? 0 : r.adults, n ? 0 : r.children, n ? 0 : r.adults + r.children, n ? '' : (r.eventIds && r.eventIds.length ? r.eventIds.map(evName).join('; ') : 'All'), FOOD[r.food] || '', r.extraNames, r.requirements, r.message, r.checkedInAt ? new Date(r.checkedInAt).toLocaleString() : '', gName(r.guestId), r.lang || '', new Date(r.createdAt).toLocaleString(), new Date(r.updatedAt).toLocaleString(), ...qs.map((q) => (r.answers || {})[q.id] || '')]);
     });
     const s = D.stats;
     rows.push([], ['TOTALS', '', '', '', `Yes ${s.yes} / No ${s.no} / Maybe ${s.maybe}`, s.adults, s.children, s.attendees]);
@@ -245,16 +252,19 @@
         ${inv.events.length > 1 ? `<div class="field"><span class="lbl">Events attending</span><div class="row">${inv.events.map((e) => `<label class="check"><input type="checkbox" name="eventIds" value="${esc(e.id)}" ${!x.eventIds.length || x.eventIds.includes(e.id) ? 'checked' : ''}>${esc(e.name)}</label>`).join('')}</div></div>` : ''}
         <div class="field"><label for="e-x">Additional guest names</label><input class="input" id="e-x" name="extraNames" value="${esc(x.extraNames)}"></div>
         <div class="field"><label for="e-r">Special requirements</label><input class="input" id="e-r" name="requirements" value="${esc(x.requirements)}"></div>
+        ${M.rsvpQuestions(inv).map((q, i) => `<div class="field"><label for="e-q${i}">${esc(q.label)}</label><input class="input" id="e-q${i}" name="q_${esc(q.id)}" maxlength="300" value="${esc((x.answers || {})[q.id] || '')}"></div>`).join('')}
         <div class="field"><label for="e-m">Message</label><textarea class="input" id="e-m" name="message">${esc(x.message)}</textarea></div>
         <p class="err" id="e-err" hidden></p></form>`,
       actions: [{ label: 'Cancel', value: null }, {
         label: 'Save', cls: 'primary', onClick: async (m) => {
           const fd = new FormData(m.querySelector('#ef'));
-          const p = { name: fd.get('name'), phone: fd.get('phone'), email: fd.get('email'), status: fd.get('status'), adults: IX.int(fd.get('adults')), children: IX.int(fd.get('children')), food: fd.get('food'), extraNames: fd.get('extraNames'), requirements: fd.get('requirements'), message: fd.get('message'), eventIds: fd.getAll('eventIds'), consent: true };
+          const p = { name: fd.get('name'), phone: fd.get('phone'), email: fd.get('email'), status: fd.get('status'), adults: IX.int(fd.get('adults')), children: IX.int(fd.get('children')), food: fd.get('food'), extraNames: fd.get('extraNames'), requirements: fd.get('requirements'), message: fd.get('message'), eventIds: fd.getAll('eventIds'), consent: true,
+            answers: M.rsvpQuestions(inv).reduce((a, q) => { const v = String(fd.get('q_' + q.id) || '').trim(); if (v) a[q.id] = v; return a; }, { ...(x.answers || {}) }) };
+          M.rsvpQuestions(inv).forEach((q) => { if (!String(fd.get('q_' + q.id) || '').trim()) delete p.answers[q.id]; });
           const err = M.validateRsvp(p);
           if (err) { const e = m.querySelector('#e-err'); e.textContent = window.ixT('en', err); e.hidden = false; return false; }
           const c = M.cleanRsvp(p);
-          await H.store.hostSaveRsvp({ ...x, ...c, phoneNorm: IX.normPhone(c.phone) });
+          await H.store.hostSaveRsvp({ ...x, ...c, phoneNorm: IX.normPhone(c.phone), clearAnswers: Object.keys(x.answers || {}).length > 0 });
           await reload(); renderTab(); IX.toast('Response saved', 'ok');
         },
       }],
@@ -413,7 +423,7 @@
     const mark = async (id, field) => { const g = D.guests.find((x) => x.id === id); g[field] = new Date().toISOString(); await H.store.saveGuest(g); await reload(); guests(body); };
     const track = (gid, ch, action) => window.IXCampaign && IXCampaign.markShared(gid, ch, action);
     body.querySelectorAll('[data-wa]').forEach((b) => (b.onclick = () => { const g = D.guests.find((x) => x.id === b.dataset.wa); window.open(IX.whatsappUrl(fill(tpl(), g), g.phone), '_blank', 'noopener'); track(g.id, 'whatsapp'); mark(g.id, 'sentAt'); }));
-    body.querySelectorAll('[data-rem]').forEach((b) => (b.onclick = () => { const g = D.guests.find((x) => x.id === b.dataset.rem); window.open(IX.whatsappUrl(fill(remTpl(), g), g.phone), '_blank', 'noopener'); track(g.id, 'whatsapp'); mark(g.id, 'remindedAt'); }));
+    body.querySelectorAll('[data-rem]').forEach((b) => (b.onclick = () => { const g = D.guests.find((x) => x.id === b.dataset.rem); window.open(IX.whatsappUrl(fill(remTpl(), g, true), g.phone), '_blank', 'noopener'); track(g.id, 'whatsapp'); mark(g.id, 'remindedAt'); }));
     body.querySelectorAll('[data-mail]').forEach((a) => a.addEventListener('click', () => { track(a.dataset.mail, 'email'); mark(a.dataset.mail, 'sentAt'); }));
     body.querySelectorAll('[data-cp]').forEach((b) => (b.onclick = async () => { await IX.copy(b.dataset.cp); IX.toast('Personal link copied', 'ok'); const g = D.guests.find((x) => b.dataset.cp.includes(x.token)); if (g) track(g.id, 'copy', 'link'); }));
     body.querySelectorAll('[data-dg]').forEach((b) => (b.onclick = async () => {

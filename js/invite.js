@@ -83,7 +83,14 @@
     }
     const want = params.get('lang') || lsGet('ivx-lang-' + slug);
     S.lang = (S.inv.languages || ['en']).includes(want) ? want : S.inv.defaultLang || 'en';
-    render(false);
+    // Deep link to the reply form (reminders use it): skip the opening animation and land on RSVP.
+    const toRsvp = location.hash === '#rsvp' || params.get('to') === 'rsvp';
+    if (toRsvp && S.inv.settings.rsvpEnabled && S.inv.design.sections.rsvp !== false) S.opened = true;
+    await render(false);
+    if (toRsvp) {
+      const box = document.getElementById('sec-rsvp');
+      if (box) { box.scrollIntoView({ block: 'start' }); box.querySelector('.ix-yes, #thanks')?.focus({ preventScroll: true }); }
+    }
   }
 
   function fatal(title, msg) {
@@ -180,7 +187,7 @@
       ${topBar(inv)}
       ${bg ? `<div class="ix-bgimg ${inv.design.bgMode === 'soft' ? '' : 'full'}" style="background-image:url('${esc(bg)}')" aria-hidden="true"></div>` : ''}
       ${motif.top ? `<div class="ix-toran" aria-hidden="true">${motif.top}</div>` : ''}
-      <main id="main" class="ix-page ${S.opened ? 'opened' : ''}">${html}
+      <main id="main" class="ix-page ${S.opened ? 'opened' : ''}">${updatedBanner(inv)}${html}
         <footer class="ix-foot">${S.store && S.store.mode === 'local' && !isPreview ? `<p class="ix-demo">${esc(t('demoNote'))}</p>` : ''}<p>Made with InviteX</p></footer>
       </main>
       ${rsvpFab(inv)}
@@ -189,6 +196,20 @@
     wire(ctx);
     if (keepScroll) window.scrollTo(0, scrollY);
     if (isPrint) setTimeout(() => window.print(), 900);
+  }
+
+  /* "Updated" notice after the host republishes with changes. The note is the host's own
+   * words; without one, a general line asks guests to check the details again. A guest can
+   * close it, and it stays closed on this phone until the next update. */
+  function updatedBanner(inv) {
+    const u = inv.lastUpdate;
+    if (!u || !u.at || isPrint || isPreview) return '';
+    if (lsGet('ivx-upd-' + slug) === u.at) return '';
+    const day = new Date(u.at);
+    const date = isNaN(day) ? '' : IX.fmtDate(day, inv.timezone, S.lang, { day: 'numeric', month: 'long', timeZone: inv.timezone || 'Asia/Kolkata' });
+    return `<div class="ix-updated" id="ixUpdated" role="status">
+      <p><b>${esc(t('updatedOn', { date }))}</b><br>${esc(u.note || t('updatedGeneric'))}</p>
+      <button type="button" class="ix-updated-x" id="ixUpdatedX" aria-label="${esc(t('close'))}">×</button></div>`;
   }
 
   function topBar(inv) {
@@ -457,6 +478,7 @@
         ${limit === 1 ? '<input type="hidden" name="adults" value="1">' : `
           <div class="ix-howmany"><span id="lbl-adults">${esc(t('howMany'))}</span>
             <div class="ix-stepper" role="group" aria-labelledby="lbl-adults"><button type="button" data-step="adults" data-d="-1" aria-label="−">−</button><input class="ix-input" type="number" inputmode="numeric" min="1" max="${limit || 50}" name="adults" value="${esc(limit ? Math.min(heads, limit) : heads)}" aria-labelledby="lbl-adults"><button type="button" data-step="adults" data-d="1" aria-label="+">+</button></div></div>`}
+        ${questionsHTML(inv, ex, true)}
         ${detailsHTML(inv, ex, limit)}
         <p class="ix-error" id="rsvpErr" role="alert" hidden></p>
         <button class="ix-btn ix-btn-primary ix-submit ix-yes" type="button" data-status="yes" ${isPreview ? 'disabled title="RSVP is disabled in preview"' : ''}>${ICON.check}${esc(t('confirmYes'))}</button>
@@ -475,7 +497,8 @@
   const namedEvents = (inv) => (inv.events || []).filter((e) => e.name);
   function detailsHTML(inv, ex, limit) {
     const evs = namedEvents(inv);
-    const has = !!(ex.children || ex.food || ex.extraNames || ex.requirements || ex.message);
+    const has = !!(ex.children || ex.food || ex.extraNames || ex.requirements || ex.message
+      || M.rsvpQuestions(inv).some((q) => !q.required && (ex.answers || {})[q.id]));
     const picked = (id) => !ex.eventIds || !ex.eventIds.length || ex.eventIds.includes(id);
     const foods = t('foodOpts') || {};
     return `<details class="ix-more" id="rsvpMore" ${has ? 'open' : ''}>
@@ -487,8 +510,24 @@
       <div class="ix-field"><label for="r-food">${esc(t('food'))}</label><select class="ix-input" id="r-food" name="food">${Object.entries(foods).map(([k, l]) => `<option value="${esc(k)}" ${(ex.food || '') === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>
       ${limit === 1 ? '' : `<div class="ix-field"><label for="r-extra">${esc(t('extraNames'))}</label><input class="ix-input" id="r-extra" name="extraNames" maxlength="500" value="${esc(ex.extraNames || '')}"></div>`}
       <div class="ix-field"><label for="r-req">${esc(t('requirements'))}</label><input class="ix-input" id="r-req" name="requirements" maxlength="500" value="${esc(ex.requirements || '')}"></div>
+      ${questionsHTML(inv, ex, false)}
       <div class="ix-field"><label for="r-msg">${esc(t('note'))}</label><textarea class="ix-input" id="r-msg" name="message" rows="3" maxlength="1000">${esc(ex.message || '')}</textarea></div>
     </details>`;
+  }
+
+  /* The host's own questions. Required ones sit above the reply buttons so they are not
+   * missed; optional ones stay inside "Add details", so replying is still one tap. */
+  function questionsHTML(inv, ex, required) {
+    const qs = M.rsvpQuestions(inv).filter((q) => q.required === required);
+    if (!qs.length) return '';
+    const ans = ex.answers || {};
+    return `<div class="ix-questions">${qs.map((q) => {
+      const id = 'rq-' + esc(q.id), name = 'q_' + esc(q.id), v = ans[q.id] || '';
+      const label = `${esc(q.label)}${q.required ? ' <span aria-hidden="true">*</span>' : ''}`;
+      return q.type === 'choice' && q.options.length
+        ? `<div class="ix-field"><label for="${id}">${label}</label><select class="ix-input" id="${id}" name="${name}" ${q.required ? 'aria-required="true"' : ''}><option value="">${esc(t('chooseOne'))}</option>${q.options.map((o) => `<option ${o === v ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></div>`
+        : `<div class="ix-field"><label for="${id}">${label}</label><input class="ix-input" id="${id}" name="${name}" maxlength="300" value="${esc(v)}" ${q.required ? 'aria-required="true"' : ''}></div>`;
+    }).join('')}</div>`;
   }
 
   function thanksHTML(r) {
@@ -562,11 +601,14 @@
         extraNames: val('extraNames', ex.extraNames), food: val('food', ex.food), requirements: val('requirements', ex.requirements), message: val('message', ex.message),
         eventIds: evIds && evIds.length ? evIds : ex.eventIds && ex.eventIds.length ? ex.eventIds : namedEvents(S.inv).map((e) => e.id),
         consent: true, lang: S.lang,
+        answers: M.rsvpQuestions(S.inv).reduce((a, q) => { const v = val('q_' + q.id, (ex.answers || {})[q.id]); if (v) a[q.id] = v; return a; }, {}),
       };
       if (p.name.length < 2) return showErr(t('needName'), f.elements.name.type === 'hidden' ? null : f.elements.name);
       if (!IX.validPhone(p.phone)) return showErr(t('invalidPhone'), f.elements.phone.type === 'hidden' ? null : f.elements.phone);
       if (status === 'yes' && coming < 1) return showErr(t('needPeople'), f.adults);
       if (status !== 'no' && limit && coming > limit) return showErr(t('maxParty', { n: limit }), f.adults);
+      const miss = M.missingAnswer(S.inv, p);
+      if (miss) { const fld = f.elements['q_' + miss.id]; if (fld && fld.closest('details')) fld.closest('details').open = true; return showErr(t('needAnswer'), fld); }
       busy = true;
       const label = btn.textContent;
       f.querySelectorAll('[data-status]').forEach((b) => (b.disabled = true));
@@ -705,6 +747,8 @@
     }
     wireRsvp();
     wireFab();
+    const ux = document.getElementById('ixUpdatedX');
+    if (ux) ux.onclick = () => { if (!isPreview) lsSet('ivx-upd-' + slug, inv.lastUpdate.at); document.getElementById('ixUpdated')?.remove(); };
   }
 
   boot();
