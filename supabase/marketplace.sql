@@ -396,6 +396,37 @@ language sql stable security definer set search_path = public as $$
   from public.designer_ledger where designer_id = p_designer;
 $$;
 
+-- Everything the designer page needs to decide what to show
+create or replace function public.my_designer_state() returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare v_uid uuid := public._mk_require_user(); s public.marketplace_settings := public._mk(); d public.designers; a public.designer_applications;
+begin
+  select * into d from public.designers where user_id = v_uid;
+  select * into a from public.designer_applications where user_id = v_uid order by created_at desc limit 1;
+  return jsonb_build_object(
+    'settings', jsonb_build_object('tiers', to_jsonb(s.price_tiers_paise), 'standard', s.share_standard_pct, 'exclusive', s.share_exclusive_pct,
+                                   'referral', s.share_referral_pct, 'bonus', s.pilot_bonus_pct, 'cap', s.share_cap_pct, 'agreement', s.agreement_version,
+                                   'threshold', s.payout_threshold_paise, 'pendingDays', s.pending_days),
+    'application', case when a.id is null then null else jsonb_build_object('status', a.status, 'note', a.review_note, 'at', a.created_at) end,
+    'designer', case when d.user_id is null then null else jsonb_build_object('name', d.display_name, 'slug', d.slug, 'status', d.status,
+                  'trust', d.trust_level, 'agreement', d.agreement_version, 'bonusUntil', d.pilot_bonus_until, 'referral', d.referral_code,
+                  'kyc', d.kyc_status, 'approvedCount', (select count(*) from public.designs x where x.designer_id = d.user_id and x.approved_at is not null)) end,
+    'balance', case when d.user_id is null then null else public._mk_balance(d.user_id) end);
+end $$;
+
+create or replace function public.designer_designs() returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare d public.designers := public._mk_require_designer();
+begin
+  return coalesce((select jsonb_agg(jsonb_build_object('id', g.id, 'title', g.title, 'occasion', g.occasion, 'styleTags', g.style_tags, 'tags', g.tags,
+            'languages', g.languages, 'price', g.price_paise, 'exclusive', g.exclusive, 'pages', g.pages, 'palettes', g.palettes, 'fonts', g.font_pairing,
+            'phash', g.phash, 'sourcePath', g.source_path, 'aiUse', g.ai_use, 'status', g.status, 'reviewNote', g.review_note,
+            'sales', (select count(*) from public.designer_ledger l where l.design_id = g.id and l.kind = 'sale'),
+            'earned', (select coalesce(sum(amount_paise), 0) from public.designer_ledger l where l.design_id = g.id and l.kind in ('sale','refund','chargeback')),
+            'updatedAt', g.updated_at) order by g.updated_at desc)
+     from public.designs g where g.designer_id = d.user_id), '[]'::jsonb);
+end $$;
+
 -- ---------------------------------------------------------------------
 -- Host side: browsing and owning designs
 -- ---------------------------------------------------------------------
@@ -661,7 +692,7 @@ do $$ declare f text; begin
   end loop;
   foreach f in array array[
     'public.designer_apply(jsonb)', 'public.designer_accept_agreement(text)', 'public.designer_save_design(jsonb)',
-    'public.designer_submit_design(uuid,jsonb)', 'public.designer_balance()', 'public.my_design(uuid)', 'public.my_design_licenses()',
+    'public.designer_submit_design(uuid,jsonb)', 'public.designer_balance()', 'public.my_designer_state()', 'public.designer_designs()', 'public.my_design(uuid)', 'public.my_design_licenses()',
     'public.admin_designer_applications(text)', 'public.admin_decide_application(uuid,boolean,text,int)', 'public.admin_design_queue(text)',
     'public.admin_review_design(uuid,text,text,text)', 'public.admin_queue_payouts(text)', 'public.admin_settle_payout(uuid,boolean,text,text)'] loop
     execute format('revoke all on function %s from public, anon', f);

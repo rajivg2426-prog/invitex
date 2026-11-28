@@ -156,6 +156,8 @@
         <li><b>Share</b> – in the RSVP dashboard add guests and send each a personal WhatsApp link, or share one general link / QR code.</li>
         <li><b>Track</b> – watch confirmed attendees, adults/children, food preferences and event-wise numbers; export to CSV/Excel or print.</li>
       </ol>
+      <h2>Are you a designer?</h2>
+      <p>Designers living in India can sell invitation designs on InviteX and earn 60–80% of each sale after GST and fees. <a href="#/designer">Apply to design for InviteX</a>.</p>
       <h2>About WhatsApp</h2>
       <p>InviteX uses WhatsApp's official click-to-chat links. Pressing a WhatsApp button opens WhatsApp with the message ready — <b>you still press Send</b>. InviteX records that WhatsApp was opened, not that the message was delivered.</p>
       <h2>Demo vs Production mode</h2>
