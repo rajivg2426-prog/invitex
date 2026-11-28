@@ -436,7 +436,7 @@ returns jsonb language sql stable security definer set search_path = public as $
   select coalesce(jsonb_agg(x order by x->>'approvedAt' desc), '[]'::jsonb) from (
     select jsonb_build_object('id', g.id, 'title', g.title, 'occasion', g.occasion, 'styleTags', g.style_tags, 'tags', g.tags,
              'languages', g.languages, 'price', g.price_paise, 'designer', jsonb_build_object('name', d.display_name, 'slug', d.slug),
-             'previews', (select coalesce(jsonb_agg(jsonb_build_object('role', pg->>'role', 'preview', pg->>'preview')), '[]'::jsonb) from jsonb_array_elements(g.pages) pg),
+             'previews', (select coalesce(jsonb_agg(jsonb_build_object('role', pg->>'role', 'preview', pg->>'preview', 'zones', coalesce(pg->'zones', '[]'::jsonb), 'w', pg->'w', 'h', pg->'h')), '[]'::jsonb) from jsonb_array_elements(g.pages) pg),
              'palettes', g.palettes, 'fonts', g.font_pairing, 'approvedAt', g.approved_at,
              'owned', exists (select 1 from public.template_licenses l where l.design_id = g.id and l.user_id = auth.uid() and l.status = 'active')) x
       from public.designs g join public.designers d on d.user_id = g.designer_id
@@ -543,6 +543,148 @@ begin
           case when v_reverse then -e.amount_paise else 0 end, greatest(e.available_at, now()),  -- a reversal inside the window nets out of 'pending'
           case when v_reverse then p_cause || ': earning reversed' else p_cause || ': after the pending window, absorbed by InviteX' end);
   return jsonb_build_object('ok', true, 'reversed', case when v_reverse then e.amount_paise else 0 end);
+end $$;
+
+-- ---------------------------------------------------------------------
+-- Buying a design (Razorpay, through the "sharing-campaign" Edge Function)
+--   design_order → Razorpay order for the SERVER price → checkout → verify / webhook / reconcile
+--   → _svc_design_payment_apply → _svc_design_sale (licence + designer earning), once.
+-- Kept apart from payment_orders so the sharing-campaign money rules stay untouched.
+-- ---------------------------------------------------------------------
+create table if not exists public.design_orders (
+  id                uuid primary key default gen_random_uuid(),
+  user_id           uuid not null references auth.users(id) on delete cascade,
+  design_id         uuid not null references public.designs(id) on delete restrict,
+  referral_code     text,
+  provider          text not null default 'razorpay',
+  provider_order_id text,
+  amount_paise      int not null check (amount_paise > 0),
+  currency          text not null default 'INR',
+  status            text not null default 'creating' check (status in ('creating','created','attempted','paid','failed','expired','refund_due')),
+  is_test           boolean not null default true,
+  license_id        uuid references public.template_licenses(id),
+  provider_payment_id text,
+  error             text,
+  expires_at        timestamptz not null default now() + interval '12 hours',
+  paid_at           timestamptz,
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now()
+);
+create unique index if not exists design_orders_provider_order on public.design_orders(provider, provider_order_id) where provider_order_id is not null;
+create unique index if not exists design_orders_one_open on public.design_orders(user_id, design_id) where status in ('creating','created','attempted');
+alter table public.design_orders enable row level security;
+drop policy if exists mk_design_orders_own on public.design_orders;
+create policy mk_design_orders_own on public.design_orders for select to authenticated using (user_id = auth.uid());
+
+-- Before creating a Razorpay order: re-check and reserve the order row.
+create or replace function public._svc_design_order_prepare(p_user uuid, p_design uuid, p_referral text default null, p_provider text default 'razorpay') returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare g public.designs; o public.design_orders; v_mode text := public._svc_billing_mode();
+begin
+  if exists (select 1 from public.profiles where user_id = p_user and status = 'suspended') then return jsonb_build_object('status', 'suspended'); end if;
+  select * into g from public.designs where id = p_design;
+  if not found or g.status <> 'live' or not exists (select 1 from public.designers d where d.user_id = g.designer_id and d.status = 'active') then
+    return jsonb_build_object('status', 'not_found'); end if;
+  if exists (select 1 from public.template_licenses where design_id = g.id and user_id = p_user and status = 'active') then
+    return jsonb_build_object('status', 'owned'); end if;
+  update public.design_orders set status = 'expired', updated_at = now()
+   where user_id = p_user and design_id = g.id and status in ('created','attempted') and expires_at < now();
+  update public.design_orders set status = 'failed', error = coalesce(error, 'order creation timed out'), updated_at = now()
+   where user_id = p_user and design_id = g.id and status = 'creating' and created_at < now() - interval '2 minutes';
+  select * into o from public.design_orders where user_id = p_user and design_id = g.id and status in ('creating','created','attempted') for update;
+  if found then
+    if o.status = 'creating' then return jsonb_build_object('status', 'busy'); end if;
+    return jsonb_build_object('status', 'reuse', 'order_id', o.id, 'provider_order_id', o.provider_order_id, 'amount_paise', o.amount_paise,
+                              'currency', o.currency, 'is_test', o.is_test);
+  end if;
+  insert into public.design_orders(user_id, design_id, referral_code, provider, amount_paise, is_test)
+  values (p_user, g.id, nullif(left(p_referral, 40), ''), p_provider, g.price_paise, v_mode <> 'live')
+  returning * into o;
+  return jsonb_build_object('status', 'create', 'order_id', o.id, 'amount_paise', o.amount_paise, 'currency', o.currency,
+                            'is_test', o.is_test, 'receipt', 'd-' || left(o.id::text, 30), 'title', g.title);
+end $$;
+
+create or replace function public._svc_design_order_created(p_order uuid, p_provider_order_id text) returns void
+language sql security definer set search_path = public as $$
+  update public.design_orders set status = 'created', provider_order_id = p_provider_order_id, updated_at = now() where id = p_order and status = 'creating';
+$$;
+create or replace function public._svc_design_order_failed(p_order uuid, p_error text) returns void
+language sql security definer set search_path = public as $$
+  update public.design_orders set status = 'failed', error = left(p_error, 300), updated_at = now() where id = p_order and status = 'creating';
+$$;
+
+-- The latest order of a host for a design (verify / status buttons).
+create or replace function public._svc_design_order(p_user uuid, p_design uuid) returns jsonb
+language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('order_id', o.id, 'provider', o.provider, 'provider_order_id', o.provider_order_id, 'status', o.status, 'amount_paise', o.amount_paise)
+    from public.design_orders o
+   where o.user_id = p_user and o.design_id = p_design and o.provider_order_id is not null
+   order by (o.status in ('created','attempted','paid')) desc, o.created_at desc limit 1;
+$$;
+
+create or replace function public._svc_design_orders_to_reconcile(p_min_age_minutes int default 30) returns jsonb
+language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(jsonb_build_object('order_id', o.id, 'provider', o.provider, 'provider_order_id', o.provider_order_id)), '[]'::jsonb)
+    from public.design_orders o
+   where o.status in ('created','attempted') and o.provider_order_id is not null
+     and o.created_at < now() - make_interval(mins => p_min_age_minutes) and o.created_at > now() - interval '3 days';
+$$;
+
+-- What Razorpay says about one payment for a design order. Idempotent (checkout, webhook, reconcile).
+-- p_payment: { id, status, amount, currency, fee }. fee is Razorpay's fee including its GST, known once captured.
+-- Returns result: unknown_order | unlocked | already_unlocked | refund_due | failed | pending
+create or replace function public._svc_design_payment_apply(p_provider text, p_provider_order_id text, p_payment jsonb, p_via text) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare o public.design_orders; v_status text := p_payment->>'status'; v_amount int := coalesce((p_payment->>'amount')::int, 0);
+        v_fee int; r jsonb;
+begin
+  select * into o from public.design_orders where provider = p_provider and provider_order_id = p_provider_order_id for update;
+  if not found then return jsonb_build_object('result', 'unknown_order'); end if;
+  if v_status = 'captured' then
+    if o.status = 'paid' and o.provider_payment_id = p_payment->>'id' then return jsonb_build_object('result', 'already_unlocked', 'design_id', o.design_id); end if;
+    if v_amount <> o.amount_paise or coalesce(p_payment->>'currency', '') <> o.currency then
+      update public.design_orders set status = 'refund_due', provider_payment_id = p_payment->>'id', error = 'amount mismatch', updated_at = now() where id = o.id;
+      return jsonb_build_object('result', 'refund_due', 'design_id', o.design_id);
+    end if;
+    v_fee := coalesce((p_payment->>'fee')::int, round(v_amount * 0.0236)::int);   -- estimate until Razorpay reports the fee (2% + 18% GST)
+    r := public._svc_design_sale(o.user_id, o.design_id, v_amount, v_fee, p_provider, p_payment->>'id', o.referral_code);
+    if not (r->>'ok')::boolean then
+      update public.design_orders set status = 'refund_due', provider_payment_id = p_payment->>'id', error = r->>'code', updated_at = now() where id = o.id;
+      return jsonb_build_object('result', 'refund_due', 'code', r->>'code', 'design_id', o.design_id);
+    end if;
+    update public.design_orders set status = 'paid', paid_at = coalesce(paid_at, now()), provider_payment_id = p_payment->>'id',
+           license_id = (r->>'license')::uuid, updated_at = now() where id = o.id;
+    return jsonb_build_object('result', case when (r->>'already')::boolean then 'already_unlocked' else 'unlocked' end, 'design_id', o.design_id);
+  end if;
+  if o.status in ('paid','refund_due') then return jsonb_build_object('result', 'already_unlocked', 'design_id', o.design_id); end if;
+  update public.design_orders set status = 'attempted', updated_at = now() where id = o.id and status = 'created';
+  return jsonb_build_object('result', case when v_status = 'failed' then 'failed' else 'pending' end, 'design_id', o.design_id);
+end $$;
+
+-- A refund reported by Razorpay for a design payment: a full refund ends the licence
+-- (and reverses the designer's earning while it is still pending).
+create or replace function public._svc_design_refund_payment(p_provider text, p_refund jsonb) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare l public.template_licenses;
+begin
+  select * into l from public.template_licenses where provider = p_provider and provider_payment_id = p_refund->>'payment_id';
+  if not found then
+    update public.design_orders set error = 'refunded', updated_at = now() where provider = p_provider and provider_payment_id = p_refund->>'payment_id' and status = 'refund_due';
+    return jsonb_build_object('result', case when found then 'ok' else 'unknown_payment' end);
+  end if;
+  if p_refund->>'status' <> 'processed' or (p_refund->>'amount')::int < l.amount_paise then return jsonb_build_object('result', 'ok', 'partial', true); end if;
+  return jsonb_build_object('result', 'ok') || public._svc_design_refund(l.id, 'host');
+end $$;
+
+-- The host's side: is a design theirs, and the full artwork once it is.
+create or replace function public.my_design_order_state(p_design uuid) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare v_uid uuid := public._mk_require_user(); o public.design_orders;
+begin
+  if exists (select 1 from public.template_licenses where design_id = p_design and user_id = v_uid and status = 'active') then
+    return jsonb_build_object('owned', true); end if;
+  select * into o from public.design_orders where design_id = p_design and user_id = v_uid order by created_at desc limit 1;
+  return jsonb_build_object('owned', false, 'order', case when o.id is null then null else o.status end);
 end $$;
 
 -- ---------------------------------------------------------------------
@@ -684,15 +826,21 @@ do $$ declare f text; begin
   foreach f in array array[
     'public._mk()', 'public._mk_require_user()', 'public._mk_require_designer()', 'public._mk_share_pct(uuid,uuid,boolean,timestamptz)',
     'public._mk_balance(uuid)', 'public._mk_invitation_guard()',
-    'public._svc_design_sale(uuid,uuid,int,int,text,text,text)', 'public._svc_design_refund(uuid,text)'] loop
+    'public._svc_design_sale(uuid,uuid,int,int,text,text,text)', 'public._svc_design_refund(uuid,text)',
+    'public._svc_design_order_prepare(uuid,uuid,text,text)', 'public._svc_design_order_created(uuid,text)', 'public._svc_design_order_failed(uuid,text)',
+    'public._svc_design_order(uuid,uuid)', 'public._svc_design_orders_to_reconcile(int)', 'public._svc_design_payment_apply(text,text,jsonb,text)',
+    'public._svc_design_refund_payment(text,jsonb)'] loop
     execute format('revoke all on function %s from public, anon, authenticated', f);
   end loop;
-  foreach f in array array['public._svc_design_sale(uuid,uuid,int,int,text,text,text)', 'public._svc_design_refund(uuid,text)'] loop
+  foreach f in array array['public._svc_design_sale(uuid,uuid,int,int,text,text,text)', 'public._svc_design_refund(uuid,text)',
+    'public._svc_design_order_prepare(uuid,uuid,text,text)', 'public._svc_design_order_created(uuid,text)', 'public._svc_design_order_failed(uuid,text)',
+    'public._svc_design_order(uuid,uuid)', 'public._svc_design_orders_to_reconcile(int)', 'public._svc_design_payment_apply(text,text,jsonb,text)',
+    'public._svc_design_refund_payment(text,jsonb)'] loop
     execute format('grant execute on function %s to service_role', f);
   end loop;
   foreach f in array array[
     'public.designer_apply(jsonb)', 'public.designer_accept_agreement(text)', 'public.designer_save_design(jsonb)',
-    'public.designer_submit_design(uuid,jsonb)', 'public.designer_balance()', 'public.my_designer_state()', 'public.designer_designs()', 'public.my_design(uuid)', 'public.my_design_licenses()',
+    'public.designer_submit_design(uuid,jsonb)', 'public.designer_balance()', 'public.my_designer_state()', 'public.designer_designs()', 'public.my_design(uuid)', 'public.my_design_licenses()', 'public.my_design_order_state(uuid)',
     'public.admin_designer_applications(text)', 'public.admin_decide_application(uuid,boolean,text,int)', 'public.admin_design_queue(text)',
     'public.admin_review_design(uuid,text,text,text)', 'public.admin_queue_payouts(text)', 'public.admin_settle_payout(uuid,boolean,text,text)'] loop
     execute format('revoke all on function %s from public, anon', f);

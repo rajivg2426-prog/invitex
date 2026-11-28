@@ -168,10 +168,56 @@ begin
   raise notice 'marketplace: all checks passed';
 end $$;
 
+-- buying a design through an order (what the Edge Function and webhook call)
+insert into auth.users(id, email) values ('a3000000-0000-0000-0000-0000000000a3', 'host3@example.test') on conflict do nothing;
+insert into public.profiles(user_id) values ('a3000000-0000-0000-0000-0000000000a3') on conflict do nothing;
+do $$
+declare r jsonb; g uuid; o jsonb; o2 jsonb; n int; h3 constant uuid := 'a3000000-0000-0000-0000-0000000000a3';
+begin
+  select id into g from public.designs where designer_id = 'd0000000-0000-0000-0000-00000000000d' order by created_at limit 1;
+  update public.designs set status = 'live' where id = g;
+  update public.designers set status = 'active' where user_id = 'd0000000-0000-0000-0000-00000000000d';
+  o := public._svc_design_order_prepare(h3, g, 'ref-x');
+  assert o->>'status' = 'create' and (o->>'amount_paise')::int = (select price_paise from public.designs where id = g), 'order for the server price: ' || o::text;
+  assert public._svc_design_order_prepare(h3, g)->>'status' = 'busy', 'second click while creating is busy';
+  perform public._svc_design_order_created((o->>'order_id')::uuid, 'order_T1');
+  o2 := public._svc_design_order_prepare(h3, g);
+  assert o2->>'status' = 'reuse' and o2->>'provider_order_id' = 'order_T1', 'open order reused';
+  assert public._svc_design_order(h3, g)->>'provider_order_id' = 'order_T1', 'order found for verify';
+  assert public._svc_design_payment_apply('razorpay', 'order_nope', '{"id":"pay_z","status":"captured","amount":1,"currency":"INR"}', 'webhook')->>'result' = 'unknown_order', 'unknown order';
+  r := public._svc_design_payment_apply('razorpay', 'order_T1', '{"id":"pay_T1a","status":"failed","amount":14900,"currency":"INR"}', 'checkout');
+  assert r->>'result' = 'failed', 'failed attempt: ' || r::text;
+  assert not exists (select 1 from public.template_licenses where user_id = h3), 'no licence after a failed attempt';
+  r := public._svc_design_payment_apply('razorpay', 'order_T1', jsonb_build_object('id','pay_T1b','status','captured','amount',(o->>'amount_paise')::int,'currency','INR','fee',352), 'checkout');
+  assert r->>'result' = 'unlocked', 'captured unlocks: ' || r::text;
+  r := public._svc_design_payment_apply('razorpay', 'order_T1', jsonb_build_object('id','pay_T1b','status','captured','amount',(o->>'amount_paise')::int,'currency','INR'), 'webhook');
+  assert r->>'result' = 'already_unlocked', 'webhook after checkout changes nothing: ' || r::text;
+  select count(*) into n from public.template_licenses where user_id = h3 and status = 'active';
+  assert n = 1, 'exactly one licence';
+  assert (select fee_paise from public.template_licenses where user_id = h3) = 352, 'Razorpay fee recorded';
+  assert public._svc_design_order_prepare(h3, g)->>'status' = 'owned', 'owned design needs no new order';
+  perform set_config('request.jwt.uid', h3::text, false);
+  assert (public.my_design_order_state(g)->>'owned')::boolean, 'host sees it is theirs';
+  assert (public.my_design(g)->>'ok')::boolean, 'host can read the full artwork';
+  -- a captured payment for the wrong amount is not a sale
+  update public.template_licenses set status = 'refunded' where user_id = h3;
+  o := public._svc_design_order_prepare(h3, g); perform public._svc_design_order_created((o->>'order_id')::uuid, 'order_T2');
+  r := public._svc_design_payment_apply('razorpay', 'order_T2', '{"id":"pay_T2","status":"captured","amount":100,"currency":"INR"}', 'webhook');
+  assert r->>'result' = 'refund_due' and not exists (select 1 from public.template_licenses where user_id = h3 and status = 'active'), 'wrong amount flagged for refund';
+  -- a full refund ends the licence
+  update public.template_licenses set status = 'active', refunded_at = null where provider_payment_id = 'pay_T1b';
+  r := public._svc_design_refund_payment('razorpay', jsonb_build_object('id','rfnd_1','payment_id','pay_T1b','amount',(select amount_paise from public.template_licenses where provider_payment_id = 'pay_T1b'),'status','processed'));
+  assert r->>'result' = 'ok' and (select status from public.template_licenses where provider_payment_id = 'pay_T1b') = 'refunded', 'refund ends the licence: ' || r::text;
+  assert public._svc_design_refund_payment('razorpay', '{"id":"rfnd_2","payment_id":"pay_unknown","amount":1,"status":"processed"}')->>'result' = 'unknown_payment', 'unknown refund';
+  raise notice 'marketplace orders: all checks passed';
+end $$;
+
 -- browsers cannot call the service steps
 set role anon;
 do $$ begin
   begin perform public._svc_design_sale(gen_random_uuid(), gen_random_uuid(), 1, 0, 'razorpay', 'x'); raise exception 'FAIL: anon called a service step';
   exception when insufficient_privilege then raise notice 'ok: service steps are closed to browsers'; end;
+  begin perform public._svc_design_payment_apply('razorpay', 'x', '{}', 'x'); raise exception 'FAIL: anon applied a design payment';
+  exception when insufficient_privilege then raise notice 'ok: design payments are closed to browsers'; end;
 end $$;
 reset role;
